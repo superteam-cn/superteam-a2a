@@ -1,1446 +1,1518 @@
-# L3 文件级 Spec：A2A Core Library（通信层文件级）
+# L3 文件级 Spec：A2A Core Library（通信层文件级 · Python-first）
 
-> **⚠️ ADR-0005 supersede + 归档标记（2026-07-24）**：本 v0.1-draft Spec 文档**仅 supersede Go struct / Go package / Go HTTP server / Go JSON-RPC 实现条款**；wire contract（6 method envelope / 4 endpoint / 14 error code / Task FSM / mTLS / metric name）与 v0.1 业务语义**完全继续有效**。**本 Go draft 未评审**，依据 ADR-0005 §14.2 + Phase D 实施清单，**重写前必须先归档到 `docs/archive/pre-python-2026-07-24/`**（项目当前无 `.git` 历史，禁止直接覆盖丢失）。归档后原文作历史记录；Python L3-2 在 L2-1 Python v0.2 评审通过后重写。L1 v0.2.0 已于 2026-07-24 评审通过，依据 ADR-0005 Python-first 全栈迁移。
+> **⚠️ ADR-0005 supersede + 归档标记（2026-07-27）**：本 v0.2-draft Spec 文档**仅 supersede Go struct / Go package / Go HTTP server / Go JSON-RPC envelope 实现条款**；wire contract（6 method envelope / 4 endpoint / 14 error code / Task FSM / mTLS / metric name）与 v0.1-draft 业务语义**完全继续有效**。原 v0.1-draft Go baseline 已归档至 [`docs/archive/pre-python-2026-07-24/L3-a2a-core-spec-v0.1-draft-go-baseline.md`](../../archive/pre-python-2026-07-24/L3-a2a-core-spec-v0.1-draft-go-baseline.md)（2026-07-27 归档 / **未评审** / 62KB / 1446 行）。
 >
-> **Python 重写入口**：依据 L1 v0.2.0 Architecture §7.5 + ADR-0005 §3.2 + §8，7 个 Go 子包 → Python 子包（`superteam_a2a.a2a.upstream` boundary + 4 个 extension router + standard method 通过 SDK）；Go HTTP server/net/http → ASGI + Uvicorn 单 worker；Go JSON-RPC handler → 官方 a2a-sdk envelope + Pydantic params/result 校验
+> **Python 重写入口**：依据 L1 v0.2.0 Architecture §3.4 + ADR-0005 §3.2 + §8 + §13.1，7 个 Go 子包 → Python 子包（`superteam_a2a.a2a.upstream` boundary + 4 个 extension router + standard method 通过官方 `a2a-sdk`）；Go `net/http` server → **ASGI + Uvicorn 单 worker**；Go `goroutine` 业务逻辑 → **`asyncio` 协程 + `anyio.to_thread.run_sync` CPU offload**；Go Go context → Python `contextvars.ContextVar`。
 >
 > **层级**：L3 — 文件级 Spec
-> **模块 ID**：C-2（A2A Core Library，见 L1 Architecture §6 模块清单）
-> **代码位置**：`src/a2a/`（**v0.1-draft Go 路径，未评审 + 已废弃**）
-> **版本**：v0.1-draft（2026-07-24 起草）+ ADR-0005 supersede 指针（2026-07-24）
-> **状态**：⏳ v0.1-draft 起草中（**未评审**）+ ⚠️ 待归档 + 待 Python 重写
-> **Go 基线**：Go 1.22+（**已废弃**）
-> **协议基线**：A2A v0.3 核心子集 + JSON-RPC 2.0（**wire 不变，Python 通过官方 a2a-sdk 实现**）
-> **上游约束**：[`docs/spec/L2-module-specs/L2-a2a-protocol.md`](../L2-module-specs/L2-a2a-protocol.md) v0.1.0（顶部已加 ADR-0005 supersede 指针）
-> **本 Spec 目的**：将 L2-1 A2A Protocol 的 **7 个子包**、**6 个 v0.1 method**、**4 个 HTTP endpoint**、**Task 状态机**、**mTLS/SPIFFE 身份**、**Discovery/重试/熔断/P2C**、**错误模型**和**可观测性契约**落地为文件级 Go 代码契约。L4 实施者应能按本文件逐文件编码，无需重新做模块边界决策。
-> **配套 Spec**：[L3-3 Adapter SDK](./L3-adapter-sdk.md)（待起草）/ [L3-4 Hello Agent](./L3-hello-agent.md)（待起草）/ [L3-5 Knowledge Service](./L3-knowledge-service.md)（待起草）/ [L3-6 Memory backend](./L3-memory-backend.md)（待起草）
+> **模块 ID**：C-2（A2A Core Library，见 L1 v0.2.0 Architecture §4.1）
+> **代码位置**：`packages/a2a-core/src/superteam_a2a/a2a/`（**ADR-0005 §13.1 uv workspace 布局**，替代原 Go baseline 的 `src/a2a/`）
+> **版本**：v0.2-draft（2026-07-27 起 Python 重写 + 2026-07-27 #44 Go baseline 归档）
+> **状态**：🟡 v0.2-draft **骨架稿（#50）**——头部 + §0-§9 + 附录 A 已落地 + ⚠️ §10-§15 + 附录 B = **6 节 + 1 附录待后续 #51+ 会话补完**
+> **Python 栈基线**：Python 3.12+（**ADR-0005 §3.1**）+ uv workspace + 官方 `a2a-sdk` envelope/ASGI 复用 + Pydantic v2 + httpx + OpenTelemetry + structlog + cert-manager
+> **wire contract 不变性**（与 v0.1.0 Go baseline + L2-1 Spec v0.2.0 完全一致，contract test 锁定）：JSON 字段名 / camelCase / RFC 3339 时间 / Agent Card 路径 / 错误码 / 任务状态机 / metric name
+> **上游约束**：[`docs/spec/L2-module-specs/L2-a2a-protocol.md`](../../spec/L2-module-specs/L2-a2a-protocol.md) **v0.2.0**（2026-07-24 评审通过 · 72KB / 1919 行 / 16 节 + 2 附录 / 14 错误码 / 100 测试 ID / 4 时序图 / 15 开放问题 / 80% 收敛率）
+> **本 Spec 目的**：将 L2-1 A2A Protocol Spec v0.2.0 中的 **7 个子包 + 6 method + 4 endpoint + 24 error code + 15 Prometheus 指标 + ExtensionRouter Protocol** 落地为 **文件级 Python 代码契约**——每个文件列明**绝对路径（基于 uv workspace 布局）**、**职责一句话**、**完整 import 列表**、**exported 符号签名（type hints + docstring 一行）**、**内部 helper 列表**、**关联测试文件路径 + 测试 ID 前缀**。是 L4 实施阶段（开发者打开 IDE 即可对照写代码）的直接输入。
+> **配套 Spec**：[L3-1 Operator Core 文件级 Spec v0.2-draft](./L3-operator-core.md)（2026-07-27 #49 §9 补完稿；70 文件清单 + 4 Controller）/ [L3-3 Adapter SDK](./L3-adapter-sdk.md)（待起草）/ [L3-4 Hello Agent](./L3-hello-agent.md)（待起草）/ [L3-5 Knowledge Service](./L3-knowledge-service.md)（待起草）/ [L3-6 Memory backend](./L3-memory-backend.md)（待起草）
 
 ---
 
 ## 0. 阅读指南
 
-### 0.1 读者与必读路径
+- **读者**：A2A Core 实施工程师（L4 Python 编码）、Code Reviewer（PR 审查）、架构 Reviewer（设计一致性）
+- **必读章节**：§1（模块使命 + 30 文件清单总览）/ §2（Python 包结构）/ §3（4 extension method Pydantic schema + ExtensionRouter Protocol）/ §8（24 错误码）/ 附录 A（跨模块引用清单）
+- **可选章节**：本次 v0.2-draft 骨架稿**不包含** §10 上游追踪 + §11 测试策略 + §12 Helm values + §13 生命周期 + §14 验收清单 + §15 开放问题 + 附录 B ADR 矩阵（已在各 §标题占位；后续 #51+ 会话补完）
+- **配套阅读**：[L2-1 A2A Protocol Spec v0.2.0](../../spec/L2-module-specs/L2-a2a-protocol.md) §1-§15 + 附录 A/B · [L2-1 A2A Protocol Design v0.2.0](../../design/L2-modules/L2-a2a-protocol.md) §3-§14 · [L1 Architecture v0.2.0 §3.4 通信层](../../design/L1-architecture.md) · [ADR-0005 §3.2 A2A Core 模块映射](../adr/0005-python-first-technology-stack.md) · [官方 a2a-python SDK 文档](https://github.com/a2a-mcp-go/a2a-python) · [httpx 异步客户端文档](https://www.python-httpx.org/async/) · [OpenTelemetry Python SDK 文档](https://opentelemetry.io/docs/languages/python/)
 
-- **A2A Core 实施工程师**：§1 → §2 → §3-§8 → §10。
-- **Adapter 实施工程师**：§1.3 → §5 → §9.2 → §11.1。
-- **Operator / Workflow 实施工程师**：§6 → §9.1 → §11.2。
-- **Knowledge / Memory 实施工程师**：§3.6 → §5.5 → §9.3 → §11.3。
-- **Reviewer**：§1.2 决议、§4 错误与状态机、§7 安全、§10 测试矩阵、附录 B 开放问题。
+**与 L3-2 Go baseline 关系**：
+- v0.1-draft Go baseline 已归档（**不可变，仅参考**：`../../../archive/pre-python-2026-07-24/L3-a2a-core-spec-v0.1-draft-go-baseline.md` 1446 行）
+- 本 v0.2 Spec **完全替代** Go baseline 的 Python 实现决策（官方 a2a-sdk envelope 复用 + ASGI + Uvicorn + Pydantic v2 + httpx + structlog + Pydantic v2 errors）
+- 业务语义（6 method / 4 endpoint / 24 error code / Task FSM / mTLS / metric name）与 v0.1-draft Go baseline **完全一致**
 
-### 0.2 规范词
-
+**规范词**：
 - **必须（MUST）**：违反即与已评审上游设计冲突。
 - **应（SHOULD）**：默认实现；偏离需在 PR 中解释。
 - **可以（MAY）**：兼容扩展点，不属于 v0.1 验收门禁。
 - 本文代码块是**签名契约**，允许 L4 调整私有 helper，但不得改变 exported API 语义。
 
-### 0.3 明确不在本模块实现
-
-- Agent 框架调用与事件翻译：L3-3 Adapter SDK。
-- Agent 业务逻辑与 Hello Agent：L3-4。
-- Knowledge 搜索、作用域继承、Memory 生命周期：L3-5 / L3-6。
-- CRD reconcile、Deployment/Service/EndpointSlice 生命周期：L3-1 Operator Core。
+**明确不在本模块实现**：
+- Agent 框架调用与事件翻译：**L3-3 Adapter SDK**。
+- Agent 业务逻辑与 Hello Agent：**L3-4**。
+- Knowledge 搜索、作用域继承、Memory 生命周期：**L3-5 / L3-6**。
+- CRD reconcile、Deployment/Service/EndpointSlice 生命周期：**L3-1 Operator Core**。
 - `a2a.cancelTask`、`a2a.subscribeTask`、SSE：v0.5+，本模块不得提前暴露。
 - MCP：Agent ↔ Tool 协议，不得作为 A2A Core 依赖。
 
 ---
 
-## 1. 模块边界、L3 决议与完整文件树
+## 1. 模块使命与文件清单总览
 
-### 1.1 依赖方向
+### 1.1 使命
 
-```text
-Operator / Workflow ─┐
-Adapter SDK ─────────┼──> src/a2a/{client,server,...} ──> HTTP/TLS/OTel/SPIFFE/K8s discovery
-Knowledge Service ───┤
-Memory backend ───────┘
+L3-2 A2A Core 文件级 Spec 将 [L2-1 Spec v0.2.0](../../spec/L2-module-specs/L2-a2a-protocol.md) 中描述的 **7 个子包 + 6 method + 4 endpoint + 24 error code + 15 Prometheus 指标 + ExtensionRouter Protocol** 落地为 **可直接对照编码的 Python 文件级契约**。
 
-禁止：src/a2a -> src/operator | src/adapter | src/knowledge | src/memory | 任意 Agent 框架
+**单部署形态**：与 Knowledge Service + Memory backend 共享同 Deployment（**单实例 v0.1，单 Python 进程 / 单 Uvicorn worker**，ADR-0005 §6.2 单进程原则；K8s HPA 通过 Pod 副本数伸缩，不用 worker 进程内多并发）。
+
+**L3-2 文件级 Spec v.s. L2-1 模块 Spec 边界**：
+
+| 维度 | L2-1 模块 Spec | L3-2 文件级 Spec |
+|---|---|---|
+| **粒度** | 模块级（7 子包 + 6 method + 4 endpoint 概要） | 文件级（30 文件精确路径 + 每个文件的 import/exported/helper/测试文件） |
+| **目的** | "为什么 + 是什么"（设计决策 + 模块契约） | "怎么做"（每个文件具体怎么写） |
+| **读者** | 架构师 + L3 起草者 | L4 实施工程师（开发者打开 IDE 对照） |
+| **变更频率** | 低（设计变更才改） | 中（实现微调可能改） |
+| **测试 ID 范围** | 100 UT + IT + CF + E2E（§11.2 ID 矩阵 · v0.2 占位） | L3-2 不创造新测试 ID；**继承 L2-1 ID 矩阵**，仅在测试文件中将 ID 落实到具体文件路径 |
+
+### 1.2 模块对外契约（public API surface · 继承 L2-1 Spec §1.2）
+
+**Public API 入口**（仅暴露给其他 L2/L3 模块，本 L3-2 不变更）：
+
+```python
+# packages/a2a-core/src/superteam_a2a/a2a/__init__.py
+"""A2A Core Library — communication layer of superteam-a2a.
+
+Public surface: re-export upstream types + 4 routers + factory functions.
+All business modules import from here, never from `a2a` directly.
+"""
+from superteam_a2a.a2a.upstream import (
+    # SDK re-exports（仅枚举，禁止业务层绕过）
+    AgentCard, Message, Part, Task, Artifact, TaskState,
+    JSONRPCRequest, JSONRPCResponse, JSONRPCError,
+)
+from superteam_a2a.a2a.upstream_types import (
+    # 项目私有 DTO
+    QueryKnowledgeRequest, QueryKnowledgeResponse,
+    GetKnowledgeItemRequest, GetKnowledgeItemResponse,
+    RecordMemoryRequest, RecordMemoryResponse,
+    QueryMemoryRequest, QueryMemoryResponse,
+)
+from superteam_a2a.a2a.server.app import create_app
+from superteam_a2a.a2a.client.client import A2AClient
+from superteam_a2a.a2a.errors import StandardRpcError, ProjectRpcError
+from superteam_a2a.a2a.mtls import MtlsConfig, build_server_ssl_context, extract_spiffe_id
+from superteam_a2a.a2a.extensions import (
+    ExtensionRouter,
+    QueryKnowledgeRouter, GetKnowledgeItemRouter,
+    RecordMemoryRouter, QueryMemoryRouter,
+)
+
+__all__ = [
+    # SDK re-exports
+    "AgentCard", "Message", "Part", "Task", "Artifact", "TaskState",
+    "JSONRPCRequest", "JSONRPCResponse", "JSONRPCError",
+    # DTO
+    "QueryKnowledgeRequest", "QueryKnowledgeResponse",
+    "GetKnowledgeItemRequest", "GetKnowledgeItemResponse",
+    "RecordMemoryRequest", "RecordMemoryResponse",
+    "QueryMemoryRequest", "QueryMemoryResponse",
+    # Server + Client
+    "create_app", "A2AClient",
+    # Errors
+    "StandardRpcError", "ProjectRpcError",
+    # mTLS
+    "MtlsConfig", "build_server_ssl_context", "extract_spiffe_id",
+    # Extension routers
+    "ExtensionRouter",
+    "QueryKnowledgeRouter", "GetKnowledgeItemRouter",
+    "RecordMemoryRouter", "QueryMemoryRouter",
+]
 ```
 
-`types/` 和 `errors/` 是最低依赖层；`server/`、`client/` 可以依赖其余 A2A 子包，但 A2A Core 不得反向 import 业务模块。
+**boundary 强制**（ADR-0005 §3.2 + 宪法 §3.8）：
+- 业务层（Knowledge Service / Memory backend / Operator / Adapter SDK）**禁止**直接 `import a2a`
+- 仅允许 `from superteam_a2a.a2a import ...`
+- CI 通过自定义 Ruff 规则 `ST-A2A-BOUNDARY` 检测（见 §11.4 占位）
 
-### 1.2 L2 开放问题的 L3 决议
+### 1.3 文件清单总览（30 个 Python 文件 + 9 Helm 模板）
 
-| ID | L2 开放问题 | L3 决议 | 理由 |
-|----|-------------|---------|------|
-| D-1 | Memory 代理模式如何落地 | A2A Core 只提供通用 `MethodHandler`、方法请求/响应类型与注册表；4 个 Knowledge/Memory handler 由 Knowledge Service 注册。A2A Core **不** import Operator/Memory | L2-4 已收敛为 Knowledge Service 与 Memory backend 同 Deployment；保持分层与无反依赖 |
-| D-2 | Discovery 缓存如何失效 | `TTL=5min` 为强制兜底；提供 `Invalidate`/`InvalidateAll`；K8s 模式默认启动 EndpointSlice watch，Service/EndpointSlice 变化立即失效 | 同时保证最终一致与快速收敛 |
-| D-3 | 限流粒度 | v0.1 保持 L2 默认：全 Server 令牌桶 `100 RPS / burst 200`；`PerKey=true` 时按 caller SPIFFE ID。按 Skill 限流延期 | 不改变已评审默认值，保留安全增强开关 |
-| D-4 | SVID 刷新性能 | 启动时拉取一次，后台 `WatchUpdates`，通过原子快照热更新；请求路径不得同步 FetchSVID | 避免每 RPC 访问 Workload API |
-| D-5 | Go 版本 | 锁定 Go 1.22+ | 与项目新建模块基线一致，可使用标准库增强且不背负旧版本兼容债 |
-| D-6 | L2 配置项计数 | 以 L2 §3 表格为权威，共 **23 行配置项**；“22 项”是文案计数误差，不删除 identity socket 项 | 保持所有已定义 key |
-| D-7 | `GetKnowledgeItem` wrapper 返回类型 | 返回 `*KnowledgeItem`；L2-1 §2.5 的 `*Message` 是签名笔误，L2-1 §4.4 与后续 L2-4 均规定结果是 KnowledgeItem | 以更具体、更新且跨文档一致的契约为准 |
+> **完整文件清单在 §2.3 表格中分 7 子包展开**。本 §1.3 给汇总 + 测试 ID 前缀分布。
 
-### 1.3 完整文件树
+**30 Python 文件分 7 子包 + 3 single-source**：
 
-```text
-src/a2a/
-├── go.mod                                  # module superteam-a2a.io/a2a；go 1.22
-├── doc.go                                  # package a2a 模块说明 + 稳定性声明
-├── config.go                               # 聚合 Config + LoadConfig
-├── config_test.go                          # UT-CFG-01~07
-├── internal/
-│   └── testutil/
-│       ├── clock.go                        # FakeClock，仅测试消费
-│       ├── certs.go                        # 临时 CA/server/client cert
-│       └── transport.go                    # deterministic RoundTripper
-├── types/
-│   ├── message.go                          # Message / Part / PartType / Role
-│   ├── message_test.go                     # UT-T-01~07 + FZ-T-01
-│   ├── task.go                             # Task / TaskStatus / Artifact
-│   ├── task_test.go                        # UT-T-08~15
-│   ├── agent_card.go                       # AgentCard / Skill / Provider
-│   ├── agent_card_test.go                  # UT-T-16~22
-│   ├── envelope.go                         # JSON-RPC Request / Response / ID
-│   ├── envelope_test.go                    # UT-T-23~30 + FZ-T-02
-│   ├── methods.go                          # 6 method 常量 + idempotency 元数据
-│   ├── methods_task.go                     # SendMessage/GetTask params/result aliases
-│   ├── methods_knowledge.go                # Knowledge request/result DTO
-│   ├── methods_memory.go                   # Memory request/result DTO
-│   ├── validate.go                         # Validate helpers + field violation
-│   ├── validate_test.go                    # UT-T-31~39
-│   ├── schema.go                           # go:embed + SchemaRegistry
-│   ├── schema_test.go                      # UT-T-40~46
-│   └── schemas/
-│       ├── send_message.params.json
-│       ├── send_message.result.json
-│       ├── get_task.params.json
-│       ├── task.result.json
-│       ├── query_knowledge.params.json
-│       ├── query_knowledge.result.json
-│       ├── get_knowledge_item.params.json
-│       ├── knowledge_item.result.json
-│       ├── record_memory.params.json
-│       ├── record_memory.result.json
-│       ├── query_memory.params.json
-│       ├── query_memory.result.json
-│       └── common.defs.json
-├── errors/
-│   ├── codes.go                            # 5 标准码 + 9 A2A 域码
-│   ├── error.go                            # A2AError + Is/WithData/Clone
-│   ├── classify.go                         # Retryable + FromError + HTTP 映射
-│   └── errors_test.go                      # UT-E-01~15
-├── statemachine/
-│   ├── task_fsm.go                         # FSM / transition table
-│   └── task_fsm_test.go                    # UT-S-01~13
-├── server/
-│   ├── server.go                           # Server 生命周期 + graceful shutdown
-│   ├── server_test.go                      # UT-SRV-01~07
-│   ├── handler.go                          # JSON-RPC parse/validate/dispatch/respond
-│   ├── handler_test.go                     # UT-SRV-08~20 + FZ-SRV-01
-│   ├── registry.go                         # method registry + freeze
-│   ├── registry_test.go                    # UT-SRV-21~25
-│   ├── agent_card.go                       # Agent Card endpoint + ETag
-│   ├── agent_card_test.go                  # UT-SRV-26~31
-│   ├── health.go                           # /healthz /readyz
-│   ├── health_test.go                      # UT-SRV-32~36
-│   ├── tls.go                              # static cert / SPIFFE tls.Config
-│   ├── tls_test.go                         # UT-SRV-37~42
-│   └── middleware/
-│       ├── chain.go                        # deterministic middleware chain
-│       ├── auth.go                         # peer SVID extract + Authorize
-│       ├── auth_test.go                    # UT-MW-01~07
-│       ├── ratelimit.go                    # token bucket
-│       ├── ratelimit_test.go               # UT-MW-08~13
-│       ├── recovery.go                     # panic -> -32603
-│       ├── recovery_test.go                # UT-MW-14~16
-│       ├── trace.go                        # server span + trace context
-│       ├── trace_test.go                   # UT-MW-17~22
-│       ├── logging.go                      # 结构化访问日志
-│       └── request_id.go                   # request/task/trace correlation
-├── client/
-│   ├── client.go                           # Client + Call + 6 typed wrappers
-│   ├── client_test.go                      # UT-CLI-01~14
-│   ├── transport.go                        # HTTP transport + JSON-RPC codec
-│   ├── transport_test.go                   # UT-CLI-15~22
-│   ├── discovery.go                        # Agent Card cache + resolver interface
-│   ├── discovery_test.go                   # UT-CLI-23~34
-│   ├── discovery_k8s.go                    # Service DNS + EndpointSlice resolver/watch
-│   ├── discovery_k8s_test.go               # UT-CLI-35~43
-│   ├── retry.go                            # idempotency gate + exponential backoff
-│   ├── retry_test.go                       # UT-CLI-44~53
-│   ├── circuitbreaker.go                   # closed/open/half-open
-│   ├── circuitbreaker_test.go              # UT-CLI-54~61
-│   ├── ratelimit.go                        # client-side limiter
-│   ├── ratelimit_test.go                   # UT-CLI-62~66
-│   ├── p2c.go                              # endpoint P2C
-│   ├── p2c_test.go                         # UT-CLI-67~73
-│   ├── trace.go                            # W3C traceparent injection
-│   └── trace_test.go                       # UT-CLI-74~78
-├── identity/
-│   ├── spiffe.go                           # SPIFFEID parse/string/validation
-│   ├── spiffe_test.go                      # UT-I-01~10
-│   ├── workload.go                         # WorkloadClient + atomic SVID source
-│   ├── workload_test.go                    # UT-I-11~18
-│   ├── authorize.go                        # Authorizer interface + default rules
-│   └── authorize_test.go                   # UT-I-19~28
-├── observability/
-│   ├── observer.go                         # Observer interface + provider lifecycle
-│   ├── observer_test.go                    # UT-O-01~05
-│   ├── metrics.go                          # 6 supteam_a2a_* 指标
-│   ├── metrics_test.go                     # UT-O-06~13
-│   ├── tracing.go                          # tracer + semantic attributes
-│   ├── tracing_test.go                     # UT-O-14~20
-│   └── logging.go                          # slog field constants/helpers
-└── tests/
-    ├── integration/
-    │   ├── server_client_test.go            # IT-A2A-01~05
-    │   ├── mtls_test.go                     # IT-A2A-06~09
-    │   ├── discovery_test.go                # IT-A2A-10~12
-    │   ├── observability_test.go            # IT-A2A-13~14
-    │   └── memory_route_test.go             # IT-A2A-15（fake handler，不 import memory）
-    ├── conformance/
-    │   ├── envelope_test.go                 # CF-A2A-01~05
-    │   ├── methods_test.go                  # CF-A2A-06~17
-    │   └── errors_test.go                   # CF-A2A-18~22
-    └── testdata/
-        ├── cards/hello-agent.json
-        ├── requests/*.json
-        ├── responses/*.json
-        └── malformed/*.json
+| 子包 | 文件数 | 职责一句话 | 测试 ID 前缀 |
+|---|---|---|---|
+| `a2a/` (顶层 single-source) | 3 | public surface + boundary + DTO + errors | UT-T-01~22 + UT-E-01~15 |
+| `a2a/server/` | 4 | ASGI app 工厂 + 4 middleware + lifespan | UT-SRV-01~07 + UT-MW-01~22 + UT-SRV-32~36 |
+| `a2a/client/` | 5 | A2AClient + Retry + CB + Discovery + P2C + AgentCardCache | UT-CLI-01~78 |
+| `a2a/extensions/` | 6 | ExtensionRouter Protocol + 4 router 占位 + 注册器 | UT-EXT-01~22 |
+| `a2a/mtls/` | 4 | SSLContext + SPIFFE + 热更新 | UT-MT-01~18 |
+| `a2a/observability/` | 4 | metrics + tracing + logging + event_loop | UT-OB-01~30 |
+| `a2a/utils/` | 2 | offload + helpers | UT-UT-01~10 |
+| `a2a/_internal/` | 2 | ⚠️ private wire helpers | 无（单测 in 子包 UT） |
+| **小计** | **30** | | |
+
+注 1：`_internal/` 是 `__init__.py` + `_wire.py` 共 2 个文件；业务层禁止 import；测试通过 `_internal._wire` 直测。
+
+注 2：第 31-39 文件为 **9 Helm 模板**（`deploy/helm/a2a-core/templates/*.yaml`）——非 Python 文件，在 `deploy/helm/a2a-core/` 下，本表不计入 30。
+
+**9 Helm 模板**（L3-2 在 §12 Helm values 段展开 · 后续 #51+ 补完）：
+
+```
+deploy/helm/a2a-core/
+├── Chart.yaml                            # Helm chart 元数据
+├── values.yaml                           # 默认 Helm values（开发环境）
+├── values.schema.json                    # JSON Schema（从 A2aCoreConfig Pydantic 自动生成）
+└── templates/
+    ├── deployment.yaml                   # A2A Core Deployment（单容器 + Uvicorn 单 worker）
+    ├── service.yaml                      # Service（8443 mTLS + 9090 metrics）
+    ├── serviceaccount.yaml               # ServiceAccount
+    ├── configmap.yaml                    # A2aCoreConfig + Agent Card 模板
+    ├── secret-tls.yaml                   # cert-manager 注解（tls.crt / tls.key / ca.crt）
+    ├── networkpolicy.yaml                # NetworkPolicy（限制 Pod egress）
+    ├── prometheusrule.yaml               # 15 指标告警规则
+    ├── servicemonitor.yaml               # ServiceMonitor（15 指标抓取）
+    └── podmonitor.yaml                   # PodMonitor（补充 runtime 4 指标）
 ```
 
-**规模基线**：约 70 个 Go/JSON 文件；生产代码目标 4,000-6,000 行；单元覆盖率 ≥ 80%，`types/` / `errors/` / `statemachine/` ≥ 90%。
+**30 Python 测试文件**（镜像 `src/superteam_a2a/a2a/` 结构，在 `packages/a2a-core/tests/` 下，本 L3-2 不逐文件列出，在 §11 测试策略段按测试 ID 矩阵展开 · 后续 #51+ 补完）。
+
+### 1.4 关键不变量（跨 L3-2 全文件清单适用）
+
+- ✅ **`a2a.upstream` 是 SDK 唯一 import 入口**：业务层只 `from superteam_a2a.a2a import ...`，禁止直接 `import a2a`
+- ✅ **4 个 extension router 占位 + L2-4 Knowledge/Memory 实际实现**：L3-2 不实现 router 业务逻辑，仅定义 Protocol + 占位类（L2-4 启动时 #51+ 补完实际实现）
+- ✅ **mTLS 强制（cert-manager 挂载 + 证书热更新）**：缺失证书 → `MtlsConfigError` + readiness=false
+- ✅ **Uvicorn 单 worker（ADR-0005 §6.2 单进程原则）**：`--workers 1` 强制；多副本通过 K8s HPA 伸缩
+- ✅ **`anyio.to_thread.run_sync` CPU offload**：纯 CPU 计算（如 JSON Schema 校验）必须 offload
+- ✅ **15 Prometheus 指标 metric name 不变**：`superteam_a2a_*` (11) + `superteam_python_*` (4)
+- ✅ **6 method wire shape 不变**：`a2a.sendMessage` / `a2a.getTask` / `a2a.queryKnowledge` / `a2a.getKnowledgeItem` / `a2a.recordMemory` / `a2a.queryMemory`（`a2a.cancelTask` 占位 v0.5+）
+- ✅ **24 error code 数字不变**：JSON-RPC 标准 5 + A2A 域 6 + Knowledge 7 + Memory 6 = 24 错误码（L3-2 落地为 `StandardRpcError` + `ProjectRpcError` 双 IntEnum）
 
 ---
 
-## 2. 根包与配置契约
+## 2. Python 包结构（基于 L2-1 Design §3.1 落地）
 
-### 2.1 `src/a2a/doc.go`
+### 2.1 顶级目录布局（uv workspace · ADR-0005 §13.1）
 
-**职责**：声明模块定位、兼容性、非职责与稳定性。
-
-```go
-// Package a2a provides the protocol-neutral configuration surface for the
-// superteam-a2a A2A v0.3 core implementation.
-//
-// Subpackages types and errors are stable public contracts in v0.1.
-// Client and server APIs are pre-v1 compatible and may only add optional fields.
-package a2a
+```
+superteam-a2a/                            # uv workspace 根（由 L4 pyproject.toml 锁定）
+└── packages/
+    └── a2a-core/                         # 本模块 monorepo 子包
+        ├── pyproject.toml                # uv workspace 成员；Python 3.12+；name=superteam-a2a-a2a-core
+        │                                 # deps: a2a-sdk>=0.3 pydantic>=2.6 httpx>=0.27 opentelemetry-api>=1.27
+        │                                 # opentelemetry-sdk>=1.27 opentelemetry-exporter-otlp>=1.27 structlog>=24.1
+        │                                 # tenacity>=9 anyio>=4.4 prometheus-client>=0.20 cryptography>=42
+        │                                 # pydantic-settings>=2.2 kubernetes-asyncio>=30
+        ├── README.md                     # 模块说明（开发环境 quick start）
+        ├── LICENSE                       # Apache-2.0
+        ├── CHANGELOG.md                  # 变更记录（v0.2.0 起始）
+        ├── src/
+        │   └── superteam_a2a/
+        │       └── a2a/                  # 本 Spec 详述 30 文件
+        │           ├── __init__.py
+        │           ├── upstream.py
+        │           ├── upstream_types.py
+        │           ├── errors.py
+        │           ├── server/
+        │           │   ├── __init__.py
+        │           │   ├── app.py
+        │           │   ├── middlewares.py
+        │           │   └── lifespan.py
+        │           ├── client/
+        │           │   ├── __init__.py
+        │           │   ├── client.py
+        │           │   ├── retry.py
+        │           │   ├── circuit_breaker.py
+        │           │   ├── discovery.py
+        │           │   └── agent_card_cache.py
+        │           ├── extensions/
+        │           │   ├── __init__.py
+        │           │   ├── base.py
+        │           │   ├── query_knowledge.py
+        │           │   ├── get_knowledge_item.py
+        │           │   ├── record_memory.py
+        │           │   └── query_memory.py
+        │           ├── mtls/
+        │           │   ├── __init__.py
+        │           │   ├── ssl_context.py
+        │           │   ├── spiffe.py
+        │           │   └── hot_reload.py
+        │           ├── observability/
+        │           │   ├── __init__.py
+        │           │   ├── metrics.py
+        │           │   ├── tracing.py
+        │           │   ├── logging.py
+        │           │   └── event_loop.py
+        │           ├── utils/
+        │           │   ├── __init__.py
+        │           │   └── offload.py
+        │           └── _internal/
+        │               ├── __init__.py
+        │               └── _wire.py
+        └── tests/                        # 镜像 src/ 结构（30 测试文件 + 5 顶层 fixtures = 35）
+            ├── __init__.py
+            ├── conftest.py               # 顶层 pytest fixtures（k8s_mock / fake_clock / cert_gen）
+            ├── upstream_test.py          # UT-T-01~07
+            ├── upstream_types_test.py    # UT-T-08~22
+            ├── errors_test.py            # UT-E-01~15
+            ├── server/                   # mirror src/a2a/server/
+            │   ├── __init__.py
+            │   ├── app_test.py           # UT-SRV-01~07
+            │   ├── middlewares_test.py   # UT-MW-01~22
+            │   └── lifespan_test.py      # UT-SRV-32~36
+            ├── client/                   # mirror src/a2a/client/
+            │   ├── __init__.py
+            │   ├── client_test.py        # UT-CLI-01~14
+            │   ├── retry_test.py         # UT-CLI-44~53
+            │   ├── circuit_breaker_test.py  # UT-CLI-54~61
+            │   ├── discovery_test.py     # UT-CLI-23~34
+            │   ├── discovery_k8s_test.py # UT-CLI-35~43
+            │   ├── p2c_test.py           # UT-CLI-67~73
+            │   ├── agent_card_cache_test.py  # UT-CLI-74~78
+            │   └── fixtures/
+            │       ├── fake_clock.py     # FakeClock（仅测试消费）
+            │       ├── certs.py          # 临时 CA/server/client cert
+            │       └── transport.py      # deterministic RoundTripper
+            ├── extensions/               # mirror src/a2a/extensions/
+            │   ├── __init__.py
+            │   ├── base_test.py          # UT-EXT-01~05
+            │   ├── query_knowledge_test.py  # UT-EXT-06~10
+            │   ├── get_knowledge_item_test.py  # UT-EXT-11~15
+            │   ├── record_memory_test.py # UT-EXT-16~18
+            │   └── query_memory_test.py  # UT-EXT-19~22
+            ├── mtls/                     # mirror src/a2a/mtls/
+            │   ├── __init__.py
+            │   ├── ssl_context_test.py   # UT-MT-01~06
+            │   ├── spiffe_test.py        # UT-MT-07~12
+            │   └── hot_reload_test.py    # UT-MT-13~18
+            ├── observability/            # mirror src/a2a/observability/
+            │   ├── __init__.py
+            │   ├── metrics_test.py       # UT-OB-01~13
+            │   ├── tracing_test.py       # UT-OB-14~20
+            │   ├── logging_test.py       # UT-OB-21~26
+            │   └── event_loop_test.py    # UT-OB-27~30
+            ├── utils/                    # mirror src/a2a/utils/
+            │   ├── __init__.py
+            │   └── offload_test.py       # UT-UT-01~10
+            ├── integration/              # IT 集成测试（envtest + kind 集群）
+            │   ├── __init__.py
+            │   ├── server_client_test.py # IT-A2A-01~05
+            │   ├── mtls_test.py          # IT-A2A-06~09
+            │   ├── discovery_test.py     # IT-A2A-10~12
+            │   ├── observability_test.py # IT-A2A-13~14
+            │   └── memory_route_test.py  # IT-A2A-15（fake handler，不 import memory）
+            ├── conformance/              # CF 协议一致性测试（contract test 锁定）
+            │   ├── __init__.py
+            │   ├── envelope_test.py      # CF-A2A-01~05
+            │   ├── methods_test.py       # CF-A2A-06~17
+            │   └── errors_test.py        # CF-A2A-18~22
+            ├── e2e/                      # E2E 端到端测试（kind 集群 + A2A 真实调用）
+            │   ├── __init__.py
+            │   ├── hello_agent_test.py   # E2E-A2A-01
+            │   ├── knowledge_e2e_test.py  # E2E-A2A-02
+            │   ├── memory_e2e_test.py     # E2E-A2A-03
+            │   ├── mTLS_e2e_test.py       # E2E-A2A-04
+            │   └── chaos_test.py          # E2E-A2A-05（故障注入）
+            └── testdata/
+                ├── cards/hello-agent.json
+                ├── requests/*.json
+                ├── responses/*.json
+                └── malformed/*.json
 ```
 
-### 2.2 `src/a2a/config.go`
+### 2.2 边界规则（继承 L2-1 Spec §2.2 · ADR-0005 §3.2 · 6 条规则）
 
-```go
-package a2a
+| # | 规则 | 含义 | 依据 |
+|---|------|------|------|
+| 1 | **`a2a.upstream` 是 SDK 唯一 import 入口** | 业务层禁止 `import a2a`，仅 `from superteam_a2a.a2a import ...` | 宪法 §3.8 + ADR-0005 §3.2 |
+| 2 | **A2A Core 不依赖业务模块** | A2A Core 不 import L2-3 Adapter / L2-4 Knowledge / L2-4 Memory / L3-1 Operator | ADR-0005 §3.2 + L1 Arch §3.4 |
+| 3 | **A2A Core 不实现 Knowledge/Memory 业务语义** | 4 个 extension router 由 L2-4 Knowledge/Memory 提供；A2A Core 仅定义 Protocol + 注册 | L2-4 Design §3.2 + ADR-0003 §6 |
+| 4 | **A2A Core 不调用 K8s API** | A2A Core 是无状态 server/client（仅做方法路由 + wire codec），不调用 K8s API；CRD lifecycle 由 L3-1 Operator 负责 | ADR-0005 §6 + L1 Arch §3.4 |
+| 5 | **Uvicorn 单 worker（单进程）** | `--workers 1` 强制；多副本通过 K8s HPA 伸缩 | ADR-0005 §6.2 + 宪法 §3.8 |
+| 6 | **`anyio.to_thread.run_sync` CPU offload** | 纯 CPU 计算（JSON Schema 校验、加密解密）必须 offload | ADR-0005 §6.3 + 宪法 §6 |
 
-type Config struct {
-    Client        client.Config
-    Server        server.Config
-    Observability observability.Config
-    Identity      identity.Config
-}
+**lint 规则**：自定义 Ruff 规则 `ST-A2A-BOUNDARY`（§11.4 占位）扫描 `^import a2a` / `^from a2a` 模式；命中即失败。
 
-type ConfigSource interface {
-    Apply(ctx context.Context, cfg *Config) error
-}
+### 2.3 文件清单（7 子包 + 30 Python 文件详细）
 
-func DefaultConfig() Config
-func LoadConfig(ctx context.Context, sources ...ConfigSource) (Config, error)
-func (c Config) Validate() error
-```
+#### 2.3.1 `a2a/` 顶层 single-source（3 文件 · boundary 核心）
 
-**加载顺序**：hardcoded default → ConfigMap `defaults/a2a` → env → flag。后加载覆盖先加载；空字符串仅在字段允许为空时才覆盖。
+| 文件路径 | 职责 | exported 符号 | helper | 关联测试 |
+|---|---|---|---|---|
+| `__init__.py` | public surface（§1.2）| `__all__`（约 20 符号 re-export） | 无 | `tests/__init__.py` |
+| `upstream.py` | ⚠️ boundary — SDK 唯一 import 入口 | SDK 类型的 re-export（`AgentCard`, `Message`, `Part`, `Task`, `Artifact`, `TaskState`, `JSONRPCRequest`, `JSONRPCResponse`, `JSONRPCError`） | `_validate_sdk_version()` | `tests/upstream_test.py` (UT-T-01~07) |
+| `upstream_types.py` | 项目私有 Pydantic DTO（§3.3 4 method schema） | `KnowledgeScopeLevel`, `QueryKnowledgeRequest`, `QueryKnowledgeResponse`, `KnowledgeItemSummary`, `GetKnowledgeItemRequest`, `GetKnowledgeItemResponse`, `MemoryContentType`, `RecordMemoryRequest`, `RecordMemoryResponse`, `MemoryVisibility`, `QueryMemoryRequest`, `QueryMemoryResponse`, `MemorySummary` | `_validate_idempotency_key()` | `tests/upstream_types_test.py` (UT-T-08~22) |
 
-**23 项 key**：必须逐项保留 L2-1 Spec §3 的 key/env/default/range；不得重命名。实现时按以下分组映射：
+#### 2.3.2 `a2a/server/` 子包（4 文件 · ASGI app 工厂 + 4 middleware + lifespan）
 
-- Client 11 项：timeout、max_retries、backoff 4 项、circuit breaker 3 项、discovery 2 项。
-- Server 8 项：listen_addr、rate limit 3 项、TLS 4 项。
-- Observability 3 项：OTLP endpoint、service name、metrics listen。
-- Identity 1 项：SPIFFE socket。
+| 文件路径 | 职责 | exported 符号 | helper | 关联测试 |
+|---|---|---|---|---|
+| `server/__init__.py` | 导出 `create_app` 工厂 | `create_app` | 无 | `tests/server/__init__.py` |
+| `server/app.py` | `create_app()` ASGI 工厂（Starlette + Mount SDK jsonrpc_app + extension sub-app + 4 endpoint） | `def create_app(config: A2aCoreConfig) -> Starlette` | `_mount_jsonrpc_app()`, `_mount_extensions()`, `_add_health_endpoints()` | `tests/server/app_test.py` (UT-SRV-01~07) + `tests/integration/server_client_test.py` (IT-A2A-01~05) |
+| `server/middlewares.py` | 4 个 ASGI middleware（auth + ratelimit + recovery + trace） | `class AuthMiddleware`, `class RateLimitMiddleware`, `class RecoveryMiddleware`, `class TraceMiddleware` | `_extract_spiffe_from_cert()`, `_token_bucket_check()` | `tests/server/middlewares_test.py` (UT-MW-01~22) |
+| `server/lifespan.py` | asynccontextmanager 生命周期（启动/停止 + graceful shutdown） | `@asynccontextmanager async def lifespan(app: Starlette) -> AsyncIterator[None]` | `_startup_observability()`, `_shutdown_observability()` | `tests/server/lifespan_test.py` (UT-SRV-32~36) |
 
-**校验顺序**：类型解析 → 范围 → 跨字段约束。跨字段规则：
+#### 2.3.3 `a2a/client/` 子包（5 文件 · A2AClient + Retry + CB + Discovery + P2C + Cache）
 
-1. `spiffe_workload=false` 时 cert/key/clientCA 必须全部非空；开发模式可由显式 `InsecureDevMode=true` 例外。
-2. `spiffe_workload=true` 时 identity socket 必须是 `unix://` URI。
-3. `burst >= rps`；`backoff.max >= backoff.base`。
-4. `circuit_breaker.half_open_probes <= threshold`。
-5. 生产构建不得开启 `InsecureDevMode`。
+| 文件路径 | 职责 | exported 符号 | helper | 关联测试 |
+|---|---|---|---|---|
+| `client/__init__.py` | 导出 `A2AClient` | `A2AClient` | 无 | `tests/client/__init__.py` |
+| `client/client.py` | `A2AClient`（基于 `httpx.AsyncClient` + 6 typed wrappers） | `class A2AClient`, `async def send_message()`, `async def get_task()`, `async def query_knowledge()`, `async def get_knowledge_item()`, `async def record_memory()`, `async def query_memory()`, `async def aclose()` | `_build_request_payload()`, `_parse_response_payload()` | `tests/client/client_test.py` (UT-CLI-01~14) + `tests/integration/server_client_test.py` (IT-A2A-01~05) |
+| `client/retry.py` | `RetryPolicy`（Tenacity wrapper + idempotency gate） | `class RetryDecision`(StrEnum), `METHOD_IDEMPOTENT`(frozenset), `@dataclass class RetryPolicy`, `def should_retry(method, error) -> RetryDecision` | `_compute_backoff()` | `tests/client/retry_test.py` (UT-CLI-44~53) |
+| `client/circuit_breaker.py` | `CircuitBreaker` + `P2CSelector`（closed/open/half-open + 2-random endpoint selection） | `class CircuitBreaker`, `class CircuitState`(StrEnum), `class P2CSelector` | `_is_half_open_probe_due()` | `tests/client/circuit_breaker_test.py` (UT-CLI-54~61) |
+| `client/discovery.py` | `Discovery`（K8s Service + EndpointSlice watch + Agent Card 拉取） | `@dataclass class Endpoint`, `@dataclass class AgentTarget`, `class Discovery`, `async def resolve_dns()` | `_list_endpoint_slices()`, `_watch_endpoint_slices()` | `tests/client/discovery_test.py` (UT-CLI-23~34) + `tests/integration/discovery_test.py` (IT-A2A-10~12) |
+| `client/agent_card_cache.py` | TTL cache + invalidation | `class AgentCardCache`, `class CacheKey`(frozen=True) | `_compute_cache_key()` | `tests/client/agent_card_cache_test.py` (UT-CLI-74~78) |
 
-**内部 helper**：`applyDefaults`、`applyEnv`、`parseDuration`、`validateTLSMode`、`validateRanges`。
+#### 2.3.4 `a2a/extensions/` 子包（6 文件 · 4 extension router 占位）
+
+| 文件路径 | 职责 | exported 符号 | helper | 关联测试 |
+|---|---|---|---|---|
+| `extensions/__init__.py` | 4 router re-export + 自动注册 | `def discover_routers()`, `async def dispatch(request)` | `_DISCOVERED: dict` | `tests/extensions/__init__.py` |
+| `extensions/base.py` | `ExtensionRouter` Protocol | `@runtime_checkable class ExtensionRouter(Protocol)`, `method_name: str`, `async def handle()` | 无 | `tests/extensions/base_test.py` (UT-EXT-01~05) |
+| `extensions/query_knowledge.py` | 占位 + Protocol 实现类（业务由 L2-4 Knowledge Service 实现） | `class QueryKnowledgeRouter(implements ExtensionRouter)`, `method_name = "a2a.queryKnowledge"`, `async def handle()` | `_validate_request()` | `tests/extensions/query_knowledge_test.py` (UT-EXT-06~10) |
+| `extensions/get_knowledge_item.py` | 占位 + Protocol 实现类 | `class GetKnowledgeItemRouter(implements ExtensionRouter)`, `method_name = "a2a.getKnowledgeItem"`, `async def handle()` | `_validate_request()` | `tests/extensions/get_knowledge_item_test.py` (UT-EXT-11~15) |
+| `extensions/record_memory.py` | 占位 + Protocol 实现类 | `class RecordMemoryRouter(implements ExtensionRouter)`, `method_name = "a2a.recordMemory"`, `async def handle()` | `_validate_idempotency_key()` | `tests/extensions/record_memory_test.py` (UT-EXT-16~18) |
+| `extensions/query_memory.py` | 占位 + Protocol 实现类 | `class QueryMemoryRouter(implements ExtensionRouter)`, `method_name = "a2a.queryMemory"`, `async def handle()` | `_validate_request()` | `tests/extensions/query_memory_test.py` (UT-EXT-19~22) |
+
+#### 2.3.5 `a2a/mtls/` 子包（4 文件 · SSLContext + SPIFFE + 热更新）
+
+| 文件路径 | 职责 | exported 符号 | helper | 关联测试 |
+|---|---|---|---|---|
+| `mtls/__init__.py` | 导出 `MtlsConfig` + `build_server_ssl_context` + `extract_spiffe_id` | `MtlsConfig`, `build_server_ssl_context`, `extract_spiffe_id` | 无 | `tests/mtls/__init__.py` |
+| `mtls/ssl_context.py` | `build_server_ssl_context` 构造 mTLS server SSLContext | `@dataclass class MtlsConfig`, `def build_server_ssl_context(config) -> ssl.SSLContext`, `class MtlsConfigError` | `_load_pem_file()`, `_check_key_permissions()` | `tests/mtls/ssl_context_test.py` (UT-MT-01~06) + `tests/integration/mtls_test.py` (IT-A2A-06~09) |
+| `mtls/spiffe.py` | `extract_spiffe_id` 从客户端证书 URI SAN 解析 SPIFFE ID | `def extract_spiffe_id(cert) -> str \| None`, `class SpiffeIdFormatError`, `def validate_spiffe_id()` | `_parse_uri_san()` | `tests/mtls/spiffe_test.py` (UT-MT-07~12) |
+| `mtls/hot_reload.py` | 证书热更新（每 5min 检查 + atomic 替换） | `class CertHotReloader`, `async def watch_and_reload()`, `async def reload_now()` | `_is_cert_expiring_soon()`, `_atomic_replace()` | `tests/mtls/hot_reload_test.py` (UT-MT-13~18) |
+
+#### 2.3.6 `a2a/observability/` 子包（4 文件 · 15 指标 + OTel + structlog + event loop）
+
+| 文件路径 | 职责 | exported 符号 | helper | 关联测试 |
+|---|---|---|---|---|
+| `observability/__init__.py` | 导出 `A2aMetrics` + `StructuredLogger` + `TracerProvider` + `EventLoopMonitor` | 4 个 facade 类 | 无 | `tests/observability/__init__.py` |
+| `observability/metrics.py` | `A2aMetrics`（15 Prometheus 指标 = 11 A2A + 4 runtime） | `class A2aMetrics`, 15 个 `Counter`/`Gauge`/`Histogram`, `def render_latest() -> bytes` | `_labels_from_request()`, `_record_retry()` | `tests/observability/metrics_test.py` (UT-OB-01~13) + `tests/integration/observability_test.py` (IT-A2A-13~14) |
+| `observability/tracing.py` | OTel provider 注入 + tracer 工厂 | `def init_tracing(service_name, otlp_endpoint, sample_ratio) -> TracerProvider`, `def tracer(name) -> Tracer` | `_create_otlp_exporter()` | `tests/observability/tracing_test.py` (UT-OB-14~20) |
+| `observability/logging.py` | structlog setup（必含字段 6 个 + 敏感字段禁记） | `def configure_logging(level: str, json_format: bool) -> None`, `def get_logger(name) -> BoundLogger` | `_sensitive_filter()`, `_add_trace_context()` | `tests/observability/logging_test.py` (UT-OB-21~26) |
+| `observability/event_loop.py` | event-loop lag 监控（每 10s 采样） | `class EventLoopMonitor`, `async def start()`, `async def stop()` | `_sample_lag()` | `tests/observability/event_loop_test.py` (UT-OB-27~30) |
+
+#### 2.3.7 `a2a/utils/` 子包（2 文件 · CPU offload）
+
+| 文件路径 | 职责 | exported 符号 | helper | 关联测试 |
+|---|---|---|---|---|
+| `utils/__init__.py` | 导出 `offload_cpu` | `offload_cpu` | 无 | `tests/utils/__init__.py` |
+| `utils/offload.py` | `anyio.to_thread.run_sync` CPU offload 封装 | `async def offload_cpu(func, *args, **kwargs) -> Any`, `class ThreadPoolStats` | `_get_default_limiter()` | `tests/utils/offload_test.py` (UT-UT-01~10) |
+
+#### 2.3.8 `a2a/_internal/` 子包（2 文件 · private · 业务层禁 import）
+
+| 文件路径 | 职责 | exported 符号 | helper | 关联测试 |
+|---|---|---|---|---|
+| `_internal/__init__.py` | private boundary | （空或仅 `_wire` re-export） | 无 | 无（子包 UT 内联测试） |
+| `_internal/_wire.py` | 内部 wire helpers（JSON-RPC envelope 解析 + 时间戳格式化 + UUID 生成） | `def parse_envelope(raw) -> JSONRPCRequest`, `def format_response(response) -> bytes`, `def generate_uuid7() -> str`, `def to_rfc3339(dt) -> str` | `_validate_envelope_shape()` | 无（单测通过 server/client UT 间接覆盖） |
+
+### 2.4 wire contract 不变性（与 L2-1 Spec §0 完全一致 · contract test 锁定）
+
+- ✅ **JSON 字段名**：camelCase（`messageId` / `taskId` / `itemId` / `memoryId` / `agentId` / `scopeLevel` / `scopeId` / `contentType` / `expiresAt` / `recordedAt` / `updatedAt` / `createdAt`）
+- ✅ **时间格式**：RFC 3339（`2026-07-27T12:34:56.789Z`）· Pydantic `datetime` 序列化
+- ✅ **错误码语义**：JSON-RPC 2.0 标准 5 码 + A2A 域 6 码 + Knowledge 7 码 + Memory 6 码 = **24 错误码**（L3-2 落地为 `StandardRpcError` + `ProjectRpcError` 双 IntEnum）
+- ✅ **Agent Card 路径**：`GET /.well-known/agent.json`（SDK 标准）
+- ✅ **JSON-RPC 路径**：`POST /a2a/jsonrpc`（标准与扩展方法同一路径）
+- ✅ **健康/就绪端点**：`GET /healthz` + `GET /readyz` + `GET /metrics`
+- ✅ **mTLS over HTTP/2 preferred**：ALPN `["h2", "http/1.1"]`
+- ✅ **15 Prometheus 指标名**（与 L1 v0.2.0 Spec §16 + L1 Arch §9.2 完全一致）：
+  - `superteam_a2a_rpc_total` / `superteam_a2a_rpc_duration_seconds` / `superteam_a2a_active_streams` / `superteam_a2a_circuit_breaker_state` / `superteam_a2a_retry_total` / `superteam_a2a_discovery_watch_reconnects_total` / `superteam_a2a_agent_card_cache_hits_total` / `superteam_a2a_cert_reload_failures_total` / `superteam_a2a_extension_router_dispatch_total` / `superteam_a2a_request_body_bytes` / `superteam_a2a_response_body_bytes` = **11 指标**
+  - `superteam_python_event_loop_lag_seconds` / `superteam_python_thread_offload_queue_depth` / `superteam_python_active_asyncio_tasks` / `superteam_python_gc_collections_total` = **4 指标**
+  - **合计 15 指标**
+- ✅ **6 method 名**（与 v0.1 baseline 完全一致）：
+  - `a2a.sendMessage` / `a2a.getTask` / `a2a.queryKnowledge` / `a2a.getKnowledgeItem` / `a2a.recordMemory` / `a2a.queryMemory`
+  - `a2a.cancelTask` 占位（v0.5+ 启用）
 
 ---
 
-## 3. `types/` — 公共协议类型与 Schema
+## 3. compatibility adapter（4 个项目扩展 method · 继承 L2-1 Spec §3）
 
-### 3.1 `message.go`
+### 3.1 架构（与 L2-1 Design §4.2 一致）
 
-```go
-package types
-
-type Role string
-const (
-    RoleUser  Role = "user"
-    RoleAgent Role = "agent"
-)
-
-type PartType string
-const (
-    PartText PartType = "text"
-    PartFile PartType = "file"
-    PartData PartType = "data"
-)
-
-type Message struct {
-    MessageID string         `json:"messageId"`
-    Role      Role           `json:"role"`
-    Parts     []Part         `json:"parts"`
-    Metadata  map[string]any `json:"metadata,omitempty"`
-    Timestamp time.Time      `json:"timestamp"`
-}
-
-type Part struct {
-    Type     PartType `json:"type"`
-    Text     string   `json:"text,omitempty"`
-    FileURI  string   `json:"fileUri,omitempty"`
-    MimeType string   `json:"mimeType,omitempty"`
-    Data     []byte   `json:"data,omitempty"`
-}
-
-func (m Message) Validate() error
-func (p Part) Validate() error
-func (m Message) TraceParent() string
-func (m *Message) SetTraceParent(value string)
+```
+Starlette App
+├── Mount("/") → SDK jsonrpc_app       # sendMessage / getTask / cancelTask
+├── Mount("/") → extension sub-app    # queryKnowledge / getKnowledgeItem / recordMemory / queryMemory
+├── Route("/.well-known/agent.json")  # SDK 提供
+├── Route("/healthz")                 # L3-2 liveness
+├── Route("/readyz")                  # L3-2 readiness
+└── Route("/metrics")                 # Prometheus exposition
 ```
 
-**不变量**：
+**关键不变量**：
+- 标准 method（`sendMessage` / `getTask`）由官方 `a2a-sdk` envelope + handler 提供
+- 4 个项目扩展 method（Knowledge/Memory）由 L3-2 `extensions/` 子包定义 Protocol + 占位实现，L2-4 Knowledge Service / Memory backend 启动时通过 `discover_routers()` 注册实际实现
+- L3-2 仅定义 Protocol + 占位类 + 注册流程；**不**实现业务逻辑
 
-- `MessageID` 非空时必须为 UUID；新建消息使用 UUIDv7，解析兼容合法 UUID。
-- `Parts` 至少 1 项；每个 Part 只能携带与 `Type` 对应的一个 payload。
-- text：`Text` 必填；file：绝对 URI + 可选 MIME；data：非空 bytes + 推荐 MIME。
-- `Metadata` 不得放凭证、私钥、SVID key；`traceparent` 必须通过 W3C parser 校验。
-- 时间序列化统一 RFC3339Nano + UTC。
+### 3.2 ExtensionRouter Protocol（继承 L2-1 Spec §3.2）
 
-### 3.2 `task.go`
+```python
+# packages/a2a-core/src/superteam_a2a/a2a/extensions/base.py
+from typing import Protocol, runtime_checkable
+from superteam_a2a.a2a.upstream import JSONRPCRequest, JSONRPCResponse, JSONRPCError
 
-```go
-package types
 
-type TaskStatus string
-const (
-    TaskSubmitted TaskStatus = "submitted"
-    TaskWorking   TaskStatus = "working"
-    TaskCompleted TaskStatus = "completed"
-    TaskFailed    TaskStatus = "failed"
-    TaskCanceled  TaskStatus = "canceled" // 类型保留；v0.1 无公开 cancel method
-)
+@runtime_checkable
+class ExtensionRouter(Protocol):
+    """项目扩展 method router 协议。
 
-type Task struct {
-    TaskID    string            `json:"taskId"`
-    Status    TaskStatus        `json:"status"`
-    Messages  []Message         `json:"messages"`
-    Artifacts []Artifact        `json:"artifacts,omitempty"`
-    Error     *errors.A2AError  `json:"error,omitempty"`
-    Metadata  map[string]any    `json:"metadata,omitempty"`
-    CreatedAt time.Time         `json:"createdAt"`
-    UpdatedAt time.Time         `json:"updatedAt"`
-}
+    L3-2 通过 inspect 找出所有实现类；L2-4 Knowledge/Memory 模块
+    提供具体实现（QueryKnowledgeRouter 等）。
+    """
 
-type Artifact struct {
-    ArtifactID string `json:"artifactId"`
-    Name       string `json:"name"`
-    Parts      []Part `json:"parts"`
-}
+    method_name: str  # e.g. "a2a.queryKnowledge"
 
-func (t Task) Validate() error
-func (a Artifact) Validate() error
-func (t Task) IsTerminal() bool
+    async def handle(
+        self, request: JSONRPCRequest
+    ) -> JSONRPCResponse | JSONRPCError:
+        """处理单个 JSON-RPC 请求；返回响应或错误。"""
+        ...
 ```
 
-**不变量**：
+**实现约束**：
+- 必须定义类属性 `method_name: str`
+- 必须实现 `async def handle(JSONRPCRequest) -> JSONRPCResponse | JSONRPCError`
+- 不允许重复 `method_name`（启动期 `ValueError`）
+- 实现类必须 `from .base import ExtensionRouter; class XxxRouter:` 显式继承（`@runtime_checkable` 要求）
 
-- `TaskID` 必须 UUID；`CreatedAt <= UpdatedAt`。
-- `failed` 必须有 `Error`；非 failed 不得有 `Error`。
-- `completed` 必须有至少 1 条 agent message 或 1 个 artifact。
-- `canceled` 仅用于向后兼容解析与未来状态机，v0.1 server 不产生该状态。
-- Artifact 是协议类型的一部分，但 v0.1 不要求 Adapter 生成。
+### 3.3 4 个扩展 method 的 Pydantic schema（项目私有 DTO · 继承 L2-1 Spec §3.3）
 
-### 3.3 `agent_card.go`
+> **本节列出 Pydantic schema 的关键约束；完整 schema 见 [`docs/spec/L2-module-specs/L2-a2a-protocol.md` §3.3](../../spec/L2-module-specs/L2-a2a-protocol.md)**。L3-2 在 `upstream_types.py` 中落地这些 schema。
 
-```go
-package types
+#### 3.3.1 `a2a.queryKnowledge`
 
-type AgentCard struct {
-    Name            string    `json:"name"`
-    Description     string    `json:"description"`
-    Version         string    `json:"version"`
-    ProtocolVersion string    `json:"protocolVersion"`
-    URL             string    `json:"url"`
-    Skills          []Skill   `json:"skills"`
-    InputModes      []string  `json:"inputModes"`
-    OutputModes     []string  `json:"outputModes"`
-    Capabilities    []string  `json:"capabilities,omitempty"`
-    Provider        *Provider `json:"provider,omitempty"`
-}
+- **Request**：`query: str (1-2048)` + `scope_level: KnowledgeScopeLevel` + `scope_id: str (1-253)` + `agent_id: str (1-253)` + `top_k: int (1-100, default=10)` + `min_score: float (0.0-1.0, default=0.0)` + `include_body: bool (default=False)` + `traceparent: str | None`
+- **Response**：`items: list[KnowledgeItemSummary]` + `total: int` + `next_cursor: str | None (base64 opaque)`
+- **KnowledgeItemSummary**：`item_id` + `title` + `scope_level` + `scope_id` + `score` + `snippet | None` + `updated_at` + `version`
 
-type Skill struct {
-    ID          string   `json:"id"`
-    Name        string   `json:"name"`
-    Description string   `json:"description"`
-    InputModes  []string `json:"inputModes"`
-    OutputModes []string `json:"outputModes"`
-    Examples    []string `json:"examples,omitempty"`
-}
+#### 3.3.2 `a2a.getKnowledgeItem`
 
-type Provider struct {
-    Organization      string   `json:"organization,omitempty"`
-    URL               string   `json:"url,omitempty"`
-    AllowedNamespaces []string `json:"allowedNamespaces,omitempty"`
-}
+- **Request**：`item_id: str (1-253)` + `version: int | None`（None → latest）+ `traceparent: str | None`
+- **Response**：`item_id` + `title` + `body: str`（>10KB 截断 + `truncated=True`）+ `mime_type: str ("text/markdown")` + `scope_level` + `scope_id` + `agent_private_owner: str | None` + `version` + `created_at` + `updated_at`
 
-func (c AgentCard) Validate() error
-func (c AgentCard) SupportsSkill(idOrName string) bool
-func (c AgentCard) SupportsProtocol(constraint string) bool
-func (c AgentCard) ETag() string
+#### 3.3.3 `a2a.recordMemory`
+
+- **Request**：`idempotency_key: str (8-128, alphanumeric + -/_)` + `scope_level` + `scope_id` + `agent_id` + `content_type: MemoryContentType` + `content: str (1-8192)` + `confidence: float (0.0-1.0)` + `referenced_items: list[str] (max 32)` + `referenced_task_id: str | None` + `traceparent: str | None`
+- **Response**：`memory_id: str` + `recorded_at: datetime` + `expires_at: datetime`（decay 公式计算）
+- **idempotency 强制**：ADR-0003 §6 + L2-4 Design §6.2；`recordMemory` 不可重试除非 `idempotency_key`
+
+#### 3.3.4 `a2a.queryMemory`
+
+- **Request**：`query: str (1-2048)` + `scope_level | None`（None → 全 scope）+ `scope_id: str | None` + `agent_id: str`（必须：决定私有维度）+ `visibility: MemoryVisibility (default INHERITED)` + `content_types: list[MemoryContentType] | None` + `min_confidence: float (0.0-1.0, default=0.3)` + `top_k: int (1-100, default=20)` + `include_expired: bool (default=False)` + `traceparent: str | None`
+- **Response**：`memories: list[MemorySummary]` + `total: int` + `next_cursor: str | None`
+- **MemorySummary**：`memory_id` + `content_preview: str (前 100 字符)` + `content_type` + `confidence` + `scope_level` + `scope_id` + `agent_id`（持有者）+ `visibility` + `created_at` + `expires_at` + `decay_score: float`
+
+### 3.4 router 注册流程（继承 L2-1 Spec §3.4）
+
+```python
+# packages/a2a-core/src/superteam_a2a/a2a/extensions/__init__.py
+from importlib import import_module
+from inspect import isclass
+from pkgutil import iter_modules
+from .base import ExtensionRouter
+
+_DISCOVERED: dict[str, ExtensionRouter] = {}
+
+
+def discover_routers(package: str = "superteam_a2a.a2a.extensions") -> None:
+    """通过 pkgutil + inspect 找出所有 ExtensionRouter 实现类。
+
+    实现约束：
+    - 必须定义类属性 method_name: str
+    - 必须实现 async handle(JSONRPCRequest) -> JSONRPCResponse | JSONRPCError
+    - 不允许重复 method_name（启动期 ValueError）
+    """
+    for module_info in iter_modules(__path__, prefix=f"{package}."):
+        module = import_module(module_info.name)
+        for name in dir(module):
+            obj = getattr(module, name)
+            if isclass(obj) and obj is not ExtensionRouter and issubclass(obj, ExtensionRouter):
+                if obj.method_name in _DISCOVERED:
+                    raise ValueError(f"duplicate router method_name: {obj.method_name}")
+                _DISCOVERED[obj.method_name] = obj()
+
+
+async def dispatch(request: JSONRPCRequest) -> JSONRPCResponse | JSONRPCError:
+    """根据 request.method 分发到对应 router。
+
+    未注册 method 返回 JSONRPCError(code=-32601, message="Method not found")。
+    """
+    router = _DISCOVERED.get(request.method)
+    if router is None:
+        return JSONRPCError(
+            id=request.id,
+            code=StandardRpcError.METHOD_NOT_FOUND,
+            message=f"Method not found: {request.method}",
+        )
+    return await router.handle(request)
 ```
 
-**验证**：name/skill ID 为 DNS-1123 kebab-case；description 禁止空值和宪法列出的营销词；version 为 semver；protocolVersion 必须满足 `[0.3.0,0.4.0)`；URL 必须 HTTPS（`localhost` 测试例外）；skills/inputModes/outputModes 非空且去重。
+**L3-2 占位 vs L2-4 实际实现关系**：
+- L3-2 在 `extensions/query_knowledge.py` 等 4 文件定义占位类，handle 方法仅做参数校验 + 返回 TODO 错误
+- L2-4 启动时在 Knowledge Service / Memory backend 启动 hook 中调用 `discover_routers()` 覆盖 `_DISCOVERED` 字典
+- 实际生产路径：L2-4 实现的 router 类必须 import 自 `superteam_a2a.knowledge.routers` 等业务路径，**禁止** L2-4 反向 import L3-2 占位类
 
-**ETag**：对 canonical JSON 做 SHA-256，返回带引号的完整 hex；不得使用 map 非确定序列化结果。
+### 3.5 6 method wire 元数据（继承 L2-1 Spec §3.5 + ADR-0003 §6）
 
-### 3.4 `envelope.go`
+| Method | Idempotent | 自动重试 | capability | 备注 |
+|--------|------------|----------|------------|------|
+| `a2a.sendMessage` | 仅携带同一 `taskId` 时 | 是，需 `taskId` | `task-send` | 业务侧按 `idempotency_key` 决定 |
+| `a2a.getTask` | 是 | 是 | `task-read` | 读方法 |
+| `a2a.queryKnowledge` | 是（读取） | 是 | `knowledge-query` | 读方法 |
+| `a2a.getKnowledgeItem` | 是 | 是 | `knowledge-get` | 读方法 |
+| `a2a.recordMemory` | 否 | 否 | `memory-record` | 写方法；不可重试除非 `idempotency_key` |
+| `a2a.queryMemory` | 是 | 是 | `memory-query` | 读方法 |
 
-```go
-package types
+> L2 设计 §7.2 的文字表述存在 "queryKnowledge 黑名单/白名单" 同句歧义；L2 最终意图和读取语义均指向**白名单**，本 L3-2 锁定 `queryKnowledge` 为可重试。
 
-type RequestID struct {
-    raw json.RawMessage
-}
+---
 
-func NewStringID(v string) RequestID
-func NewNumberID(v int64) RequestID
-func NullID() RequestID
-func (id RequestID) MarshalJSON() ([]byte, error)
-func (id *RequestID) UnmarshalJSON([]byte) error
-func (id RequestID) IsNotification() bool
+## 4. mTLS / SPIFFE（ADR-0005 §9.1 + 宪法 §6.1 · 继承 L2-1 Spec §4）
 
-type Request struct {
-    JSONRPC string          `json:"jsonrpc"`
-    Method  string          `json:"method"`
-    Params  json.RawMessage `json:"params,omitempty"`
-    ID      RequestID       `json:"id"`
-}
+### 4.1 cert-manager 挂载契约
 
-type Response struct {
-    JSONRPC string           `json:"jsonrpc"`
-    Result  json.RawMessage  `json:"result,omitempty"`
-    Error   *errors.A2AError `json:"error,omitempty"`
-    ID      RequestID        `json:"id"`
-}
+```
+Pod
+└── /etc/tls/                 # volumeMount: cert-manager Secret
+    ├── tls.crt               # server certificate (PEM)
+    ├── tls.key               # server private key (PEM)
+    └── ca.crt                # client CA bundle (PEM, 用于 mTLS 验证)
+```
 
-func (r Request) Validate() error
-func (r Response) Validate() error
-func Success(id RequestID, result any) (Response, error)
-func Failure(id RequestID, err error) Response
+**文件存在性检查**（启动期）：3 个文件必须存在且非空；缺失 → `MtlsConfigError` + readiness=false。
+
+### 4.2 build_server_ssl_context 契约（继承 L2-1 Spec §4.2）
+
+```python
+# packages/a2a-core/src/superteam_a2a/a2a/mtls/ssl_context.py
+import ssl
+from pathlib import Path
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class MtlsConfig:
+    cert_dir: Path = Path("/etc/tls")
+    min_version: ssl.TLSVersion = ssl.TLSVersion.TLSv1_3
+    verify_mode: ssl.VerifyMode = ssl.VerifyMode.CERT_REQUIRED
+    spiffe_required: bool = True  # False → 仅校验 cert，不解析 SPIFFE ID
+
+
+def build_server_ssl_context(config: MtlsConfig = MtlsConfig()) -> ssl.SSLContext:
+    """构造 mTLS server SSLContext。
+
+    Returns:
+        ssl.SSLContext 配置好的 server context
+
+    Raises:
+        MtlsConfigError: cert/key 文件缺失或格式错误
+    """
+    # 实现契约：见 L3-2 Spec §4.6
+    ...
+
+
+class MtlsConfigError(RuntimeError):
+    """cert/key 文件缺失或解析失败。"""
 ```
 
 **约束**：
+- 最低 TLS 1.3（`ctx.minimum_version = ssl.TLSVersion.TLSv1_3`）
+- 客户端证书必须校验（`ctx.verify_mode = ssl.CERT_REQUIRED`）
+- 私钥文件 mode 必须 0600（启动期 `stat.S_IMODE` 检查）
+- ALPN 协议：`["h2", "http/1.1"]`（mTLS over HTTP/2 preferred）
 
-- 仅接受 JSON-RPC `"2.0"`；ID 仅 string/整数/null，不接受 object/array/bool/浮点。
-- v0.1 Server 不接受 notification：null/缺失 ID 返回 `-32600`，避免无响应任务造成不可追踪调用。
-- Response 的 Result/Error 必须二选一；失败时 HTTP 仍按 §5.3 映射。
-- 单请求 body 上限默认 2 MiB；超过限制转换为 Invalid Request，不继续反序列化。
+### 4.3 extract_spiffe_id 契约（继承 L2-1 Spec §4.3）
 
-### 3.5 `methods.go`
+```python
+# packages/a2a-core/src/superteam_a2a/a2a/mtls/spiffe.py
+from cryptography import x509
 
-```go
-package types
 
-const (
-    MethodSendMessage      = "a2a.sendMessage"
-    MethodGetTask          = "a2a.getTask"
-    MethodQueryKnowledge   = "a2a.queryKnowledge"
-    MethodGetKnowledgeItem = "a2a.getKnowledgeItem"
-    MethodRecordMemory     = "a2a.recordMemory"
-    MethodQueryMemory      = "a2a.queryMemory"
-)
+def extract_spiffe_id(cert: x509.Certificate) -> str | None:
+    """从客户端证书 URI SAN 解析 SPIFFE ID。
 
-type MethodMeta struct {
-    Name       string
-    Idempotent bool
-    Retryable  bool
-    Capability string
-}
+    URI 格式：spiffe://<trust_domain>/<path>
+    Returns: 完整 SPIFFE ID 字符串 或 None（无 SPIFFE SAN）
 
-func LookupMethod(name string) (MethodMeta, bool)
-func BuiltinMethods() []MethodMeta
+    Raises:
+        SpiffeIdFormatError: URI 存在但格式非法
+    """
+    ...
+
+
+class SpiffeIdFormatError(ValueError):
+    """SPIFFE ID 格式非法（不是 spiffe:// 前缀或 path 为空）。"""
+
+
+def validate_spiffe_id(spiffe_id: str, expected_trust_domain: str) -> None:
+    """校验 SPIFFE ID 的 trust_domain 与预期一致。
+
+    Raises:
+        SpiffeIdFormatError: trust_domain 不匹配
+    """
+    ...
 ```
 
-**方法元数据**：
+### 4.4 证书热更新契约（继承 L2-1 Spec §4.4 + ADR-0005 §9.1）
 
-| Method | Idempotent | 自动重试 | capability |
-|--------|------------|----------|------------|
-| sendMessage | 仅携带同一 `taskId` 时 | 是，需 taskId | `task-send` |
-| getTask | 是 | 是 | `task-read` |
-| queryKnowledge | 是（读取） | 是 | `knowledge-query` |
-| getKnowledgeItem | 是 | 是 | `knowledge-get` |
-| recordMemory | 否 | 否 | `memory-record` |
-| queryMemory | 是 | 是 | `memory-query` |
+```python
+# packages/a2a-core/src/superteam_a2a/a2a/mtls/hot_reload.py
+class CertHotReloader:
+    """证书热更新（每 5min 检查 + atomic 替换）。
 
-> L2 设计 §7.2 的文字表述存在“queryKnowledge 黑名单/白名单”同句歧义；L2 最终意图和读取语义均指向白名单，本 L3 锁定为可重试。
+    启动期一次性 load_from_disk()；后台 task 每 5min 触发 watch_and_reload()。
+    替换使用 atomic snapshot（旧 SSLContext 引用数降为 0 才回收）。
+    """
+    def __init__(
+        self,
+        config: MtlsConfig,
+        reload_interval_seconds: float = 300.0,
+    ): ...
 
-### 3.6 `methods_*.go`
+    async def start(self) -> None:
+        """启动后台 reload task；幂等。"""
+        ...
 
-```go
-// methods_task.go
-type SendMessageParams struct {
-    TaskID  string  `json:"taskId,omitempty"`
-    Message Message `json:"message"`
-    Skill   string  `json:"skill,omitempty"`
-}
-type GetTaskParams struct { TaskID string `json:"taskId"` }
+    async def stop(self) -> None:
+        """停止后台 task；幂等。"""
+        ...
 
-// methods_knowledge.go
-type QueryKnowledgeParams struct {
-    Scope        string           `json:"scope,omitempty"`
-    Query        string           `json:"query"`
-    AgentPrivate bool             `json:"agentPrivate,omitempty"`
-    MaxResults   int              `json:"maxResults,omitempty"`
-    Filters      KnowledgeFilters `json:"filters,omitempty"`
-}
-type KnowledgeFilters struct {
-    Tags          []string `json:"tags,omitempty"`
-    MinConfidence *float64 `json:"minConfidence,omitempty"`
-}
-type KnowledgeResult struct { Items []KnowledgeItem `json:"items"`; Total int `json:"total"` }
-type KnowledgeItem struct {
-    ItemID string `json:"itemId"`; Scope string `json:"scope"`; Content string `json:"content"`
-    Metadata map[string]any `json:"metadata,omitempty"`; UpdatedAt time.Time `json:"updatedAt"`
-}
-type GetKnowledgeItemParams struct { ItemID string `json:"itemId"` }
+    def current_context(self) -> ssl.SSLContext:
+        """返回当前有效的 SSLContext（atomic 引用）。"""
+        ...
 
-// methods_memory.go
-type RecordMemoryParams struct {
-    Content string `json:"content"`; Confidence float64 `json:"confidence,omitempty"`
-    Tags []string `json:"tags,omitempty"`; DecayDays int `json:"decayDays,omitempty"`; Scope string `json:"scope,omitempty"`
-}
-type MemoryAck struct { MemoryID string `json:"memoryId"`; AcceptedAt time.Time `json:"acceptedAt"` }
-type QueryMemoryParams struct {
-    Query string `json:"query"`; MinConfidence float64 `json:"minConfidence,omitempty"`
-    Scopes []string `json:"scopes,omitempty"`; MaxResults int `json:"maxResults,omitempty"`
-}
-type MemoryResult struct { Items []MemoryItem `json:"items"`; Total int `json:"total"` }
-type MemoryItem struct {
-    MemoryID string `json:"memoryId"`; AgentRef string `json:"agentRef"`; Content string `json:"content"`
-    Confidence float64 `json:"confidence"`; Tags []string `json:"tags,omitempty"`
-    CreatedAt time.Time `json:"createdAt"`; DecayAt *time.Time `json:"decayAt,omitempty"`
-}
+    async def _reload_if_expired(self) -> bool:
+        """检查证书是否即将过期（<24h），若是则 reload；返回是否触发 reload。"""
+        ...
 ```
 
-每个 Params/Result 类型必须有 `Validate() error`。Schema 的字段约束以 L2-1 Spec §4 为下限；若 L2-4 对 Knowledge/Memory 字段给出更严格约束，**更严格约束优先**，但不得改变 JSON 字段名。
+**关键不变量**：
+- reload 触发条件：证书剩余有效期 < 24h OR cert 文件 mtime 变化
+- 替换使用 `context.set_alpn_protocols()` 不可变约束 → 每次 reload 新建 `ssl.SSLContext`，Uvicorn 引用计数降为 0 后由 GC 回收
+- reload 失败不中断服务（保留旧 context + 记录告警 + emit metric `superteam_a2a_cert_reload_failures_total`）
 
-### 3.7 `validate.go` 与 `schema.go`
+### 4.5 与 Uvicorn 集成（继承 L2-1 Spec §4.5 + L3-2 §5.2）
 
-```go
-type FieldViolation struct { Field, Reason string }
+Uvicorn 启动时通过 `ssl_keyfile` / `ssl_certfile` / `ssl_ca_certs` / `ssl_alpn_protocols` 4 参数挂载 mTLS：
 
-type Validator interface { Validate() error }
-
-func ValidateUUID(field, value string, required bool) error
-func ValidateKebabCase(field, value string) error
-func ValidateScope(field, value string, allowPrivate bool) error
-func ValidateSemver(field, value string) error
-
-type SchemaRegistry interface {
-    ValidateParams(method string, raw json.RawMessage) error
-    ValidateResult(method string, raw json.RawMessage) error
-}
-
-func NewEmbeddedSchemaRegistry() (SchemaRegistry, error)
+```bash
+uvicorn superteam_a2a.a2a.server.app:create_app \
+  --factory \
+  --host 0.0.0.0 \
+  --port 8443 \
+  --ssl-keyfile /etc/tls/tls.key \
+  --ssl-certfile /etc/tls/tls.crt \
+  --ssl-ca-certs /etc/tls/ca.crt \
+  --ssl-alpn-protocols h2,http/1.1 \
+  --workers 1
 ```
 
-- 使用 `//go:embed schemas/*.json`；启动时一次性编译 schema，失败则 `server.New` 返回错误。
-- schema 错误统一转换为 `ErrInvalidParams.WithData({field, reason})`，不得泄露整个请求体。
-- JSON Schema draft 固定 2020-12；禁止运行时网络拉取 `$ref`。
+### 4.6 `mtls/` 子包 4 文件级契约概要
+
+| 文件 | 完整实现要点 | 关联测试 ID |
+|------|--------------|------------|
+| `mtls/__init__.py` | 导出 `MtlsConfig` + `build_server_ssl_context` + `extract_spiffe_id` + `CertHotReloader` | (子包 UT) |
+| `mtls/ssl_context.py` | 实现 `build_server_ssl_context`：① load PEM 文件 → ② check key permissions 0600 → ③ set min_version + verify_mode → ④ set ALPN → ⑤ return SSLContext | UT-MT-01~06 + IT-A2A-06~09 |
+| `mtls/spiffe.py` | 实现 `extract_spiffe_id` + `validate_spiffe_id`：使用 `cryptography.x509` 解析 URI SAN；格式校验（spiffe:// 前缀 + trust_domain 一致） | UT-MT-07~12 |
+| `mtls/hot_reload.py` | 实现 `CertHotReloader`：asyncio task 周期检查 + atomic 替换 + 失败回退旧 context | UT-MT-13~18 |
 
 ---
 
-## 4. `errors/` 与 `statemachine/`
+## 5. ASGI server 与单进程原则（ADR-0005 §6.2 + 宪法 §3.8 · 继承 L2-1 Spec §6）
 
-### 4.1 `errors/error.go` + `codes.go`
+### 5.1 进程模型
 
-```go
-package errors
+**单进程 / 单 worker / 多副本**：
+- A2A Core 单 Pod = 单 Python 进程 = 单 Uvicorn worker（`--workers 1`）
+- 多副本通过 K8s `Deployment.spec.replicas` 伸缩（建议 2-3 副本 + HPA）
+- **禁止** `--workers N>1`：会破坏 in-process 状态（ExtensionRouter 注册表、Agent Card cache、Discovery watch）
 
-type A2AError struct {
-    Code    int            `json:"code"`
-    Message string         `json:"message"`
-    Data    map[string]any `json:"data,omitempty"`
-    cause   error
-}
+### 5.2 create_app 工厂契约
 
-func (e *A2AError) Error() string
-func (e *A2AError) Unwrap() error
-func (e *A2AError) Is(target error) bool
-func (e *A2AError) Clone() *A2AError
-func (e *A2AError) WithData(data map[string]any) *A2AError
-func (e *A2AError) WithCause(cause error) *A2AError
+```python
+# packages/a2a-core/src/superteam_a2a/a2a/server/app.py
+from starlette.applications import Starlette
+from superteam_a2a.a2a.config import A2aCoreConfig
+
+
+def create_app(config: A2aCoreConfig) -> Starlette:
+    """ASGI app 工厂。
+
+    装配流程：
+    1. 创建 Starlette()
+    2. Mount SDK jsonrpc_app（标准 3 method）
+    3. Mount extension sub-app（4 project method）
+    4. Add 4 health/metrics endpoints
+    5. Add 4 middlewares（auth + ratelimit + recovery + trace）
+    6. Set lifespan (lifespan.py)
+    7. discover_routers() 4 extension router
+    8. return app
+
+    注意：Uvicorn 启动期在 --factory 模式下调用；不接受运行时配置变更。
+    """
+    ...
 ```
 
-**sentinel（语义和 code 不可修改）**：
+### 5.3 启动契约（uvicorn CLI · 继承 L2-1 Spec §6.3）
 
-```go
-var (
-    ErrParse             = New(-32700, "Parse error")
-    ErrInvalidRequest    = New(-32600, "Invalid Request")
-    ErrMethodNotFound    = New(-32601, "Method not found")
-    ErrInvalidParams     = New(-32602, "Invalid params")
-    ErrInternal          = New(-32603, "Internal error")
-    ErrDiscovery         = New(-32001, "Discovery failure")
-    ErrAuth              = New(-32002, "Authentication failure")
-    ErrSkillNotFound     = New(-32003, "Skill not found")
-    ErrTaskNotFound      = New(-32004, "Task not found")
-    ErrRateLimited       = New(-32005, "Rate limit exceeded")
-    ErrTimeout           = New(-32006, "Timeout")
-    ErrKnowledgeScope    = New(-32010, "Knowledge scope violation")
-    ErrMemoryVisibility  = New(-32011, "Memory visibility violation")
-    ErrUpstreamK8s       = New(-32020, "Upstream K8s API error")
-)
+```bash
+# L4 启动命令（生产环境）
+uvicorn superteam_a2a.a2a.server.app:create_app \
+  --factory \
+  --host 0.0.0.0 \
+  --port 8443 \
+  --ssl-keyfile /etc/tls/tls.key \
+  --ssl-certfile /etc/tls/tls.crt \
+  --ssl-ca-certs /etc/tls/ca.crt \
+  --ssl-alpn-protocols h2,http/1.1 \
+  --workers 1 \
+  --log-level info \
+  --access-log \
+  --proxy-headers
 ```
 
-**并发安全**：sentinel 不得直接修改 Data/cause；`WithData` / `WithCause` 必须 clone。
+### 5.4 优雅停机时序
 
-### 4.2 `errors/classify.go`
-
-```go
-func New(code int, message string) *A2AError
-func FromError(err error) *A2AError
-func IsRetryable(err error) bool
-func RetryAfter(err error) time.Duration
-func HTTPStatus(err error) int
-func Sanitize(err error, exposeInternal bool) *A2AError
+```
+SIGTERM → Uvicorn 收到信号
+  → lifespan.shutdown() 触发
+    → EventLoopMonitor.stop()
+    → CertHotReloader.stop()
+    → A2AClient.aclose()（in-process client pool）
+    → AgentCardCache.flush()
+    → Discovery.stop()（停止 EndpointSlice watch）
+    → metrics.render_latest() 最后一次
+  → exit 0
 ```
 
-| Code | 自动重试 | HTTP | 备注 |
-|------|----------|------|------|
-| -32700/-32600/-32602 | 否 | 400 | 客户端请求错误 |
-| -32601 | 否 | 404 | method 不存在 |
-| -32603 | 是（受 method 幂等门禁） | 500 | 外部响应固定消息，不泄露 cause |
-| -32001 | 是 | 503 | discovery |
-| -32002 | 否 | 403 | 已建立连接后的授权失败；TLS handshake 失败在 HTTP/JSON-RPC 之前终止 |
-| -32003/-32004 | 否 | 404 | skill/task |
-| -32005 | 否 | 429 | 返回 `Retry-After: 1` 供手动重试 |
-| -32006 | 是（受幂等门禁） | 504 | timeout |
-| -32010/-32011 | 否 | 403 | scope/visibility |
-| -32020 | 是（受幂等门禁） | 503 | K8s upstream |
+### 5.5 `server/` 子包 4 文件级契约概要
 
-### 4.3 `statemachine/task_fsm.go`
-
-```go
-package statemachine
-
-type FSM struct{}
-
-func New(initial types.TaskStatus) (*FSM, error)
-func (f *FSM) CanTransition(from, to types.TaskStatus) bool
-func (f *FSM) Transition(task *types.Task, to types.TaskStatus, now time.Time) error
-func IsTerminal(status types.TaskStatus) bool
-
-var ErrInvalidTransition = errors.New("invalid task state transition")
-```
-
-**转换矩阵**：
-
-| from \ to | submitted | working | completed | failed | canceled |
-|-----------|-----------|---------|-----------|--------|----------|
-| submitted | ✅ 同状态幂等 | ✅ | ❌ | ❌ | ❌ v0.1 |
-| working | ❌ | ✅ 心跳 | ✅ | ✅ | ❌ v0.1 |
-| completed | ❌ | ❌ | ✅ | ❌ | ❌ |
-| failed | ❌ | ❌ | ❌ | ✅ | ❌ |
-| canceled | ❌ | ❌ | ❌ | ❌ | ✅（仅解析兼容） |
-
-`Transition` 必须更新 `UpdatedAt`，且不得修改 TaskID/CreatedAt/Messages；从 working 到 failed 前调用方必须先设置 Error，从 working 到 completed 前必须满足 Task Validate。
-
-**幂等边界**：同 taskId 重试的“返回已有 Task”由业务 `MethodHandler` / TaskStore 实现；FSM 只保证状态不回退，不保存任务。
+| 文件 | 完整实现要点 | 关联测试 ID |
+|------|--------------|------------|
+| `server/__init__.py` | 导出 `create_app` | (子包 UT) |
+| `server/app.py` | 实现 `create_app(config)`：① Starlette 工厂 → ② Mount SDK jsonrpc_app → ③ Mount extension sub-app → ④ Add 4 routes (agent_card/healthz/readyz/metrics) → ⑤ Add 4 middlewares → ⑥ lifespan 注入 → ⑦ discover_routers() | UT-SRV-01~07 + IT-A2A-01~05 |
+| `server/middlewares.py` | 实现 4 ASGI middleware：① AuthMiddleware（从 peer cert 提取 SPIFFE ID + 注入 contextvar）② RateLimitMiddleware（token bucket 100 RPS / burst 200）③ RecoveryMiddleware（panic → -32603）④ TraceMiddleware（W3C traceparent 注入 + server span） | UT-MW-01~22 |
+| `server/lifespan.py` | 实现 `lifespan(app)`：① startup 阶段（observability init + mtls context build + cert hot reload start + agent card cache warmup）② shutdown 阶段（逆序） | UT-SRV-32~36 |
 
 ---
 
-## 5. `server/` — HTTP 与 JSON-RPC Server SDK
+## 6. Discovery + Client（K8s-native · 继承 L2-1 Spec §5）
 
-### 5.1 `server/server.go`
+### 6.1 Discovery 路径（继承 L2-1 Spec §5.1）
 
-```go
-package server
+**In-Cluster**：
+- 目标 Agent Service：`{agent-name}.{namespace}.svc.cluster.local:8443`
+- Agent Card 路径：`GET https://{target}/.well-known/agent.json`
 
-type Config struct {
-    ListenAddr       string
-    TLS              TLSConfig
-    AgentCard        types.AgentCard
-    RateLimit        RateLimitConfig
-    Middleware       []Middleware
-    Observer         observability.Observer
-    Authorizer       identity.Authorizer
-    SchemaRegistry   types.SchemaRegistry
-    ReadHeaderTimeout time.Duration // default 5s
-    ReadTimeout       time.Duration // default 30s
-    WriteTimeout      time.Duration // default 30s
-    IdleTimeout       time.Duration // default 60s
-    ShutdownTimeout   time.Duration // default 10s
-    MaxBodyBytes      int64         // default 2 MiB
-    InsecureDevMode   bool
-}
+**EndpointSlice watch**：
+- 启动期 list 一次 → 后续 watch（`resourceVersion` 续传）
+- watch reconnect：断连后 backoff 重连，指数退避 1s → 30s
+- Agent Card cache：TTL 默认 300s（Helm values 可配）；cache key = `(namespace, name, version)`
 
-type Server struct { /* private http.Server, registry, ready gate */ }
+**Discovery 类契约**：
 
-func New(cfg Config) (*Server, error)
-func (s *Server) RegisterMethod(name string, handler MethodHandler) error
-func (s *Server) Handler() http.Handler
-func (s *Server) Start(ctx context.Context) error
-func (s *Server) Shutdown(ctx context.Context) error
-func (s *Server) SetReady(ready bool)
+```python
+# packages/a2a-core/src/superteam_a2a/a2a/client/discovery.py
+from dataclasses import dataclass
+from collections.abc import AsyncIterator
+
+
+@dataclass(frozen=True)
+class Endpoint:
+    namespace: str
+    name: str  # Service name
+    ip: str
+    port: int
+    ready: bool
+
+
+@dataclass(frozen=True)
+class AgentTarget:
+    namespace: str
+    name: str
+    endpoints: tuple[Endpoint, ...]
+    agent_card_url: str  # https://{name}.{namespace}.svc.cluster.local:8443/.well-known/agent.json
+
+
+class Discovery:
+    """K8s Service / EndpointSlice watch + Agent Card 缓存。"""
+
+    LABEL_SELECTOR = "superteam-a2a.io/component=agent"
+
+    def __init__(
+        self,
+        k8s_client: kubernetes_asyncio.client.CoreV1Api,
+        agent_card_ttl_seconds: float = 300.0,
+        watch_reconnect_seconds: float = 5.0,
+    ):
+        ...
+
+    async def start(self) -> None:
+        """启动 EndpointSlice watch；触发首次 list + 后续 watch。"""
+        ...
+
+    async def stop(self) -> None:
+        """停止 watch；幂等。"""
+        ...
+
+    async def list_targets(self, namespace: str | None = None) -> list[AgentTarget]:
+        """列出当前所有可达 AgentTarget。
+
+        namespace=None → 所有 namespace（需 RBAC 权限）
+        """
+        ...
+
+    async def watch_targets(self) -> AsyncIterator[DiscoveryEvent]:
+        """watch 事件流（ADDED / MODIFIED / DELETED）。"""
+        ...
+
+    async def get_agent_card(self, target: AgentTarget) -> AgentCard:
+        """拉取并缓存 Agent Card；TTL 内复用。"""
+        ...
 ```
 
-**生命周期**：
+### 6.2 DNS fallback（继承 L2-1 Spec §5.2）
 
-1. `New` 校验 Config/Card/TLS/schema；安装内建路由；registry 可注册。
-2. `Start` 前冻结 registry；启动 observer/SVID watch；开始 HTTPS ListenAndServeTLS。
-3. ctx cancel：ready=false → 等待 in-flight（最多 10s）→ Shutdown → flush traces。
-4. 正常 ctx cancel 返回 nil；非 `http.ErrServerClosed` 错误原样返回。
+```python
+async def resolve_dns(target: str) -> list[str]:
+    """socket.getaddrinfo → IP 列表（IPv4 + IPv6）。
 
-### 5.2 `registry.go`
-
-```go
-// middleware.Handler/Func 是底层签名；server 仅做 type alias，避免
-// server <-> server/middleware 的 Go import cycle。
-type MethodHandler = middleware.Handler
-type Middleware = middleware.Func
-type RateLimitConfig = middleware.RateLimitConfig
-
-type Registry interface {
-    Register(name string, handler MethodHandler) error
-    Lookup(name string) (MethodHandler, bool)
-    Freeze()
-}
-
-var (
-    ErrDuplicateMethod = errors.New("duplicate A2A method")
-    ErrRegistryFrozen  = errors.New("A2A method registry frozen")
-)
+    用于无 K8s RBAC 权限的客户端路径（开发环境）。
+    """
+    loop = asyncio.get_running_loop()
+    infos = await loop.getaddrinfo(target, 8443, type=socket.SOCK_STREAM)
+    return list({i[4][0] for i in infos})
 ```
 
-- 允许注册 6 个 builtin method 和 `x.<vendor>.<method>` 扩展。
-- 禁止覆盖 builtin method；method 名必须匹配 `^(a2a|x\.[a-z0-9-]+)\.[A-Za-z][A-Za-z0-9]*$`。
-- 注册并发安全；Start 后不可变，避免运行中 handler 竞态。
+### 6.3 A2AClient 契约（继承 L2-1 Spec §5.3）
 
-### 5.3 `handler.go`
+```python
+# packages/a2a-core/src/superteam_a2a/a2a/client/client.py
+import httpx
+import ssl
+from superteam_a2a.a2a.upstream import AgentCard, Message, Task
+from .retry import RetryPolicy
+from .circuit_breaker import CircuitBreaker
 
-**固定处理流水线**：
 
-```text
-HTTP method/path/content-type/body limit
-  -> JSON parse
-  -> Request.Validate
-  -> builtin method check
-  -> params JSON Schema
-  -> middleware chain (request-id -> recovery -> auth -> rate-limit -> trace -> logging)
-  -> MethodHandler
-  -> result marshal + result schema
-  -> Response + metrics/log/span
+class A2AClient:
+    """A2A 协议客户端（基于 httpx.AsyncClient）。
+
+    单进程单实例（进程级连接池复用）。
+    所有请求必须有 timeout；受 retry / circuit breaker 保护。
+    """
+
+    DEFAULT_TIMEOUT_SECONDS = 30.0
+    DEFAULT_MAX_CONNECTIONS = 100
+    DEFAULT_MAX_KEEPALIVE = 20
+
+    def __init__(
+        self,
+        ssl_context: ssl.SSLContext,
+        retry_policy: RetryPolicy | None = None,
+        circuit_breaker: CircuitBreaker | None = None,
+        request_timeout: float = DEFAULT_TIMEOUT_SECONDS,
+        max_connections: int = DEFAULT_MAX_CONNECTIONS,
+        max_keepalive: int = DEFAULT_MAX_KEEPALIVE,
+        discovery: Discovery | None = None,
+        metrics: A2aMetrics | None = None,
+    ):
+        ...
+
+    async def send_message(
+        self, target: str, message: Message
+    ) -> Task:
+        """a2a.sendMessage 调用；受 retry + CB 保护。
+
+        Returns: Task（同步调用返回）
+        Raises:
+            A2ATimeoutError: 超时（retryable）
+            A2AMethodError: JSON-RPC error（按 code 判断 retryable）
+            CircuitOpenError: 熔断器 OPEN
+        """
+        ...
+
+    async def get_task(self, target: str, task_id: str) -> Task:
+        """a2a.getTask 调用。"""
+        ...
+
+    async def query_knowledge(
+        self, target: str, request: QueryKnowledgeRequest
+    ) -> QueryKnowledgeResponse:
+        """a2a.queryKnowledge 调用（项目扩展 method）。"""
+        ...
+
+    async def get_knowledge_item(
+        self, target: str, request: GetKnowledgeItemRequest
+    ) -> GetKnowledgeItemResponse:
+        """a2a.getKnowledgeItem 调用。"""
+        ...
+
+    async def record_memory(
+        self, target: str, request: RecordMemoryRequest
+    ) -> RecordMemoryResponse:
+        """a2a.recordMemory 调用；idempotency_key 强制。"""
+        ...
+
+    async def query_memory(
+        self, target: str, request: QueryMemoryRequest
+    ) -> QueryMemoryResponse:
+        """a2a.queryMemory 调用。"""
+        ...
+
+    async def aclose(self) -> None:
+        """关闭底层 httpx 连接池；幂等。"""
+        ...
 ```
 
-```go
-func NewJSONRPCHandler(reg Registry, schemas types.SchemaRegistry, opts HandlerOptions) http.Handler
+### 6.4 Retry 策略（Tenacity wrapper · 继承 L2-1 Spec §5.4）
 
-type HandlerOptions struct {
-    MaxBodyBytes int64
-    Observer     observability.Observer
-    ExposeInternalErrors bool
-}
+```python
+# packages/a2a-core/src/superteam_a2a/a2a/client/retry.py
+from dataclasses import dataclass
+from enum import StrEnum
+
+
+class RetryDecision(StrEnum):
+    """按 method + error code 判断是否重试。"""
+    DO_RETRY = "do-retry"
+    DO_NOT_RETRY = "do-not-retry"
+    METHOD_NOT_IDEMPOTENT = "method-not-idempotent"
+
+
+# method_idempotency 表（与 L2-1 Spec §5.4 + ADR-0003 §6 一致）
+METHOD_IDEMPOTENT = frozenset({
+    "a2a.sendMessage",   # 业务侧按 idempotency_key 决定
+    "a2a.getTask",
+    "a2a.getKnowledgeItem",
+    "a2a.queryKnowledge",
+    "a2a.queryMemory",
+    # "a2a.recordMemory" — NOT idempotent（除非 idempotency_key）
+})
+
+
+@dataclass(frozen=True)
+class RetryPolicy:
+    max_attempts: int = 3
+    initial_delay_seconds: float = 0.5
+    max_delay_seconds: float = 10.0
+    backoff_multiplier: float = 2.0
+    jitter: bool = True
+
+
+def should_retry(method: str, error_code: int, attempt: int, policy: RetryPolicy) -> RetryDecision:
+    """判断是否重试。
+
+    逻辑：
+    1. attempt >= max_attempts → DO_NOT_RETRY
+    2. method not in METHOD_IDEMPOTENT → METHOD_NOT_IDEMPOTENT
+    3. error_code 是 retryable 集合 → DO_RETRY
+    4. else → DO_NOT_RETRY
+    """
+    ...
 ```
 
-**HTTP 契约**：
+### 6.5 Circuit Breaker + P2C（继承 L2-1 Spec §5.5）
 
-| 场景 | HTTP | JSON-RPC body |
-|------|------|---------------|
-| 成功 | 200 | result |
-| JSON-RPC 解析/参数错误 | 400 | -32700/-32600/-32602 |
-| method/task/skill 不存在 | 404 | -32601/-32003/-32004 |
-| 未认证/未授权 | 401/403 | TLS handshake 失败可无 JSON body；授权失败 -32002 |
-| 限流 | 429 | -32005 + Retry-After |
-| 超时 | 504 | -32006 |
-| 内部/上游不可用 | 500/503 | -32603/-32001/-32020 |
+```python
+# packages/a2a-core/src/superteam_a2a/a2a/client/circuit_breaker.py
+class CircuitState(StrEnum):
+    CLOSED = "closed"
+    OPEN = "open"
+    HALF_OPEN = "half-open"
 
-- `Content-Type` 接受 `application/json` 和 `application/json; charset=utf-8`。
-- 一次 HTTP 仅一个 JSON-RPC request；batch array 在 v0.1 返回 -32600。
-- panic 经 recovery 转 -32603；日志保存内部 cause，外部不返回堆栈。
-- 响应必须带 `Cache-Control: no-store`；Card endpoint 例外。
 
-### 5.4 `agent_card.go` + `health.go`
+class CircuitBreaker:
+    """per-endpoint 熔断器（closed → open → half-open → closed）。"""
 
-```go
-type CardProvider interface { CurrentCard(context.Context) (types.AgentCard, error) }
-func NewStaticCardProvider(card types.AgentCard) CardProvider
-func AgentCardHandler(provider CardProvider) http.Handler
+    def __init__(
+        self,
+        failure_threshold: int = 5,
+        open_duration_seconds: float = 30.0,
+        half_open_max_probes: int = 3,
+    ): ...
 
-func HealthHandler() http.Handler
-func ReadinessHandler(checks ...ReadinessCheck) http.Handler
-type ReadinessCheck interface { Name() string; Ready(context.Context) error }
+    def record_success(self) -> None: ...
+    def record_failure(self) -> None: ...
+    def can_request(self) -> bool: ...
+    def state(self) -> CircuitState: ...
+
+
+class P2CSelector:
+    """Power of Two Choices endpoint 选择器。"""
+
+    def __init__(self, endpoints: list[Endpoint]): ...
+
+    def select(self) -> Endpoint:
+        """随机选 2 个 endpoint，挑 in-flight 数少的。"""
+        ...
 ```
 
-- Card：`GET /.well-known/agent.json`，`application/json`，支持 `ETag`/`If-None-Match` → 304，`Cache-Control: public,max-age=60`。
-- `/healthz`：只反映进程可服务，明文 HTTP 仅绑定 Pod probe listener。
-- `/readyz`：Card 有效、registry frozen、TLS/SVID 可用、业务 readiness 全通过才 200。
-- probe listener 不得暴露在 Service A2A 端口的外部路径；Adapter 可将其绑定到 localhost/独立 probe port。
+### 6.6 限流（token bucket · 继承 L2-1 Spec §5.6）
 
-### 5.5 业务 handler 归属
+- **Server-side**：`RateLimitMiddleware` 全 Server 令牌桶 `100 RPS / burst 200`
+- **PerKey=true** 时按 caller SPIFFE ID 限流（`PerKey` 默认 false）
+- **Client-side**：`A2AClient` 自带 token bucket（默认 50 RPS / burst 100），防止客户端过载
 
-A2A Core **不实现** 6 个 method 的业务语义，只提供协议入口：
+### 6.7 `client/` 子包 5 文件级契约概要
 
-| Method | handler 提供方 | L3 落点 |
-|--------|----------------|---------|
-| sendMessage/getTask | Adapter SDK | L3-3 `src/adapter/core/handlers/` |
-| queryKnowledge/getKnowledgeItem | Knowledge Service | L3-5 `handlers/` |
-| recordMemory/queryMemory | Knowledge Service 同 Pod 的 Memory backend | L3-5/L3-6 |
-
-注册示例：
-
-```go
-srv.RegisterMethod(types.MethodSendMessage, adapterHandlers.SendMessage)
-srv.RegisterMethod(types.MethodGetTask, adapterHandlers.GetTask)
-srv.RegisterMethod(types.MethodQueryKnowledge, knowledgeHandlers.Query)
-```
-
-禁止在 `src/a2a/server/` 添加 `memory.go` 并直接 import Reconciler；L2-1 的“Memory middleware”在后续 L2-4 中已被“Knowledge Service handler + backend interface”收敛。
-
-### 5.6 `server/tls.go`
-
-```go
-type TLSConfig struct {
-    CertFile, KeyFile, ClientCAFile string
-    SPIFFEWorkload bool
-    MinVersion uint16 // default tls.VersionTLS13
-}
-
-func BuildTLSConfig(ctx context.Context, cfg TLSConfig, source identity.SVIDSource) (*tls.Config, error)
-```
-
-- 生产 TLS 最低 1.3；禁用 renegotiation；ClientAuth=`RequireAndVerifyClientCert`。
-- 静态证书用 `GetCertificate` 的原子快照支持 reload；SPIFFE 使用 SVIDSource。
-- 不记录证书原文/私钥；日志最多记录 trust domain、SPIFFE ID、expiry。
-
-### 5.7 `server/middleware/`
-
-**链顺序固定**：request ID → recovery → auth → rate limit → trace → logging → handler。自定义 middleware 插在 logging 与 handler 之间。
-
-```go
-package middleware
-
-type Handler func(ctx context.Context, params json.RawMessage) (any, error)
-type Func func(next Handler) Handler
-
-type RateLimitConfig struct {
-    RPS, Burst int
-    PerKey bool
-}
-
-type Clock interface {
-    Now() time.Time
-}
-
-func Chain(final Handler, middleware ...Func) Handler
-func Auth(authorizer identity.Authorizer) Func
-func RateLimit(cfg RateLimitConfig, clock Clock) Func
-func Recovery(logger *slog.Logger) Func
-func Trace(observer observability.Observer) Func
-func Logging(logger *slog.Logger) Func
-
-type RequestMeta struct {
-    RequestID string
-    Method    string
-    Caller    identity.Caller
-    TaskID    string
-    TraceID   string
-}
-
-func RequestMetaFromContext(ctx context.Context) (RequestMeta, bool)
-```
-
-认证、request ID 与 trace middleware 必须把不可变 `RequestMeta` 写入 context；业务 handler 通过 `RequestMetaFromContext` 获取 caller SPIFFE 身份，禁止解析私有 context key。Caller 缺失时 Knowledge/Memory handler 必须 fail-closed。
-
-`server.MethodHandler` 与 `server.Middleware` 分别是这两个类型的 alias；`server/middleware` **不得** import `server`，从结构上消除循环依赖。
-
-`RateLimitConfig`：RPS=100、Burst=200、PerKey=false。PerKey key 为 caller SPIFFE ID；匿名/insecure-dev 使用 remote IP。不得以 taskId 作为 key，防止无限 key 内存增长。空闲 bucket 10 分钟清理。
+| 文件 | 完整实现要点 | 关联测试 ID |
+|------|--------------|------------|
+| `client/__init__.py` | 导出 `A2AClient` + `RetryPolicy` + `CircuitBreaker` + `Discovery` | (子包 UT) |
+| `client/client.py` | 实现 `A2AClient`：`httpx.AsyncClient` 封装 + 6 typed wrappers + retry/CB/timeout 集成 | UT-CLI-01~14 + IT-A2A-01~05 |
+| `client/retry.py` | 实现 `RetryPolicy` + `should_retry`：Tenacity `@retry` decorator + idempotency gate | UT-CLI-44~53 |
+| `client/circuit_breaker.py` | 实现 `CircuitBreaker` + `P2CSelector`：状态机 closed/open/half-open + 2-random endpoint selection | UT-CLI-54~61 + UT-CLI-67~73 |
+| `client/discovery.py` | 实现 `Discovery` + `resolve_dns`：kubernetes_asyncio watch + Agent Card 拉取 + DNS fallback | UT-CLI-23~34 + UT-CLI-35~43 + IT-A2A-10~12 |
+| `client/agent_card_cache.py` | 实现 `AgentCardCache`：TTL 缓存 + 失效（Discovery 事件触发） | UT-CLI-74~78 |
 
 ---
 
-## 6. `client/` — Discovery、调用、重试与负载均衡
+## 7. async-first + CPU offload（ADR-0005 §6.1 / §6.3 · 继承 L2-1 Spec §7）
 
-### 6.1 `client/client.go`
+### 7.1 async 边界规则
 
-```go
-package client
+- **所有 I/O 函数 `async def`**：httpx / kubernetes_asyncio / asyncio 集成
+- **CPU 密集计算走 `offload_cpu`**：JSON Schema 校验、加密解密、序列化/反序列化
+- **禁止 `asyncio.run()` in async context**：使用 `asyncio.get_running_loop()`
+- **禁止 blocking call in handler**：httpx 是 async，但 `requests` / `subprocess.run` / `time.sleep` 禁止
 
-type Config struct {
-    Timeout        time.Duration
-    MaxRetries     int
-    Backoff        BackoffConfig
-    CircuitBreaker CircuitBreakerConfig
-    Discovery      DiscoveryConfig
-    Observer       observability.Observer
-    HTTPClient     *http.Client
-    Limiter        *rate.Limiter
-}
+### 7.2 offload_cpu 契约（继承 L2-1 Spec §7.2）
 
-type Client struct { /* resolver, transport, retryer, breakers */ }
+```python
+# packages/a2a-core/src/superteam_a2a/a2a/utils/offload.py
+import anyio
+from functools import partial
+from collections.abc import Callable
+from typing import Any, TypeVar
 
-// L2-1 公共 DTO 名称保持为 type alias，底层规范类型集中在 types/。
-type KnowledgeQuery = types.QueryKnowledgeParams
-type KnowledgeResult = types.KnowledgeResult
-type KnowledgeItem = types.KnowledgeItem
-type MemoryRecord = types.RecordMemoryParams
-type MemoryAck = types.MemoryAck
-type MemoryQuery = types.QueryMemoryParams
-type MemoryResult = types.MemoryResult
-type MemoryItem = types.MemoryItem
+T = TypeVar("T")
 
-func New(cfg Config) (*Client, error)
-func (c *Client) Close(ctx context.Context) error
 
-// Call 保留 L2-1 的底层公共签名。
-func (c *Client) Call(ctx context.Context, target *AgentRef, method string, params any) (*types.Response, error)
-// CallInto 是类型安全解码 helper；不替代 Call。
-func (c *Client) CallInto(ctx context.Context, target *AgentRef, method string, params, out any) error
+async def offload_cpu(func: Callable[..., T], *args: Any, **kwargs: Any) -> T:
+    """anyio.to_thread.run_sync 封装。
 
-// SendMessage 保留 L2-1 签名并默认生成 UUIDv7 taskId，因而可安全重试。
-func (c *Client) SendMessage(ctx context.Context, target *AgentRef, msg *types.Message) (*types.Task, error)
-// SendMessageWithParams 供高级调用方显式控制 taskId/skill。
-func (c *Client) SendMessageWithParams(ctx context.Context, target *AgentRef, p *types.SendMessageParams) (*types.Task, error)
-func (c *Client) GetTask(ctx context.Context, target *AgentRef, taskID string) (*types.Task, error)
-func (c *Client) QueryKnowledge(ctx context.Context, target *AgentRef, p *KnowledgeQuery) (*KnowledgeResult, error)
-func (c *Client) GetKnowledgeItem(ctx context.Context, target *AgentRef, itemID string) (*KnowledgeItem, error)
-func (c *Client) RecordMemory(ctx context.Context, target *AgentRef, p *MemoryRecord) (*MemoryAck, error)
-func (c *Client) QueryMemory(ctx context.Context, target *AgentRef, p *MemoryQuery) (*MemoryResult, error)
+    限制器默认 capacity=40（来自 anyio 默认）。
+    用于纯 CPU 计算：JSON Schema 校验、加密解密、Pydantic model 序列化等。
+    """
+    ...
+
+
+class ThreadPoolStats:
+    """线程池统计（供 metrics 采集）。"""
+
+    @property
+    def current_threads(self) -> int: ...
+    @property
+    def idle_threads(self) -> int: ...
+    @property
+    def total_tasks_processed(self) -> int: ...
 ```
 
-**调用顺序**：输入 Validate → resolve/card capability → client limiter → circuit gate → P2C endpoint → trace inject → transport → response validate → retry classify → metrics。
+### 7.3 event-loop lag 监控（继承 L2-1 Spec §7.3）
 
-- `Call` 返回经过 envelope 校验的原始 Response；`CallInto` 必须要求非 nil `out`，并将成功 result 解码到 out。
-- wrapper 不接受 `map[string]any`，确保公共字段显式。
-- Context deadline 与 Config.Timeout 取更早者；不得延长调用方 deadline。
-- Client 可并发使用；Close 幂等。
+```python
+# packages/a2a-core/src/superteam_a2a/a2a/observability/event_loop.py
+class EventLoopMonitor:
+    """每 10s 采样 event loop lag → 写入 `superteam_python_event_loop_lag_seconds` Histogram。"""
 
-### 6.2 `transport.go`
+    SAMPLE_INTERVAL_SECONDS = 10.0
 
-```go
-type Transport interface {
-    RoundTrip(ctx context.Context, endpoint *url.URL, req types.Request) (types.Response, error)
-}
-
-func NewHTTPTransport(client *http.Client, schemas types.SchemaRegistry) Transport
+    async def start(self) -> None: ...
+    async def stop(self) -> None: ...
 ```
 
-- POST 固定 `/a2a/jsonrpc`；Content-Type/Accept=`application/json`。
-- 连接池：每 host max idle 10、idle timeout 90s；TLS handshake 10s。
-- 非 2xx 仍尝试解析 A2AError；无合法 JSON-RPC body 时按 HTTP status 分类。
-- response body 上限 4 MiB；读取后必须 Close。
+### 7.4 取消与异常处理
 
-### 6.3 `discovery.go`
+- `asyncio.CancelledError` 必须向上传播（不可 swallow）
+- 业务异常用 `try/except` 显式捕获后转换为 JSONRPCError（不可 silently drop）
+- `httpx.TimeoutException` / `httpx.ConnectError` 转换为 retryable A2ATimeoutError
+- `CircuitOpenError` 是非 retryable（直接返回 client 错误）
 
-```go
-type AgentRef struct {
-    Name, Namespace string
-    Endpoint *url.URL // 非 nil 时跳过 K8s name resolve，但仍拉 Card
-}
+### 7.5 `utils/` 子包 2 文件级契约概要
 
-type ResolvedAgent struct {
-    Ref       AgentRef
-    Card      types.AgentCard
-    Endpoints []Endpoint
-    ExpiresAt time.Time
-}
-
-type Endpoint struct { URL *url.URL; Ready bool; Zone string }
-
-type NameResolver interface {
-    Resolve(ctx context.Context, ref AgentRef) (ResolvedAgent, error)
-    Invalidate(ref AgentRef)
-    InvalidateAll()
-}
-
-type DiscoveryConfig struct {
-    CacheTTL time.Duration
-    RefreshOnMiss bool
-    DefaultNamespace string
-    Resolver NameResolver
-    WatchEndpoints bool // K8s resolver default true
-}
-```
-
-**解析规则**：`https://<name>.<namespace>.svc.cluster.local:8080`；显式 endpoint 必须 HTTPS（测试 localhost 例外）。
-
-**缓存算法**：
-
-1. key=`namespace/name` 或 canonical explicit URL。
-2. hit 且未过期直接返回；并发 miss 用 singleflight 合并。
-3. 拉 Card 后校验 protocol/capability/URL；Card URL 若与发现 host 不同，只允许同 Service identity 或 allowlist。
-4. EndpointSlice 只保留 Ready != false 且有 `a2a` port 的 endpoint。
-5. watch 收到 add/update/delete，调用 Invalidate；watch 断线指数重连，TTL 仍保证最终刷新。
-6. 缓存最大 1,000 entries；LRU 淘汰，防止恶意 name 导致无界增长。
-
-### 6.4 `discovery_k8s.go`
-
-```go
-type K8sResolverConfig struct {
-    Client kubernetes.Interface
-    Namespace string
-    PortName string // "a2a"
-    Port int32      // 8080 fallback
-    CardClient CardClient
-}
-
-type CardClient interface { Fetch(ctx context.Context, endpoint *url.URL) (types.AgentCard, error) }
-
-func NewK8sResolver(cfg K8sResolverConfig) (NameResolver, error)
-func (r *K8sResolver) Start(ctx context.Context) error
-```
-
-RBAC 只读：Services get/list/watch；EndpointSlices get/list/watch。不得读 Secret。集群外显式 endpoint 模式不初始化 client-go。
-
-### 6.5 `retry.go`
-
-```go
-type BackoffConfig struct { Base time.Duration; Factor, Jitter float64; Max time.Duration }
-
-type Timer interface {
-    C() <-chan time.Time
-    Stop() bool
-}
-type Clock interface {
-    Now() time.Time
-    NewTimer(time.Duration) Timer
-}
-type Rand interface {
-    Float64() float64
-    Intn(n int) int
-}
-
-type Retryer interface { Do(ctx context.Context, meta types.MethodMeta, hasIdempotencyKey bool, fn func(context.Context) error) error }
-func NewRetryer(max int, cfg BackoffConfig, clock Clock, rand Rand) Retryer
-```
-
-**默认序列**：1s → 2s → 4s，±20% jitter，最多 3 次重试；总时间受 caller context 限制。
-
-**重试门禁**：
-
-```text
-method meta Retryable
-AND error IsRetryable
-AND (method != sendMessage OR taskId 非空)
-AND attempt < maxRetries
-AND context 未取消
-```
-
-- -32005 不自动重试。
-- `recordMemory` 永不自动重试，即使收到 -32603/-32020。
-- endpoint TCP/TLS 失败可先做同轮 failover；每个 endpoint 最多一次，不占逻辑 maxRetries，但受总 deadline。
-- 每次 retry 添加 span event，记录 attempt/code/backoff，不记录消息内容。
-
-### 6.6 `circuitbreaker.go`
-
-```go
-type CircuitState uint8
-const (CircuitClosed CircuitState = iota; CircuitHalfOpen; CircuitOpen)
-
-type CircuitBreakerConfig struct { Threshold int; Window time.Duration; HalfOpenProbes int }
-type CircuitBreaker interface {
-    Allow(now time.Time) bool
-    Success(now time.Time)
-    Failure(now time.Time)
-    State() CircuitState
-}
-```
-
-key 为 `scheme://host:port`；5 次连续失败/10s → open；10s 后允许 1 次 half-open probe；成功 close，失败重新 open。业务 4xx、-32602、-32003/-32004 不计入失败；网络错误、5xx、-32001/-32006/-32020 计入。
-
-### 6.7 `p2c.go`
-
-```go
-type LoadTracker interface { InFlight(endpoint Endpoint) int64 }
-type Picker interface { Pick(endpoints []Endpoint) (Endpoint, error) }
-func NewP2CPicker(load LoadTracker, rand Rand) Picker
-```
-
-- 0 endpoint → ErrDiscovery；1 endpoint 直接返回；≥2 均匀随机取 2 个不同 endpoint，选 in-flight 较低者，平局随机。
-- Pick 后 transport 前 increment，defer decrement；不得用长期累计请求数替代当前 in-flight。
-- 测试使用 deterministic Rand；生产使用并发安全 PRNG，不使用加密随机。
-
-### 6.8 `ratelimit.go` 与 `trace.go`
-
-客户端 limiter 在 discovery 前等待 token，等待受 context 控制；默认可关闭。`trace.go` 使用 OTel propagator 注入 HTTP header，同时在 Message metadata 中写 `traceparent` 以满足跨 Adapter 传播；已有合法 metadata 值时以当前 span context 为准并记录覆盖 event。
+| 文件 | 完整实现要点 | 关联测试 ID |
+|------|--------------|------------|
+| `utils/__init__.py` | 导出 `offload_cpu` + `ThreadPoolStats` | (子包 UT) |
+| `utils/offload.py` | 实现 `offload_cpu` + `ThreadPoolStats`：`anyio.to_thread.run_sync` 包装 + limiter 状态读取 | UT-UT-01~10 |
 
 ---
 
-## 7. `identity/` — SPIFFE 身份与授权
+## 8. 错误模型（与 v0.1.0 + L1 Spec §5.7 + §8.3 完全一致 · 继承 L2-1 Spec §8）
 
-### 7.1 `spiffe.go`
+### 8.1 wire shape（contract test 锁定）
 
-```go
-package identity
-
-type Config struct {
-    SPIFFESocket string // default unix:///run/spiffe/sockets/agent.sock
+```json
+{
+  "jsonrpc": "2.0",
+  "id": "req-1",
+  "error": {
+    "code": -32400,
+    "message": "KNOWLEDGE_SCOPE_NOT_FOUND",
+    "data": {"detail": "scope team-payments-platform not found"}
+  }
 }
-
-type SPIFFEID struct { TrustDomain, Namespace, ServiceAccount, AgentName string }
-
-func ParseSPIFFEID(raw string) (SPIFFEID, error)
-func (id SPIFFEID) String() string
-func (id SPIFFEID) Validate() error
-func (id SPIFFEID) IsOperator() bool
 ```
 
-固定格式：
+### 8.2 错误码 Python enum（24 错误码 · 继承 L2-1 Spec §8.2）
 
-```text
-spiffe://<trust-domain>/ns/<namespace>/sa/<service-account>/agent/<agent-name>
+```python
+# packages/a2a-core/src/superteam_a2a/a2a/errors.py
+from enum import IntEnum
+
+
+class StandardRpcError(IntEnum):
+    """JSON-RPC 2.0 标准错误码 + 项目扩展错误码。
+
+    数字与 L1 Spec §5.7 + v0.1.0 Go baseline 完全一致；contract test 锁定。
+    """
+    # 标准 JSON-RPC（5 码）
+    PARSE_ERROR = -32700
+    INVALID_REQUEST = -32600
+    METHOD_NOT_FOUND = -32601
+    INVALID_PARAMS = -32602
+    INTERNAL_ERROR = -32603
+
+    # A2A 域（6 码 · SDK 提供 + 项目扩展）
+    TASK_NOT_FOUND = -32001
+    TASK_TIMEOUT = -32002
+    TASK_CANCELLED = -32003
+    UNAUTHORIZED = -32004
+    FORBIDDEN = -32005
+    RATE_LIMIT = -32006
+
+    # 项目扩展（Knowledge 范围 · 7 码 · ADR-0002 §2）
+    KNOWLEDGE_SCOPE_NOT_FOUND = -32400
+    KNOWLEDGE_ITEM_NOT_FOUND = -32401
+    KNOWLEDGE_VERSION_NOT_FOUND = -32402
+    KNOWLEDGE_QUERY_TOO_LONG = -32403
+    KNOWLEDGE_INVALID_TYPE = -32404
+    KNOWLEDGE_FORBIDDEN = -32405
+    KNOWLEDGE_INTERNAL_ERROR = -32406
+
+    # 项目扩展（Memory 范围 · 6 码 · ADR-0003 §6）
+    MEMORY_SCOPE_NOT_FOUND = -32500
+    MEMORY_INVALID_CONTENT = -32501
+    MEMORY_FORBIDDEN = -32502
+    MEMORY_RATE_LIMIT = -32503
+    MEMORY_QUERY_TOO_BROAD = -32504
+    MEMORY_INTERNAL_ERROR = -32505
+
+
+class ProjectRpcError(IntEnum):
+    """项目扩展错误码子集（仅 Knowledge + Memory）。"""
+    KNOWLEDGE_SCOPE_NOT_FOUND = StandardRpcError.KNOWLEDGE_SCOPE_NOT_FOUND
+    KNOWLEDGE_ITEM_NOT_FOUND = StandardRpcError.KNOWLEDGE_ITEM_NOT_FOUND
+    KNOWLEDGE_VERSION_NOT_FOUND = StandardRpcError.KNOWLEDGE_VERSION_NOT_FOUND
+    KNOWLEDGE_QUERY_TOO_LONG = StandardRpcError.KNOWLEDGE_QUERY_TOO_LONG
+    KNOWLEDGE_INVALID_TYPE = StandardRpcError.KNOWLEDGE_INVALID_TYPE
+    KNOWLEDGE_FORBIDDEN = StandardRpcError.KNOWLEDGE_FORBIDDEN
+    KNOWLEDGE_INTERNAL_ERROR = StandardRpcError.KNOWLEDGE_INTERNAL_ERROR
+    MEMORY_SCOPE_NOT_FOUND = StandardRpcError.MEMORY_SCOPE_NOT_FOUND
+    MEMORY_INVALID_CONTENT = StandardRpcError.MEMORY_INVALID_CONTENT
+    MEMORY_FORBIDDEN = StandardRpcError.MEMORY_FORBIDDEN
+    MEMORY_RATE_LIMIT = StandardRpcError.MEMORY_RATE_LIMIT
+    MEMORY_QUERY_TOO_BROAD = StandardRpcError.MEMORY_QUERY_TOO_BROAD
+    MEMORY_INTERNAL_ERROR = StandardRpcError.MEMORY_INTERNAL_ERROR
 ```
 
-所有 path segment 必须 URL 解码后再做 DNS-1123 验证；拒绝额外 segment、空段、`..`、重复键。Operator 身份必须由明确 SA/AgentName allowlist 判定，不以包含 `operator` 子串判定。
+**错误码总数**：5 + 6 + 7 + 6 = **24 错误码**（与 L2-1 Spec §8.2 一致）。
 
-### 7.2 `workload.go`
+### 8.3 错误响应构造（继承 L2-1 Spec §8.3）
 
-```go
-type SPIFFESVID struct {
-    Certificate tls.Certificate
-    IDs []SPIFFEID
-    ExpiresAt time.Time
-}
+```python
+# packages/a2a-core/src/superteam_a2a/a2a/errors.py
+from superteam_a2a.a2a.upstream import JSONRPCError, JSONRPCRequest
 
-type WorkloadClient interface {
-    FetchSVID(context.Context) (*SPIFFESVID, error)
-    WatchUpdates(context.Context) (<-chan *SPIFFESVID, error)
-}
 
-type SVIDSource interface {
-    Current() (*SPIFFESVID, error)
-    Start(context.Context) error
-    Ready() bool
-}
+def make_error_response(
+    request_id: str | int | None,
+    code: StandardRpcError,
+    message: str | None = None,
+    data: dict | None = None,
+) -> JSONRPCError:
+    """构造标准 JSON-RPC 错误响应。
 
-func NewWorkloadClient(socketPath string) WorkloadClient
-func NewSVIDSource(client WorkloadClient, refreshBefore time.Duration) SVIDSource
+    - code: StandardRpcError enum
+    - message: 默认取 enum.name；可覆盖
+    - data: dict（如 {"detail": "...", "field": "params.scope_id"}）
+    """
+    return JSONRPCError(
+        id=request_id,
+        code=code,
+        message=message or code.name,
+        data=data,
+    )
 ```
 
-SVIDSource 使用 `atomic.Pointer` 发布不可变快照；过期或距离过期小于 1 分钟时 readiness=false；watch 失败按 1/2/4/8/30s 重连，保留仍有效的最后 SVID。
+### 8.4 Retryable 矩阵（与 L2-1 Spec §5.4 表一致 · 继承 L2-1 Spec §8.4）
 
-### 7.3 `authorize.go`
+| Code range | name | Retryable | HTTP Status |
+|------|------|-----------|-------------|
+| -32700 ~ -32602 | 标准 JSON-RPC | ❌ | 400 / 404 / 422 |
+| -32603 | INTERNAL_ERROR | ✅ | 500 |
+| -32001 ~ -32006 | A2A 域 | 部分（TIMEOUT/RATE_LIMIT retryable）| 404 / 504 / 401 / 403 / 429 |
+| -32400 ~ -32406 | KNOWLEDGE_* | ❌ | 4xx |
+| -32500 ~ -32505 | MEMORY_* | ❌ | 4xx |
 
-```go
-type Caller struct { SPIFFEID SPIFFEID; RemoteAddr net.Addr }
-type Target struct {
-    Namespace string
-    AgentName string
-    AllowedNamespaces []string
-    ExternalAllowlist []string
-}
+### 8.5 `errors.py` + `observability/` 子包 4 文件级契约概要
 
-type Authorizer interface { Authorize(context.Context, Caller, Target, string) error }
-func NewDefaultAuthorizer(trustDomain string, operatorIDs []SPIFFEID) Authorizer
+| 文件 | 完整实现要点 | 关联测试 ID |
+|------|--------------|------------|
+| `errors.py` | 实现 `StandardRpcError` + `ProjectRpcError` + `make_error_response` | UT-E-01~15 |
+| `observability/__init__.py` | 导出 4 facade（`A2aMetrics` + `StructuredLogger` + `TracerProvider` + `EventLoopMonitor`） | (子包 UT) |
+| `observability/metrics.py` | 实现 `A2aMetrics`：15 个指标（11 A2A + 4 runtime） | UT-OB-01~13 + IT-A2A-13~14 |
+| `observability/tracing.py` | 实现 `init_tracing` + `tracer`：OTel provider 注入 + 显式 factory | UT-OB-14~20 |
+| `observability/logging.py` | 实现 `configure_logging` + `get_logger`：structlog setup + 6 必含字段 + 敏感字段过滤 | UT-OB-21~26 |
+| `observability/event_loop.py` | 实现 `EventLoopMonitor`：asyncio task 周期采样 event loop lag | UT-OB-27~30 |
+
+---
+
+## 9. 可观测性（Python 全栈 · 沿用 v0.1 metric name · 继承 L2-1 Spec §9）
+
+### 9.1 Prometheus 指标（与 L1 v0.2.0 Spec §16 + L1 Arch §9.2 完全一致 · 11 + 4 = 15 指标）
+
+| 指标 | 类型 | Labels | 触发点 | 单位 |
+|------|------|--------|--------|------|
+| `superteam_a2a_rpc_total` | Counter | `agent`, `method`, `status` | server middleware（每个 method 调用） | requests |
+| `superteam_a2a_rpc_duration_seconds` | Histogram | `agent`, `method` | server middleware | seconds |
+| `superteam_a2a_active_streams` | Gauge | — | SSE handler（v0.5+，v0.1 留位） | streams |
+| `superteam_a2a_circuit_breaker_state` | Gauge | `target`, `state` | CircuitBreaker 状态变化 | 0/1/2 |
+| `superteam_a2a_retry_total` | Counter | `method`, `attempt` | RetryPolicy | retries |
+| `superteam_a2a_discovery_watch_reconnects_total` | Counter | `namespace` | EndpointSlice watch | reconnects |
+| `superteam_a2a_agent_card_cache_hits_total` | Counter | `cache` | AgentCard cache | hits |
+| `superteam_a2a_cert_reload_failures_total` | Counter | — | CertHotReloader | failures |
+| `superteam_a2a_extension_router_dispatch_total` | Counter | `method`, `status` | extensions dispatch | dispatches |
+| `superteam_a2a_request_body_bytes` | Histogram | `method` | server middleware | bytes |
+| `superteam_a2a_response_body_bytes` | Histogram | `method` | server middleware | bytes |
+| `superteam_python_event_loop_lag_seconds` | Histogram | `component` | §7.3 后台 task | seconds |
+| `superteam_python_thread_offload_queue_depth` | Gauge | `pool` | anyio limiter stats | tasks |
+| `superteam_python_active_asyncio_tasks` | Gauge | — | `len(asyncio.all_tasks())` 采样 | tasks |
+| `superteam_python_gc_collections_total` | Counter | `generation` | `gc.get_stats()` 采样 | collections |
+
+**指标总数**：11 (RPC + circuit + retry + discovery + cache + cert + extension + body bytes 2) + 4 (Python runtime) = **15 指标**（与 L2-1 Spec §9.1 一致）。
+
+**label 基数约束**（L1 Arch §9.2）：
+- `agent`：受控（同一集群 < 1000）
+- `method`：固定 6 个
+- `target`：受控（per-endpoint CB）
+- `status`：固定 4 个（success / error / timeout / cancelled）
+- `component`：固定 5 个（a2a-core / knowledge / memory / operator / adapter）
+
+### 9.2 Trace（OpenTelemetry Python SDK · W3C Trace Context · 继承 L2-1 Spec §9.2）
+
+**Span 结构**（与 L1 Arch §9.2 一致）：
+```
+A2A RPC
+  ├── Adapter.Translate
+  ├── Agent.Run
+  │     ├── LLM Call
+  │     └── MCP Tool Call
+  └── Adapter.TranslateBack
 ```
 
-规则优先级：
+**显式 provider 注入**（避免污染全局）：
 
-1. trust domain 不匹配 → ErrAuth。
-2. Operator 精确 SPIFFE ID → 全部 6 method。
-3. 同 namespace Agent → 全部 6 method，但仍受 method capability/业务可见性检查。
-4. 跨 namespace → target allowedNamespaces + NetworkPolicy 双重约束。
-5. 外部身份 → external allowlist 精确匹配。
-6. Knowledge scope / Memory visibility 由业务 handler 判定，分别返回 -32010/-32011；identity 层不得复制 5 维矩阵。
+```python
+# packages/a2a-core/src/superteam_a2a/a2a/observability/tracing.py
+from opentelemetry import trace
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
----
 
-## 8. `observability/` — 指标、Trace 与日志
+_provider: TracerProvider | None = None
 
-### 8.1 `observer.go`
 
-```go
-package observability
+def init_tracing(
+    service_name: str,
+    otlp_endpoint: str | None = None,
+    sample_ratio: float = 1.0,
+) -> TracerProvider:
+    """显式 provider 注入。
 
-type Config struct { OTLPEndpoint, ServiceName, MetricsListen string }
+    测试用独立 provider；不在 conftest 设置全局，避免污染其他测试。
+    """
+    global _provider
+    _provider = TracerProvider(
+        resource={"service.name": service_name},
+        sampler=TraceIdRatioBased(sample_ratio),
+    )
+    if otlp_endpoint:
+        exporter = OTLPSpanExporter(endpoint=otlp_endpoint, insecure=False)
+        _provider.add_span_processor(BatchSpanProcessor(exporter))
+    trace.set_tracer_provider(_provider)
+    return _provider
 
-type Observer interface {
-    Tracer() trace.Tracer
-    Meter() metric.Meter
-    Metrics() *MetricsRegistry
-    Shutdown(context.Context) error
-}
 
-func New(ctx context.Context, cfg Config, reg prometheus.Registerer) (Observer, error)
-func Noop() Observer
+def tracer(name: str) -> trace.Tracer:
+    return trace.get_tracer(name)
 ```
 
-`New` 不得修改全局 provider，除非调用方显式选择；便于 Operator/Adapter 统一管理 provider。重复注册 Prometheus collector 必须复用或返回可识别错误，禁止 panic。
+**Traceparent 透传**：通过 A2A Message `metadata` 字段注入 `traceparent`；W3C Trace Context 标准。
 
-### 8.2 `metrics.go`
+### 9.3 日志（structlog + stdlib logging · 继承 L2-1 Spec §9.3）
 
-必须定义且仅定义以下 L2 基线指标：
+**必含字段**（与 L1 Spec §9.3 一致）：`trace_id` / `agent` / `method` / `task_id` / `namespace` / `ts`
 
-| 字段 | 指标 | 类型 | labels |
-|------|------|------|--------|
-| RPC | `supteam_a2a_rpc_total` | CounterVec | method,status,namespace |
-| RPCDuration | `supteam_a2a_rpc_duration_seconds` | HistogramVec | method,namespace |
-| RPCErrors | `supteam_a2a_rpc_errors_total` | CounterVec | method,code |
-| ActiveTasks | `supteam_a2a_active_tasks` | GaugeVec | namespace,agent |
-| DiscoveryFailures | `supteam_a2a_discovery_failures_total` | CounterVec | reason |
-| CircuitState | `supteam_a2a_circuit_breaker_state` | GaugeVec | target |
+**敏感字段禁记**（ADR-0005 §10）：API Key / Token / 用户数据 / Memory content / Knowledge body / cert 原文 / private key
 
-**基数约束**：禁止 task_id、trace_id、pod IP、原始 URL 作为 label；target label 使用规范化 `namespace/name` 或受限 host，缓存淘汰时删除 gauge series。
+```python
+# packages/a2a-core/src/superteam_a2a/a2a/observability/logging.py
+import logging
+import structlog
 
-### 8.3 `tracing.go`
 
-```go
-func StartClientSpan(ctx context.Context, tracer trace.Tracer, attrs RPCAttributes) (context.Context, trace.Span)
-func StartServerSpan(ctx context.Context, tracer trace.Tracer, attrs RPCAttributes) (context.Context, trace.Span)
-func RecordError(span trace.Span, err error)
+_SENSITIVE_KEYS = frozenset({
+    "api_key", "token", "password", "secret",
+    "memory_content", "knowledge_body", "tls_key", "private_key",
+})
+
+
+def configure_logging(level: str = "INFO", json_format: bool = True) -> None:
+    """配置 structlog + stdlib logging。"""
+    ...
+
+
+def get_logger(name: str) -> structlog.stdlib.BoundLogger:
+    """获取带必含字段的 logger。"""
+    ...
 ```
 
-Span 名：`a2a.{method}`。属性至少：`rpc.system=a2a`、`rpc.service`、`a2a.method`、`a2a.task_id`、`a2a.trace_id`、`a2a.namespace`、`a2a.from_agent`。task_id 可以是 span attribute，但不得是 Prometheus label。
+### 9.4 `observability/` 子包 4 文件级契约概要
 
-### 8.4 `logging.go`
-
-固定 slog keys：`method`、`task_id`、`trace_id`、`from_agent`、`to_agent`、`namespace`、`duration_ms`、`status_code`、`error_code`、`request_id`。
-
-- INFO：完成的正常 RPC。
-- WARN：4xx/域权限/限流。
-- ERROR：5xx、panic、SVID/Discovery 系统失败。
-- 禁止记录 Message content、Part data、Memory content、认证材料；debug 也只记录尺寸和哈希。
+见 §8.5 表格（observability/ 4 文件级契约概要）。
 
 ---
 
-## 9. 六个 Method 的端到端协议映射
+## 10. 上游追踪责任（宪法 §13.6 + ADR-0005 §13.6 · 继承 L2-1 Spec §10）
 
-### 9.1 Method 路由总表
-
-| Method | Params 类型 | Result 类型 | Server capability | 自动重试 |
-|--------|-------------|-------------|-------------------|----------|
-| `a2a.sendMessage` | `SendMessageParams` | `Task` | task-send | 有 taskId 才可 |
-| `a2a.getTask` | `GetTaskParams` | `Task` | task-read | 是 |
-| `a2a.queryKnowledge` | `QueryKnowledgeParams` | `KnowledgeResult` | knowledge-query | 是 |
-| `a2a.getKnowledgeItem` | `GetKnowledgeItemParams` | `KnowledgeItem` | knowledge-get | 是 |
-| `a2a.recordMemory` | `RecordMemoryParams` | `MemoryAck` | memory-record | 否 |
-| `a2a.queryMemory` | `QueryMemoryParams` | `MemoryResult` | memory-query | 是 |
-
-### 9.2 sendMessage / getTask 契约
-
-- Client 未传 taskId 时可以发送，但 SDK 不得自动重试。
-- 推荐 SDK 默认生成 UUIDv7 taskId，除非调用方显式禁用。
-- Server handler 发现同 taskId：submitted/working/completed/failed 均返回现有 Task，不重复执行；payload hash 不同则 ErrInvalidParams，Data 含 `field=taskId`、`reason=idempotency key reused with different payload`。
-- `skill` 非空时先用 Agent Card 检查，不存在返回 -32003。
-- `getTask` 不存在返回 -32004；不得用空 Task 表示。
-
-### 9.3 Knowledge / Memory 契约
-
-- A2A Core 只做结构/schema/capability/authentication，业务 scope/visibility 由 Knowledge Service。
-- `scope` 枚举：Knowledge 为 industry/organization/team/project；Memory 额外 private。
-- query 长度 1-2048；maxResults 1-100，默认 10。
-- recordMemory content 1-65536；confidence 0-1；tags ≤32；decayDays 0-3650；0 表示永不过期。
-- `recordMemory` 的幂等/批处理不在 v0.1 协议中，禁止 SDK 隐式重放。
-
-### 9.4 协议版本与兼容
-
-- Card `protocolVersion="0.3"` 归一为 semver 0.3.0。
-- Client 接受 `[0.3.0,0.4.0)`；其他版本返回 ErrDiscovery，Data 含 expected/actual。
-- 可新增 optional JSON 字段；未知字段默认忽略并保留向前兼容。
-- method 名、现有字段名、错误码语义不得修改；破坏性变更走 ADR + 至少一个 minor deprecation。
+> ⚠️ **占位章节** —— 后续 #51+ 会话补完。
+>
+> **本节将展开**：
+> - 10.1 维护责任（官方 a2a-python SDK upstream 追踪 + PR 贡献）
+> - 10.2 contract test 套件（wire shape + envelope 锁定）
+> - 10.3 upgrade 决策（ADR-0005 §11）
+>
+> **基线引用**：[L2-1 Spec v0.2.0 §10](../../spec/L2-module-specs/L2-a2a-protocol.md)
 
 ---
 
-## 10. 测试文件映射与验收门禁
+## 11. 测试策略（ADR-0005 §11 + 宪法 §9.7 · 继承 L2-1 Spec §11）
 
-### 10.1 单元测试（共 271 ID）
-
-| 范围 | ID | 数量 | P0 场景 |
-|------|----|------|---------|
-| config | UT-CFG-01~07 | 7 | 四层优先级、范围、TLS 跨字段 |
-| types/message | UT-T-01~07 | 7 | discriminated union、traceparent、敏感 metadata |
-| types/task | UT-T-08~15 | 8 | failed/error、completed output、时间顺序 |
-| types/card | UT-T-16~22 | 7 | kebab、semver、protocol range、ETag |
-| envelope | UT-T-23~30 | 8 | ID 三类型、batch 拒绝、result/error XOR |
-| validate | UT-T-31~39 | 9 | UUID/scope/semver/field data |
-| schema | UT-T-40~46 | 7 | 6 method schema + no remote refs |
-| errors | UT-E-01~15 | 15 | errors.Is/As、clone、retry/HTTP/sanitize |
-| FSM | UT-S-01~13 | 13 | 全合法/非法边、terminal、time update |
-| server core | UT-SRV-01~42 | 42 | 生命周期、dispatch、Card、probe、TLS |
-| middleware | UT-MW-01~22 | 22 | auth、bucket、panic、trace、顺序 |
-| client | UT-CLI-01~78 | 78 | wrappers、codec、discovery、retry、CB、P2C、trace |
-| identity | UT-I-01~28 | 28 | parse、atomic refresh、5 类授权 |
-| observability | UT-O-01~20 | 20 | 注册、labels、span、shutdown |
-
-> 表中分项合计以 ID 区间为准。L4 若拆分测试函数，必须保留 ID 作为 `t.Run` 名或注释，便于回溯 L2 测试骨架。
-
-### 10.2 必须保留的 L2 测试映射
-
-| L2 ID | L3 ID |
-|-------|-------|
-| UT-T-01~05 | UT-T-01/08/16/23/04（按类型重新编号） |
-| UT-S-01~07 | UT-S-01~07 |
-| UT-E-01~04 | UT-E-01~04 |
-| UT-C-01~06 | UT-CLI-44~49、UT-CLI-62~66 |
-| UT-I-01~04 | UT-I-01、UT-I-19~21 |
-| IT-01~08 | IT-A2A-01~09、IT-A2A-15 |
-| E2E-01~05 | E2E-A2A-01~05（见 §10.5） |
-
-### 10.3 Fuzz 测试
-
-| ID | 入口 | 不变量 |
-|----|------|--------|
-| FZ-T-01 | Part JSON | 不 panic；非法 union 必须拒绝 |
-| FZ-T-02 | RequestID/envelope JSON | 不 panic；不接受 float/object/array/bool ID |
-| FZ-SRV-01 | HTTP JSON-RPC body | 不 panic、不超 body limit、错误不泄露内部信息 |
-
-Fuzz corpus 使用 `tests/testdata/malformed/`；CI PR 阶段每项 10s，nightly 5min。
-
-### 10.4 集成与 Conformance（15 IT + 22 CF）
-
-| ID | 场景 | 期望 |
-|----|------|------|
-| IT-A2A-01 | Server Card endpoint | 200 + valid Card + ETag |
-| IT-A2A-02 | sendMessage happy path | submitted → working → completed |
-| IT-A2A-03 | 同 taskId 同 payload | 返回已有 Task、不重复执行 |
-| IT-A2A-04 | 同 taskId 不同 payload | -32602 |
-| IT-A2A-05 | 6 method fake handler 路由 | params/result schema 均通过 |
-| IT-A2A-06 | mTLS valid SVID | 成功 |
-| IT-A2A-07 | invalid client cert | TLS 失败 |
-| IT-A2A-08 | cross namespace denied | -32002 / 403 |
-| IT-A2A-09 | SVID 热更新 | 新连接使用新证书，无重启 |
-| IT-A2A-10 | Service + EndpointSlice discovery | Ready endpoints 可用 |
-| IT-A2A-11 | EndpointSlice watch invalidation | 旧 endpoint 不再选择 |
-| IT-A2A-12 | TTL/watch 断线兜底 | ≤ TTL 刷新 Card |
-| IT-A2A-13 | traceparent client→server | 单 trace 父子 span |
-| IT-A2A-14 | metrics | 6 指标出现且无高基数 label |
-| IT-A2A-15 | queryMemory fake route | A2A Core 不 import memory 仍可完整路由 |
-
-Conformance：CF-A2A-01~05 envelope、06~17 六 method params/result、18~22 标准错误码。上游 conformance 套件发布后以 adapter 方式接入，项目扩展 method 独立保留。
-
-### 10.5 E2E（kind，由跨模块套件承载）
-
-| ID | 场景 | 责任模块 |
-|----|------|----------|
-| E2E-A2A-01 | Hello Agent port-forward + sendMessage | L3-3/L3-4 |
-| E2E-A2A-02 | AgentSet 3 副本 P2C | L3-1/L3-3 |
-| E2E-A2A-03 | Card Discovery + Operator status | L3-1/L3-3 |
-| E2E-A2A-04 | mTLS 失败归因 | L3-1/L3-3 |
-| E2E-A2A-05 | recordMemory 全链路创建 CRD | L3-5/L3-6 |
-
-### 10.6 性能与竞态门禁
-
-- `go test -race ./...` 必须通过。
-- benchmark：envelope encode/decode、schema validate、P2C、metrics hot path、SVID Current。
-- v0.1 非硬 SLA 参考：1 KiB loopback RPC p95 < 10ms（不含业务）、Card cache hit < 100µs、P2C Pick < 10µs。
-- 每次 RPC 常驻分配应在基准中记录；不得为达标绕过 validation/trace/auth。
+> ⚠️ **占位章节** —— 后续 #51+ 会话补完。
+>
+> **本节将展开**：
+> - 11.1 测试层级（UT/IT/CF/E2E/Fuzz）
+> - 11.2 测试 ID 矩阵（完整清单 · 100+ ID · 继承 L2-1 100 ID + L3-2 新增 5-10 ID）
+> - 11.3 conformance 套件接入（ADR-0005 §11.2）
+> - 11.4 静态门禁（pyright strict + ruff + import-linter + interrogate）
+> - 11.5 性能预算（L1 v0.2.0 Arch §11.5）
+>
+> **基线引用**：[L2-1 Spec v0.2.0 §11](../../spec/L2-module-specs/L2-a2a-protocol.md) §11.2 测试 ID 矩阵 100 ID
 
 ---
 
-## 11. 跨模块集成契约
+## 12. Helm values 完整 schema（继承 L2-1 Spec §12）
 
-### 11.1 Adapter SDK（L3-3）
-
-Adapter：
-
-1. 构造 AgentCard、Observer、Authorizer。
-2. `server.New` 后注册 sendMessage/getTask；如为 Knowledge Service 再注册 4 个扩展业务 handler。
-3. 将 Adapter framework callback 转为 Task 状态，不由 A2A Core 保存 Task。
-4. 监听 8080 HTTPS；probe 使用独立 listener。
-5. SIGTERM 先 readiness=false，再等待业务 Task 进入可恢复状态，最后 Shutdown。
-
-### 11.2 Operator / Workflow（L3-1）
-
-- Workflow 仅依赖 `client.Client` interface；测试注入 fake。
-- Operator 使用特权 SPIFFE ID，但必须走同一 auth/trace/metric 路径。
-- Agent Card reconcile 拉取逻辑可复用 `client.CardClient`，不得复制 TLS/validation。
-- Operator 负责 Service/EndpointSlice 生命周期；A2A client 只读 watch。
-
-### 11.3 Knowledge Service / Memory backend（L3-5/L3-6）
-
-- Knowledge Service 同 Pod 注册 4 handler。
-- Memory backend 通过 Go interface 被 handler 调用，但该 interface 定义在 Knowledge/Memory 模块，不在 A2A Core。
-- scope/agent-private/审计/CRD 写入由业务层负责；A2A Core 只传播 caller SPIFFE ID、trace/task context。
-- MemoryReconciler 不直接启动 A2A Server。
-
-### 11.4 依赖清单
-
-| 依赖 | 用途 | 约束 |
-|------|------|------|
-| Go stdlib `net/http`,`crypto/tls`,`log/slog`,`embed` | transport/server/config/schema | Go 1.22+ |
-| OpenTelemetry Go | trace/metric | API 由调用方 provider 注入 |
-| prometheus/client_golang | 6 指标 | 禁止全局重复注册 panic |
-| spiffe-go | Workload API/SVID | 请求热路径只读原子快照 |
-| client-go + discovery/v1 EndpointSlice | K8s discovery | 可选；显式 URL 模式不初始化 |
-| x/sync/singleflight | cache miss 合并 | 防 discovery 惊群 |
-| x/time/rate | token bucket | server/client limiter |
-| JSON Schema 2020-12 实现 | params/result validation | schema 全本地 embed |
-
-**禁止依赖**：Agent framework SDK、controller-runtime、MCP SDK、Knowledge/Memory/Operator 包。
+> ⚠️ **占位章节** —— 后续 #51+ 会话补完。
+>
+> **本节将展开**：
+> - 12.1 a2aCore 段（A2aCoreConfig Pydantic model + values.yaml 默认值 + values.schema.json 自动生成）
+> - 12.2 Pod Security（K8s 1.28+ restricted profile）
+> - 12.3 RBAC（ServiceAccount + ClusterRole for K8s Service / EndpointSlice watch）
+>
+> **基线引用**：[L2-1 Spec v0.2.0 §12](../../spec/L2-module-specs/L2-a2a-protocol.md)
 
 ---
 
-## 12. L4 实施顺序与完成定义
+## 13. 生命周期契约（时序图 · 继承 L2-1 Spec §13）
 
-### 12.1 推荐实现批次
-
-1. **Batch A（协议纯类型）**：types + errors + statemachine + schemas。
-2. **Batch B（最小可通信）**：server handler/registry/Card/health + client transport/wrappers。
-3. **Batch C（可靠性）**：retry/circuit/P2C/discovery/cache/watch。
-4. **Batch D（安全）**：identity/SVID/TLS/auth middleware。
-5. **Batch E（可观测）**：trace/metrics/logging。
-6. **Batch F（集成）**：Adapter fake + kind E2E + conformance。
-
-每个 Batch 独立 PR，前一批测试通过后再进入下一批；不得以“后续补测试”跨批次。
-
-### 12.2 Definition of Done
-
-- [ ] 文件树中所有生产文件已实现或通过评审显式裁剪。
-- [ ] 6 method typed wrapper + params/result schema 全部存在。
-- [ ] 5 标准 + 9 扩展错误码及 HTTP/retry 映射测试通过。
-- [ ] Task FSM 合法/非法转换全覆盖。
-- [ ] 4 HTTP endpoint 可运行；JSON-RPC batch/SSE/cancel 未泄露。
-- [ ] mTLS 双向认证 + SPIFFE 热更新 +授权规则通过。
-- [ ] TTL + EndpointSlice watch + singleflight + LRU 有测试。
-- [ ] 重试/熔断/P2C 在 race test 下通过。
-- [ ] 6 个 Prometheus 指标和 OTel span 通过集成测试。
-- [ ] 单元覆盖率门禁达标；fuzz/race/conformance/E2E 有可追踪结果。
-- [ ] `go vet`、`golangci-lint`、依赖漏洞扫描通过。
-- [ ] godoc 覆盖全部 exported symbols；README 示例不绕过 A2A。
+> ⚠️ **占位章节** —— 后续 #51+ 会话补完。
+>
+> **本节将展开**：
+> - 13.1 启动时序（lifespan 5 阶段：observability init → mtls context build → cert hot reload start → agent card cache warmup → server start）
+> - 13.2 稳态（steady state · 6 method 路由 + ExtensionRouter dispatch + metrics/trace 持续采集）
+> - 13.3 关闭时序（SIGTERM → lifespan.shutdown 6 阶段逆序）
+> - 13.4 证书热更新时序（每 5min 检查 + atomic 替换 + 失败回退）
+>
+> **基线引用**：[L2-1 Spec v0.2.0 §13](../../spec/L2-module-specs/L2-a2a-protocol.md)
 
 ---
 
-## 13. 变更记录
+## 14. 验收清单（v0.2 · Python-first · 继承 L2-1 Spec §14）
 
-| 版本 | 日期 | 变更 |
-|------|------|------|
-| v0.1-draft | 2026-07-24 | 初稿：约 70 文件；7 子包；6 method；4 HTTP endpoint；类型/schema/错误/FSM；Server/Client；Discovery/重试/熔断/P2C；SPIFFE/mTLS；6 指标；271 UT + 3 fuzz + 15 IT + 22 CF + 5 E2E 映射；关闭 L2-1 的 5 个开放问题 |
-
----
-
-## 附录 A：跨文档引用清单
-
-| 引用 | 位置 | 本 Spec 消费内容 | 状态 |
-|------|------|-----------------|------|
-| 项目宪法 | `CONSTITUTION.md` §2.1/2.3/2.4/2.6、§3.5-3.7、§4.1、§6.1、§7、§9、§14-16 | 协议优先、失败、安全、可观测、测试、设计门禁 | ✅ v0.4.0 |
-| L1 Architecture | `docs/design/L1-architecture.md` §3.4/§6/§7/§8.2 | 通信层、C-2、端口、调用流 | ✅ v0.1.0 |
-| L1 System Spec | `docs/spec/L1-system-spec.md` §5/§15 | A2A types、6 method、HTTP/error/schema | ✅ v0.1.0 |
-| L2-1 Design | `docs/design/L2-modules/L2-a2a-protocol.md` | 7 子包、算法、身份、可观测 | ✅ v0.1.0 |
-| L2-1 Spec | `docs/spec/L2-module-specs/L2-a2a-protocol.md` | exported API、23 配置行、schema、37 测试基线 | ✅ v0.1.0 |
-| L2-1 Review | `docs/reviews/l2-1-a2a-protocol-review.md` | 10 维度结论、5 个 L3 移交项 | ✅ 通过 |
-| L2-2 Operator | `docs/spec/L2-module-specs/L2-operator-core.md` | Workflow client、Agent Card reconcile | ✅ v0.1.0 |
-| L2-3 Adapter | `docs/spec/L2-module-specs/L2-adapter.md` | Server 嵌入、6 handler 注册、8080 | ✅ v0.1.0 |
-| L2-4 Knowledge/Memory | `docs/spec/L2-module-specs/L2-knowledge-memory.md` | 4 handler 最终归属、共享 Deployment | ✅ v0.1.0 |
-| L3-1 Operator Core | `docs/spec/L3-file-specs/L3-operator-core.md` | Client 消费、Service/EndpointSlice、跨模块测试 | ⏳ v0.1-draft |
+> ⚠️ **占位章节** —— 后续 #51+ 会话补完。
+>
+> **本节将展开**：
+> - 14.1 模块完整性（30 文件清单 + 6 method + 4 endpoint + 24 error code + 15 指标）
+> - 14.2 Python-first 硬约束（ADR-0005 + 宪法 v0.5.0）
+> - 14.3 可观测性 / 安全 / 性能
+> - 14.4 上游追踪
+> - 14.5 与其他文档一致性
+> - 14.6 跨文档同步
+>
+> **基线引用**：[L2-1 Spec v0.2.0 §14](../../spec/L2-module-specs/L2-a2a-protocol.md)
 
 ---
 
-## 附录 B：开放问题（移交评审或 L4）
+## 15. 开放问题（移交 L3-2 Spec / v0.5+ · 继承 L2-1 Spec §15）
 
-| ID | 问题 | 当前倾向 | 决策点 |
-|----|------|----------|--------|
-| B.1 | JSON Schema Go 实现库选型 | 选择完整支持 draft 2020-12、可离线编译、维护活跃者 | L4 首批依赖 PR，需记录版本与漏洞扫描 |
-| B.2 | UUIDv7 库 vs 自实现 | 使用维护活跃的 UUID 库，不自写随机/时间位算法 | L4 Batch A |
-| B.3 | 显式 external endpoint 的 Card URL 重定向策略 | 默认禁止跨 host，允许显式 allowlist | 安全评审 |
-| B.4 | K8s resolver 是否默认 watch 全 namespace | 默认仅 client 所在 namespace；跨 namespace按需 watch | 性能/RBAC 评审 |
-| B.5 | Card 缓存 1,000 entries 是否需配置化 | v0.1 常量；观测到压力后再暴露公共 key | L4 benchmark |
-| B.6 | HTTP status 与 JSON-RPC “通常 200”兼容性 | 保持 L1 已定义的 HTTP 映射；conformance adapter 可提供 always-200 模式但默认关闭 | Conformance 接入时复核 |
-| B.7 | `canceled` 类型保留是否会被误认为 v0.1 支持 | godoc/handler registry 双重标注；不提供 Cancel wrapper | L3 评审 |
-| B.8 | probe 是否需要独立默认端口 | 由 Adapter/部署 Spec 决定；A2A Core 提供 Handler 不强占端口 | L3-3 |
+> ⚠️ **占位章节** —— 后续 #51+ 会话补完。
+>
+> **本节将展开**：
+> - 15.1 继承自 L2-1 Spec v0.2.0 §15 的 15 项开放问题（v0.2 收敛 80%）
+> - 15.2 L3-2 Python 重写新增开放问题（预估 5-8 项 · pyright strict / a2a-sdk version / httpx async pool tuning / cert hot reload atomic 等）
+>
+> **基线引用**：[L2-1 Spec v0.2.0 §15](../../spec/L2-module-specs/L2-a2a-protocol.md)
 
-> 以上问题均不阻塞本文件评审；任何改变公共 API、协议语义或安全默认值的决议必须回写本 Spec，必要时走 ADR。
+---
+
+## 附录 A：跨模块引用清单（v0.2-draft 骨架稿 · 后续 #51+ 补完）
+
+### A.1 L1 引用
+
+| L1 文档 | 引用章节 | 用途 |
+|---------|----------|------|
+| [L1 Architecture v0.2.0](../../design/L1-architecture.md) | §3.4 通信层 | A2A Core 在 L1 中的位置 + 与 Operator/Adapter/Knowledge/Memory 的边界 |
+| [L1 Spec v0.2.0](../../spec/L1-system-spec.md) | §5 + §15 + §16 | wire contract（envelope / Task FSM / 15 指标 metric name） |
+
+### A.2 L2 引用
+
+| L2 文档 | 引用章节 | 用途 |
+|---------|----------|------|
+| [L2-1 A2A Protocol Spec v0.2.0](../../spec/L2-module-specs/L2-a2a-protocol.md) | §1-§15 + 附录 A/B | **L3-2 上游约束权威**；7 子包 + 6 method + 4 endpoint + 24 error code + 15 指标 + 100 测试 ID |
+| [L2-1 A2A Protocol Design v0.2.0](../../design/L2-modules/L2-a2a-protocol.md) | §3-§14 | 7 子包设计决策 + ExtensionRouter Protocol 设计 + 单进程原则 + mTLS 设计 |
+| [L2-2 Operator Core Spec v0.2.0](../../spec/L2-module-specs/L2-operator-core.md) | §6 Leader Election | A2A Core 在 Operator 编排下与 admission webhook 共 Pod + 4 Controller reconcile |
+| [L2-3 Adapter Spec v0.2.0](../../spec/L2-module-specs/L2-adapter.md) | §1-§15 | Adapter SDK 通过 A2AClient 调用 A2A Core 6 method |
+| [L2-4 Knowledge/Memory Spec v0.2.0](../../spec/L2-module-specs/L2-knowledge-memory.md) | §1-§15 | Knowledge Service / Memory backend 实现 4 extension router + 调用 A2A Core 注册表 |
+
+### A.3 ADR / Constitution 引用
+
+| ADR / 宪法 | 章节 | 用途 |
+|------------|------|------|
+| [ADR-0002 Knowledge 管理设计](../adr/0002-knowledge-design.md) | §2 + §3 | 4 级 scope + 7 错误码（-32400 ~ -32406）|
+| [ADR-0003 Memory 设计](../adr/0003-memory-design.md) | §4 + §6 | 5 维可见性矩阵 + 6 错误码（-32500 ~ -32505）+ recordMemory idempotency |
+| [ADR-0005 Python-first 技术栈](../adr/0005-python-first-technology-stack.md) | §3.2 + §6 + §8 + §9.1 + §13.1 | A2A Core 模块映射 + 单进程原则 + 异步 SDK 门禁 + mTLS + uv workspace 布局 |
+| [CONSTITUTION v0.5.0](../../../CONSTITUTION.md) | §3.8 + §6 + §7 + §9.7 + §13.6 + §16 | Python-first + mTLS + 可观测性 + 静态质量 + 上游追踪 + 会话管理 |
+
+### A.4 配套 Spec 引用（L3 同级）
+
+| L3 文档 | 引用章节 | 用途 |
+|---------|----------|------|
+| [L3-1 Operator Core 文件级 Spec v0.2-draft](./L3-operator-core.md) | §1.3 文件清单 + §2 包结构 | A2A Core 与 Operator 同 Pod 部署 + 4 Controller reconcile A2A Core 生命周期 |
+| L3-3 Adapter SDK 文件级 Spec | (待起草) | Adapter SDK 通过 A2AClient 调用 6 method |
+| L3-4 Hello Agent 文件级 Spec | (待起草) | Hello Agent 实现 4 extension router + Adapter 集成 |
+| L3-5 Knowledge Service 文件级 Spec | (待起草) | Knowledge Service 实现 2 extension router（queryKnowledge + getKnowledgeItem）|
+| L3-6 Memory backend 文件级 Spec | (待起草) | Memory backend 实现 2 extension router（recordMemory + queryMemory）|
+
+### A.5 归档引用
+
+| 归档文档 | 章节 | 用途 |
+|---------|------|------|
+| [L3-a2a-core-spec-v0.1-draft-go-baseline.md](../../archive/pre-python-2026-07-24/L3-a2a-core-spec-v0.1-draft-go-baseline.md) | §1-§10（1446 行） | Go baseline 完整结构参照（仅 wire contract / 业务语义 / 状态机 / RBAC / metric name 不变部分）|
+
+---
+
+## 附录 B：ADR / Constitution 引用矩阵（占位 · 后续 #51+ 补完）
+
+> ⚠️ **占位附录** —— 后续 #51+ 会话补完。
+>
+> **本附录将展开 5 子表**：
+> - B.1 架构（ADR-0005 §3.2 + 宪法 §3.8）
+> - B.2 接口（ADR-0005 §8 + 宪法 §13.6）
+> - B.3 可见性（ADR-0002/0003 + 宪法 §7）
+> - B.4 安全（ADR-0005 §9.1 + 宪法 §6）
+> - B.5 性能（L1 v0.2.0 Arch §11.5 + ADR-0005 §6.1/6.3）
+> - B.6 测试（ADR-0005 §11 + 宪法 §9.7）
+>
+> **基线引用**：[L3-1 Operator Core Spec v0.2-draft 附录 B](./L3-operator-core.md) + [L2-1 Spec v0.2.0 附录 B](../../spec/L2-module-specs/L2-a2a-protocol.md)

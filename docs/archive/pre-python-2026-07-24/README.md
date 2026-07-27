@@ -17,6 +17,20 @@
 | [L3-operator-core-spec-v0.1-draft-go-baseline.md](./L3-operator-core-spec-v0.1-draft-go-baseline.md) | **v0.1-draft** Go baseline（**未评审**） | `docs/spec/L3-file-specs/L3-operator-core.md` 原文件 | ~75KB / 1886 行 | 2026-07-27 |
 | [L3-a2a-core-spec-v0.1-draft-go-baseline.md](./L3-a2a-core-spec-v0.1-draft-go-baseline.md) | **v0.1-draft** Go baseline（**未评审**） | `docs/spec/L3-file-specs/L3-a2a-core.md` 原文件 | ~62KB / 1446 行 | 2026-07-27 |
 
+---
+
+## git 提交历史（ADR-0005 Python 重写后 · 2026-07-27 起）
+
+> **目的**：登记本目录归档文件在 #46 起 `git init` 后是否仍被引用 + 后续 Python 重写是否导致覆盖丢失事故。**未在此登记的 commit = 引用本目录归档但未覆盖**。
+
+| Commit | 说明 | 覆盖丢失 | 引用模式 |
+|--------|------|----------|----------|
+| `64b6147` | docs: initial commit · 45 sessions pre-L3-1 Spec v0.2.0 boundary | 无 | 仅历史存档 |
+| `da78c5c` | feat(L3-1): §7 observability + RBAC + Helm values 文件级 Spec | 无 | 引用 L3-1 Go baseline 历史 |
+| `fad1556` | feat(L3-1): §8 testing + toolchain 文件级 Spec | 无 | 引用 L3-1 Go baseline 历史 |
+| `400f978` | feat(L3-1): §9 acceptance 验收清单 文件级 Spec | 无 | 引用 L3-1 Go baseline 历史 |
+| 计划中 | feat(L3-2): Python v0.2-draft 骨架稿（**即将覆盖** `docs/spec/L3-file-specs/L3-a2a-core.md`） | ⚠️ Go baseline 即将丢失（本目录保留副本） | 与 #21/#34/#38 模式一致 |
+
 > ⚠️ **L2-1 Go Spec v0.1.0 已在 #21 会话丢失**（被 L2-1 Python Spec v0.2-draft 覆盖事故），未及时归档——本目录不再补录 L2-1 Go baseline（已无原文件可归档）
 >
 > ⚠️ **L2-3 Go Design + Spec v0.1.0 已在 #34 会话丢失**（被 L2-3 Python Design v0.2-draft 覆盖事故，与 L2-1 模式相同）—— 本目录不再补录 L2-3 Go baseline；仅 [`docs/reviews/l2-3-adapter-review.md`](../../reviews/l2-3-adapter-review.md)（2026-07-24 通过，Go baseline 评审）作为历史参照
