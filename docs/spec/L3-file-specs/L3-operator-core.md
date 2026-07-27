@@ -8,7 +8,7 @@
 > **模块 ID**：C-1（Operator Core，见 L1 Architecture §4.1）
 > **代码位置**：`packages/operator/src/superteam_a2a/operator/`（**ADR-0005 §13.1 uv workspace 布局**，替代原 Go baseline 的 `src/operator/`）
 > **版本**：v0.2-draft（2026-07-27 起 Python 重写 + 2026-07-27 #16 Go baseline 归档）
-> **状态**：🟡 v0.2-draft **§7 补完稿（#44 骨架 + #45 §4-§6 + #47 §7 observability + RBAC + Helm values 补完）**——头部 + §0-§7 + 附录 A 已落地 + ⚠️ §8 测试策略 / §9 验收清单 / §10 开放问题 + 附录 B 矩阵 = **3 节 + 1 附录待后续 #48+ 会话补完**
+> **状态**：🟡 v0.2-draft **§8 补完稿（#44 骨架 + #45 §4-§6 + #47 §7 observability + RBAC + Helm values + #48 §8 测试策略 + 工具链 补完）**——头部 + §0-§8 + 附录 A 已落地 + ⚠️ §9 验收清单 / §10 开放问题 + 附录 B 矩阵 = **2 节 + 1 附录待后续 #49+ 会话补完**
 > **上游约束**：[`docs/design/L2-modules/L2-operator-core.md`](../../design/L2-modules/L2-operator-core.md) **v0.2.0**（2026-07-24 评审通过 · 80KB / 1583 行 / 14 主章节）+ [`docs/spec/L2-module-specs/L2-operator-core.md`](../../spec/L2-module-specs/L2-operator-core.md) **v0.2.0**（2026-07-25 评审通过 · 103KB / 1890 行 / 16 节 + 2 附录 / 122 测试 ID / 16 开放问题 / 80% 收敛率）
 > **本 Spec 目的**：将 L2-2 Operator Core Spec v0.2.0 中的 **13 子包 + 4 Controller + MemoryReconciler + admission webhook + Leader Election + Finalizer + observability + RBAC + Helm + 测试策略** 落地为 **文件级 Python 代码契约**——每个文件列明**绝对路径（基于 uv workspace 布局）**、**职责一句话**、**完整 import 列表**、**exported 符号签名（type hints + docstring 一行）**、**内部 helper 列表**、**关联测试文件路径 + 测试 ID 前缀**。是 L4 实施阶段（开发者打开 IDE 即可对照写代码）的直接输入。
 > **配套 Spec**：[L3-5 Knowledge Service 文件级 Spec](./L3-knowledge-service.md)（待起草）/ [L3-6 Memory backend 文件级 Spec](./L3-memory-backend.md)（待起草）/ [L3-2 A2A Core Library 文件级 Spec](./L3-a2a-core.md)（**本次 #44 同步归档 Go baseline 62KB/1446 行；Python 重写待 #47+ 启动**）
@@ -18,8 +18,8 @@
 ## 0. 阅读指南
 
 - **读者**：Operator 实施工程师（L4 Python 编码）、Code Reviewer（PR 审查）、架构 Reviewer（设计一致性）
-- **必读章节**：§1（模块使命 + 70 文件清单总览）/ §2（Python 包结构）/ §3（4 Controller + MemoryReconciler 概要）/ 附录 A（跨模块引用清单）
-- **可选章节**：本次 v0.2-draft 补完稿不包含 §7-§10 主体（已在各 §标题占位；后续 #46+ 会话补完）
+- **必读章节**：§1（模块使命 + 70 → 162 文件清单总览）/ §2（Python 包结构）/ §3（4 Controller + MemoryReconciler 概要）/ §8（测试策略 + 工具链）/ 附录 A（跨模块引用清单）
+- **可选章节**：本次 v0.2-draft 补完稿不包含 §9-§10 主体 + 附录 B（已在各 §标题占位；后续 #49+ 会话补完）
 - **配套阅读**：[L2-2 Operator Core Spec v0.2.0](../../spec/L2-module-specs/L2-operator-core.md) §1-§15 + 附录 A/B · [L2-2 Operator Core Design v0.2.0](../../design/L2-modules/L2-operator-core.md) §3-§14 · [L1 Architecture v0.2.0 §3.2 编排层](../../design/L1-architecture.md) · [ADR-0003 §4 Memory 衰减算法](../adr/0003-memory-design.md) · [ADR-0005 §3.1 Operator 模块映射](../adr/0005-python-first-technology-stack.md) · [Kopf 官方文档](https://kopf.readthedocs.io/) · [kubernetes_asyncio 文档](https://github.com/kubernetes-client/python/tree/master/kubernetes_asyncio)
 
 **与 L3-1 Go baseline 关系**：
@@ -2967,6 +2967,553 @@ rules:
 
 ---
 
+## 8. 测试策略 + 工具链文件级 Spec（落地到 pytest 测试镜像 + pyproject + uv workspace + Dockerfile + Helm chart 顶层）
+
+> 本节将 L2-2 Spec §12 测试策略 + §13 工具链与部署形态落地为 **pytest 测试镜像布局 + 4 工程配置文件 + Helm chart 顶层结构** 的文件级契约。所有测试 ID（`TEST-` / `TOOL-` / `E2E-` 前缀）+ pyproject 字段名 + Dockerfile 阶段 + Helm chart 元信息 + 镜像 tag 规则 属于 v0.1 工程 contract；新增/修改必须走 ADR。
+>
+> **范围**:测试镜像 87 `test_*.py` 文件 + conftest.py + 4 工程配置文件（`pyproject.toml` / `Dockerfile` / `Chart.yaml` / `values.schema.json`）+ uv workspace 根 `pyproject.toml` = **新增 92 个工程资产**到 L3-1 文件清单（70 → 87 Python + 25 工程 = 162 资产；测试镜像与 src 1:1 镜像）。落地后 L3-1 累计文件清单 **70 → 162**（87 src + 25 工程 + 50 顶层测试夹具 = 162）。
+>
+> **测试 ID 总额**:L3-1 累计 §0-§7 = 218 ID,**§8 新增/继承 59 ID**(TEST-001~025 = 25 ID 完整继承 L2-2 §12.7 + TOOL-001~034 = 34 ID 完整继承 L2-2 §13.9;L3-1 §8 不创造新 ID,仅落地到具体测试文件路径),L3-1 §8 落地后累计 **277 ID**(仍然在 L2-2 Spec §A-§G 6 维度范围内;TEST/TOOL 完整继承 L2-2 ID 矩阵)。
+>
+> **与 L2-2 Spec §12/§13 关系**:L3-1 **完整继承** L2-2 §12 测试策略 + §13 工具链的所有契约(测试目录、覆盖率、pyproject 字段、Dockerfile 阶段、Helm chart 顶层、镜像 tag),落地为 **每个文件的具体路径 + 测试文件 ID 映射**;L3-1 不创造新测试策略或工具链概念。
+
+### 8.1 测试目录镜像布局（87 src → 87 test_*.py + 50 顶层测试夹具 = 137 测试文件）
+
+> **镜像规则**(继承 L2-2 Spec §12.1 + 宪法 §15.5):`src/superteam_a2a/operator/<sub>/<file>.py` → `tests/unit/<sub>/test_<file>.py` 1:1 镜像;新增 `*.py` 必须有同名 `test_*.py`,否则 CI 失败。
+
+**L3-1 测试目录完整结构**（基于 L2-2 §12.1 + §7 observability/RBAC/Helm 17 文件新增后的 87 src 文件 1:1 镜像）:
+
+```
+packages/operator/tests/
+├── conftest.py                                  # 共享 fixture：fake_k8s_client / fake_clock / fake_election / fake_metrics
+├── pytest.ini                                   # pytest 配置（asyncio_mode=auto + 严格覆盖率门禁）
+├── unit/                                        # 87 个 test_*.py（src 1:1 镜像）
+│   ├── conftest.py                              # 单元测试层 fixture（fake_clock 等）
+│   ├── operator/                                # 顶层 operator/ 3 文件
+│   │   ├── test___init__.py                     # UT-OP-01~04 public API 导出
+│   │   ├── test___internals.py                  # UT-OP-05~08 internal API 重导出
+│   │   ├── test_main.py                         # UT-OP-09~12 OperatorMain.run() 启动序列
+│   │   └── test___main__.py                     # UT-OP-13~14 CLI 入口（python -m superteam_a2a.operator）
+│   ├── controllers/                             # 4 Controller handler 测试
+│   │   ├── test_agent.py                        # UT-C-A-01~07 AgentController handlers + error dispatch
+│   │   ├── test_agentset.py                     # UT-C-AS-01~07 AgentSetController
+│   │   ├── test_workflow.py                     # UT-C-W-01~07 WorkflowController + DAG 校验触发
+│   │   └── test_memory_reconciler_controller.py # UT-C-M-01~09 MemoryReconciler Kopf timer + handlers
+│   ├── reconcilers/                             # 业务服务测试（5 文件）
+│   │   ├── test_base.py                         # UT-R-B-01~04 BaseReconciler 错误分类
+│   │   ├── test_agent_reconciler.py             # UT-R-A-01~05 AgentReconcilerService
+│   │   ├── test_agentset_reconciler.py          # UT-R-AS-01~05 AgentSetReconcilerService
+│   │   ├── test_workflow_reconciler.py          # UT-R-W-01~06 WorkflowReconcilerService
+│   │   └── test_memory_reconciler_service.py    # UT-R-M-01~05 MemoryReconcilerService
+│   ├── admission/                               # admission webhook server + 5 validators
+│   │   ├── test_server.py                       # UT-AW-S-01~05 ASGI server + 双路由
+│   │   ├── test_tls.py                          # UT-AW-T-01~04 TLS 热更新
+│   │   ├── test_base_validator.py               # UT-AW-BV-01~03 CRDValidator Protocol
+│   │   ├── test_agent_validator.py              # UT-AW-AV-01~03 AgentValidator
+│   │   ├── test_agentset_validator.py           # UT-AW-ASV-01~03 AgentSetValidator
+│   │   ├── test_workflow_validator.py           # UT-AW-WV-01~03 WorkflowValidator + DAG
+│   │   ├── test_memory_validator.py             # UT-AW-MV-01~03 MemoryValidator
+│   │   └── test_mutual_exclusion.py             # UT-AW-ME-01~03 Knowledge↔Memory 互斥
+│   ├── leader_election/                         # K8s Lease 客户端 + Election 主类
+│   │   ├── test_lease_client.py                 # UT-LE-LC-01~05 AsyncLeaseClient 状态机
+│   │   └── test_election.py                     # UT-LE-EL-01~05 Election 完整生命周期
+│   ├── finalizers/                              # 4 Finalizer 名称 + 工具
+│   │   └── test_names.py                        # UT-FN-01~03 4 Finalizer 名称常量
+│   ├── clients/                                 # kubernetes_asyncio 封装
+│   │   └── test_k8s_client.py                   # UT-KC-01~07 AsyncK8sClient
+│   ├── observability/                           # observability 子包 6 文件（§7.1 新增）
+│   │   ├── test_metrics.py                      # OBS-001~013 MetricsRegistry + 11+4 指标
+│   │   ├── test_health.py                       # HLT-001~008 双探针 + Lease + MemoryReconciler
+│   │   ├── test_tracing.py                      # OBS-016~019 OTLP + RuntimeMonitor
+│   │   ├── test_logging.py                      # OBS-010/024 structlog 8 字段 + BoundLogger
+│   │   ├── test_events.py                       # OBS-007/022/025 EventReason + 1024 截断
+│   │   └── test___init__.py                     # observability 子包导出
+│   ├── errors/                                  # ReconcileError hierarchy
+│   │   └── test_errors.py                       # UT-ER-01~06 错误分类 + handle_error
+│   ├── config/                                  # Helm values Pydantic
+│   │   └── test_helm_values.py                  # UT-CF-01~04 HelmValues + alias 映射
+│   └── models/                                  # CRD 实体 Pydantic（36 文件 → 36 test_*.py）
+│       ├── agent/
+│       │   ├── test_spec.py                     # UT-MD-A-S 1~5 AgentSpec
+│       │   ├── test_status.py                   # UT-MD-A-St 1~5 AgentStatus
+│       │   ├── test_conditions.py               # UT-MD-A-C 1~4 AgentCondition
+│       │   └── test_enums.py                    # UT-MD-A-E 1~3 Phase/ReconcileState
+│       ├── agentset/                            # AgentSetSpec/Status/Conditions/Enums (4)
+│       ├── workflow/                            # WorkflowSpec/Status/Conditions/Enums/DagValidator (5)
+│       └── memory/                              # MemorySpec/Status/Conditions/Enums/Decay/Reinforce/GC/Promotion (8)
+├── integration/                                 # envtest + Kopf testing harness
+│   ├── conftest.py                              # envtest fixture（Kopf 启动 + CRD apply）
+│   ├── envtest/                                 # envtest 集成
+│   │   ├── test_agent_lifecycle.py              # IT-ENV-A-01~05 4 CRD 完整生命周期
+│   │   ├── test_finalizer_cleanup.py            # IT-ENV-FC-01~04 Finalizer 清理
+│   │   ├── test_memory_timer.py                 # IT-ENV-MT-01~04 MemoryReconciler 定时
+│   │   └── test_concurrent_election.py          # IT-ENV-CE-01~03 多副本并发（fake）
+│   ├── admission/                               # admission 集成
+│   │   ├── test_webhook_registration.py         # IT-AW-WR-01~04 ValidatingWebhookConfiguration
+│   │   ├── test_mtls_rotation.py                # IT-AW-MT-01~03 cert-manager fake issuer
+│   │   └── test_mutual_exclusion_e2e.py         # IT-AW-ME-01~03 Knowledge↔Memory 拒绝
+│   └── helm/                                    # Helm chart 集成测试（§13.6 + §9.4）
+│       ├── test_chart_lint.py                   # HELM-021~024 helm lint + template
+│       ├── test_values_schema.py                # HELM-025~028 values.schema.json 与 Pydantic 对齐
+│       └── test_rbac_apply.py                   # RBAC-IT-001~004 envtest 中 apply ClusterRole/Role
+├── e2e/                                         # kind 集群 E2E
+│   ├── conftest.py                              # kind 集群 fixture（独立 cluster name）
+│   ├── kind/
+│   │   ├── test_agent_lifecycle.py              # E2E-001~010 Agent CRD + Pod Ready + 通信
+│   │   ├── test_workflow_dag.py                 # E2E-011~015 合法/非法 DAG Workflow
+│   │   └── test_memory_reconcile.py             # E2E-016~020 MemoryReconciler decay/reinforce
+│   └── conformance/
+│       └── test_a2a_wire_contract.py            # CONFORMANCE-001~010 4 项目扩展 A2A method + 11 错误码
+├── perf/                                        # 性能测试（v0.1 占位 · v0.5+ 启动）
+│   └── test_reconcile_throughput.py             # PERF-001~005 v0.1 @pytest.mark.skip
+└── tools/                                       # 工具脚本测试（独立 pytest collect）
+    ├── test_chart_version_sync.py               # TOOL-010/013 pyproject.version == Chart.appVersion
+    └── test_lock_check.py                       # TOOL-013 uv lock --check
+```
+
+**总计**:87 个 src 文件 → 87 个 `test_*.py` 单元测试 + 8 envtest + 7 admission 集成 + 3 helm 集成 + 3 kind E2E + 1 conformance + 1 perf + 2 tools = **111 test_*.py** + 6 conftest.py + pytest.ini + Chart.yaml + values.yaml + values.schema.json + Dockerfile + pyproject.toml + uv.lock = **137 文件**(L3-1 §8 文件清单 70 + 17 §7 + 50 §8 镜像 = 137;含 50 个独立顶层资产如 conftest/pytest.ini/Dockerfile 等)。
+
+**conftest.py 分层**(继承 L2-2 Spec §12.1 + 强化分层 fixture):
+
+- `tests/conftest.py`:全局 fixture,导入所有子层 conftest 的 fixture 并提供 `fake_k8s_client` / `fake_clock` / `fake_election` / `fake_metrics` 4 个核心 mock。
+- `tests/unit/conftest.py`:单元测试层,定义 `event_loop_policy` (Windows 默认 ProactorEventLoop;Linux 默认 uvloop)、`auto_mock_clock` autouse fixture。
+- `tests/integration/conftest.py`:envtest fixture,启动 Kopf testing harness (60 秒内完成,IT-ENV-INIT-001);使用 fake AsyncLeaseClient 模拟多副本。
+- `tests/integration/helm/conftest.py`:Helm fixture,执行 `helm template` + `helm lint` + 比对 `values.schema.json`。
+- `tests/e2e/conftest.py`:kind fixture,创建独立 cluster name `e2e-<short-sha>-<pid>`(TEST-019 E2E 必须从干净 kind 集群开始)。
+
+### 8.2 单元测试（继承 L2-2 Spec §12.2 · 强制 1:1 镜像）
+
+**目标**(与 L2-2 Spec §12.2 + 宪法 §15.5 一致):
+
+- 行覆盖 **≥ 80%**,分支覆盖 **≥ 75%**,关键路径(reconcile / cleanup / admission / Leader Election)覆盖 **≥ 95%**。
+- 每个 `*.py` 文件**必须**有同名 `test_*.py`(TEST-001);新增文件必须附带 ≥ 80% 行覆盖,否则 CI 失败(TEST-005)。
+- pyright strict + ruff + bandit + pip-audit + interrogate 5 重 gate(TEST-009)。
+
+**强制工具链**(继承 L2-2 §12.2 + ADR-0005 §9 + 宪法 §9.4/§9.7):
+
+| 工具 | 版本约束 | 用途 | 测试 ID |
+|------|----------|------|---------|
+| `pytest` | ≥ 8.0 | 测试运行器 | TEST-002 |
+| `pytest-asyncio` | ≥ 0.23 | 异步测试 (asyncio_mode=auto) | TEST-003 |
+| `pytest-cov` | ≥ 4.1 | 行/分支覆盖率 | TEST-004 / TEST-012 |
+| `pytest-mock` | ≥ 3.12 | mock fixture | TEST-006 |
+| `hypothesis` | ≥ 6.100 | 属性测试（Memory decay/reinforce 数学公式） | TEST-007 |
+| `respx` | ≥ 0.21 | httpx mock（OTLP exporter / K8s API mock） | TEST-008 |
+| `prometheus_client.CollectorRegistry` | ≥ 0.20 | fake metrics registry 隔离 | TEST-010 |
+| `ruff` | ≥ 0.4 | lint + import-linter 静态检查 | TEST-009 |
+| `pyright --strict` | ≥ 1.1.350 | 类型检查 | TEST-009 |
+| `bandit` | ≥ 1.7 | 安全 lint | TEST-009 |
+| `pip-audit` | ≥ 2.7 | 依赖漏洞扫描 | TEST-009 |
+| `interrogate` | ≥ 1.7 | docstring 100% 覆盖 | TEST-011 |
+
+**关键不变量**:
+
+- ✅ TEST-001:每个新增 `*.py` 必须有同名 `test_*.py`(由 CI 中自定义 pytest plugin `pytest_supertem.py` 检查,失败等同 build break)。
+- ✅ TEST-005:关键路径(reconcile / cleanup / admission / Leader Election)行覆盖 ≥ 95% 由 `pytest --cov-fail-under=95 --cov-context=test` 双阈值保证。
+- ✅ TEST-012:`pytest --cov=superteam_a2a.operator --cov-fail-under=80` 强制通过。
+- ✅ TEST-025:所有错误日志 message 长度 ≤ 1024(由 `observability/logging.py` BoundLogger + pytest caplog 双重断言)。
+
+### 8.3 集成测试（envtest + Kopf harness）
+
+**envtest 范围**(继承 L2-2 Spec §12.3):
+
+- **4 CRD 完整生命周期**:create / update / delete + Finalizer cleanup(IT-ENV-A-01~05);
+- **admission webhook 完整流程**:`ValidatingWebhookConfiguration` 注册 + 422/400 错误响应 + 拒绝请求未写 etcd(IT-AW-WR-01~04);
+- **Leader Election 多副本场景**:envtest 不支持多实例 → 用 fake `AsyncLeaseClient` 模拟(IT-ENV-CE-01~03);
+- **MemoryReconciler 定时任务**:`@kopf.timer` 触发用 mock time(IT-ENV-MT-01~04);
+- **mTLS 集成**:cert-manager fake issuer 生成 Secret 供 webhook 加载(IT-AW-MT-01~03);
+- **Helm chart apply**:envtest 中 apply ClusterRole/Role/ServiceAccount/RBAC-IT-001~004;
+- **Knowledge↔Memory 互斥拒绝** admission 端到端 IT-AW-ME-01~03。
+
+**envtest 已知限制**(继承 L2-2 Spec §12.3,必须在 README 显式标注):
+
+- 不支持 Helm → 测试直接 apply manifest(`tests/integration/helm/` 单独路径 + `helm template` 校验);
+- 不支持 cert-manager → 使用 fake Secret(`tests/integration/admission/test_mtls_rotation.py`);
+- 不支持多 Operator 副本 → Leader Election 用单副本 + fake 并发场景(`tests/integration/envtest/test_concurrent_election.py`)。
+- TEST-016:envtest fixture 在 60 秒内完成启动(IT-ENV-INIT-001 监控)。
+
+### 8.4 E2E 测试（kind 集群 · ≥ 10 场景）
+
+**测试场景**(继承 L2-2 Spec §12.4 的 10 个 + L3-1 §7 落地后新增 10 个 = 20 个 E2E case):
+
+**L2-2 §12.4 继承(完整继承 10 个)**:
+
+- `E2E-001`:Agent CRD 创建 → Pod Ready + `AgentStatus.phase=Ready`。
+- `E2E-002`:AgentSet CRD(replicas=3)→ 3 个 Agent 全部 Ready。
+- `E2E-003`:合法 DAG Workflow → `WorkflowStatus.phase=Running`。
+- `E2E-004`:非法 DAG Workflow → admission 拒绝 + `AdmissionRejected` Event。
+- `E2E-005`:Memory CRD 创建 → `MemoryStatus` 初始化 + MemoryReconciler 触发 decay。
+- `E2E-006`:KnowledgeItem + Memory 同时引用 → admission 互斥拒绝。
+- `E2E-007`:Agent 删除 → Finalizer cleanup → Pod 优雅停止 + `CleanupCompleted`。
+- `E2E-008`:Operator 重启 → Lease 自动让位 + 重新选举 + `LeaderAcquired`/`LeaderLost` Event。
+- `E2E-009`:mTLS 证书轮换 → admission webhook 不停机 + 0 个 4xx/5xx 漏接。
+- `E2E-010`:11 Operator 指标全量暴露,labels 全部填充合法值。
+
+**L3-1 §8 新增(基于 §7 observability + RBAC + Helm 17 文件)**:
+
+- `E2E-011`:6 Prometheus 告警规则触发 → Alertmanager 接收 + 路由正确(`tests/e2e/kind/test_prometheus_alerts.py`)。
+- `E2E-012`:NetworkPolicy 阻断 → Operator 无法访问未授权 DNS → 探针失败 + Pod NotReady。
+- `E2E-013`:ServiceAccount annotation `cert-manager.io/issuer` 缺失 → admission webhook 启动失败 + `CertificateNotReady` Event。
+- `E2E-014`:Helm `replicaCount=3` → 3 Operator 副本 + 唯一 leader + 2 standby `/readyz` 返回 200。
+- `E2E-015`:OTLP exporter 不可达 → structlog 错误日志 + tracing span 标记 `error=true` + 不阻塞 reconcile。
+- `E2E-016`:`/healthz` 在 Lease 初始化前立即返回 200 + 探针延迟 < 50ms。
+- `E2E-017`:`/readyz` 在 admission webhook + Lease 初始化**之后**才返回 200 + 切换顺序由 IT-AW-MT-002 验证。
+- `E2E-018`:EventReason 8 种全部覆盖 → K8s Events API 可查询 + `involvedObject.uid` 与 CRD 实例对齐。
+- `E2E-019`:ConfigMap `HELM_VALUES_JSON` 修改 → Operator 不重启 + 60s 内 reconcile 读取新配置(可选 reload,IT-CONF-001)。
+- `E2E-020`:scrape interval 30s + 11+4 指标全部在 ServiceMonitor 中注册 + `honorLabels=true`。
+
+**E2E 跑在 kind(K8s in Docker)集群中**(继承 L2-2 Spec §12.4):
+
+- 每次运行必须使用独立 cluster 名称 `e2e-<short-sha>-<pid>`(TEST-019 E2E 必须从干净 kind 集群开始);
+- CI 中使用 ephemeral runner,失败时 dump `kind export logs` 到 artifacts;
+- E2E 总时长预算 10 分钟(TEST-019 timeout),超时则 fail-fast。
+
+### 8.5 Conformance 测试（4 项目扩展 A2A method + 11 错误码）
+
+与 L2-1 Python v0.2.0 Spec §11.5 一致(继承 L2-2 Spec §12.5):
+
+- **4 个项目扩展 A2A method**(`queryKnowledge` / `getKnowledgeItem` / `recordMemory` / `queryMemory`)的 JSON wire shape 一致性(CONFORMANCE-001~004);
+- Operator 通过 a2a-sdk client 调用 L2-4 Knowledge Service 4 method(CONFORMANCE-005~008);
+- **11 个 A2A JSON-RPC 错误码**与 L2-1 Spec §8.4 字节级一致(CONFORMANCE-009);
+- contract test 失败时禁止合并(CI gate,TEST-022)。
+
+**L3-1 §8 新增 Conformance 维度**:
+
+- `CONFORMANCE-011`:Operator 在 Leader Election 切换时,正在处理的 A2A message 不丢失(由 fake `AsyncLeaseClient` 模拟 + L2-1 client retry 验证)。
+- `CONFORMANCE-012`:admission webhook 拒绝的 CRD,apiServer 返回的 AdmissionReview JSON 与 L2-1 Spec §4 wire 字节一致。
+- `CONFORMANCE-013`:MemoryReconciler decay/reinforce 输出与 L2-4 Spec §3.4 wire 字段 19 项 100% 对齐(`tests/e2e/conformance/test_memory_wire.py`)。
+
+### 8.6 覆盖率与 CI 门禁
+
+继承 L2-2 Spec §12.6:
+
+- `pytest --cov=superteam_a2a.operator --cov-fail-under=80` 强制通过(TEST-012);
+- `pyright --strict` 与 `ruff check` 失败等同测试失败(TEST-009);
+- `bandit -r packages/operator/src` 与 `pip-audit` 高危漏洞数必须为 0(TEST-009);
+- 性能测试 `reconcile_throughput.py` 在 v0.1 仅占位(标记 `@pytest.mark.skip` + 引用 L3-1 移交问题),CI 不得因此失败(PERF-001~005 全部 skip)。
+
+**新增 CI gate**(L3-1 §8 落地):
+
+- **TEST-026**:新增文件必须包含 ≥ 1 个 `test_*.py`(由 pytest plugin `pytest_supertem.py` 静态扫描 `src/` 目录并在收集阶段对比);
+- **TEST-027**:`pytest --cov-context=test` 关键模块(reconcilers/admission/leader_election)覆盖率 ≥ 95%;
+- **TEST-028**:conftest.py 分层 fixture 无循环导入(由 import-linter 规则 `ST-A2A-CONFTEST` 检测);
+- **TOOL-034**:cross-package boundary Ruff 规则 `ST-A2A-BOUNDARY` 在 CI 中通过(L3-1 与 packages/a2a-core / adapter-sdk / knowledge-service 边界)。
+
+### 8.7 关键不变量与测试 ID 矩阵（TEST- 前缀 · 继承 L2-2 §12.7）
+
+继承 L2-2 Spec §12.7 所有 TEST- ID(完整继承 25 个,无修改无新增;L3-1 落地为具体测试文件路径):
+
+| 测试 ID | 描述 | L3-1 落地位置 |
+|---------|------|---------------|
+| `TEST-001` | 新增 `*.py` 必须有同名 `test_*.py` | CI plugin `pytest_supertem.py` + 87 个 test_*.py 1:1 镜像 |
+| `TEST-002` | pytest ≥ 8.0 | `pyproject.toml [project.optional-dependencies.dev]` 锁定 |
+| `TEST-003` | pytest-asyncio ≥ 0.23,asyncio_mode=auto | `pytest.ini` 配置 |
+| `TEST-004` | pytest-cov ≥ 4.1,行/分支覆盖 | `pyproject.toml [tool.coverage.*]` 配置 |
+| `TEST-005` | 关键路径覆盖 ≥ 95% | `--cov-fail-under=95 --cov-context=test` |
+| `TEST-006` | pytest-mock ≥ 3.12 | dev 依赖 |
+| `TEST-007` | hypothesis ≥ 6.100 | `tests/unit/models/memory/test_decay.py` 属性测试 |
+| `TEST-008` | respx ≥ 0.21 | `tests/unit/observability/test_tracing.py` |
+| `TEST-009` | ruff + pyright + bandit + pip-audit 全部通过 | CI workflow `lint.yml` 4 步 gate |
+| `TEST-010` | prometheus_client.CollectorRegistry 隔离 | `tests/unit/observability/test_metrics.py` |
+| `TEST-011` | interrogate ≥ 1.7,docstring 100% | `pyproject.toml [tool.interrogate]` fail-under=100 |
+| `TEST-012` | `--cov-fail-under=80` 通过 | CI workflow `test.yml` |
+| `TEST-016` | envtest fixture 在 60 秒内完成启动 | `tests/integration/envtest/conftest.py` IT-ENV-INIT-001 |
+| `TEST-019` | E2E 必须从干净 kind 集群开始,禁止复用 | `tests/e2e/conftest.py` 独立 cluster name |
+| `TEST-022` | conformance 失败 = 合并阻断 | CI workflow `conformance.yml` required check |
+| `TEST-025` | 所有错误日志 message 长度 ≤ 1024 | `tests/unit/observability/test_logging.py` caplog 断言 |
+| **TEST-026**(新增) | 新增文件必须包含 ≥ 1 个 `test_*.py` | CI plugin `pytest_supertem.py` |
+| **TEST-027**(新增) | 关键模块覆盖率 ≥ 95% | `--cov-context=test` 双阈值 |
+| **TEST-028**(新增) | conftest.py 分层无循环导入 | import-linter 规则 `ST-A2A-CONFTEST` |
+
+**L3-1 §8 新增 3 ID**(TEST-026/027/028),完整继承 25 ID,**§8 测试 ID 总计 28 ID**。
+
+### 8.8 工具链与部署形态文件清单（pyproject + uv workspace + Dockerfile + Helm chart 顶层）
+
+> 本节把 L2-2 Spec §13 的工具链与部署形态落地为 **4 工程配置文件 + uv workspace 根配置 + Helm chart 顶层 4 文件** 的具体路径契约。所有路径、版本约束、镜像 tag 属于 v0.1 部署 contract;新增/修改必须走 ADR。
+
+| 文件 | 路径(基于 uv workspace) | 必须提供 | L2-2 Spec 对应 | 关联测试 ID |
+|------|--------------------------|----------|-----------------|--------------|
+| Operator 包 `pyproject.toml` | `packages/operator/pyproject.toml` | PEP 621 metadata + 依赖列表 + `[project.scripts]` | §13.2 | TOOL-001~004 |
+| Operator 包 `uv.lock`(根锁) | `uv.lock`(仓库根) | uv lockfile,CI 与本地 lock 一致 | §13.3 | TOOL-013 |
+| Operator `Dockerfile` | `packages/operator/Dockerfile` | 多阶段构建 builder + runtime | §13.4 | TOOL-004/007/031 |
+| Operator 入口 `__main__.py` | `packages/operator/src/superteam_a2a/operator/__main__.py` | `python -m superteam_a2a.operator` 调用 `OperatorMain.run()` | §13.1 | TOOL-001 |
+| Helm chart `Chart.yaml` | `deploy/helm/operator/Chart.yaml` | Helm chart 元信息(apiVersion v2) | §13.6 | TOOL-010/016 |
+| Helm 默认 `values.yaml` | `deploy/helm/operator/values.yaml` | 默认 values,严格校验 | §9.1 + §13.6 | TOOL-019 |
+| Helm `values.schema.json` | `deploy/helm/operator/values.schema.json` | 自动生成,与 Pydantic 对齐 | §9.1 + §13.6 | TOOL-019 |
+| Helm `templates/deployment.yaml` | `deploy/helm/operator/templates/deployment.yaml` | Operator + admission webhook Deployment | §7.2.2 + §13.1 | HELM-DEPLOY-001~010 |
+| Helm `templates/service.yaml` | `deploy/helm/operator/templates/service.yaml` | metrics + admission webhook Service 双端口 | §7.2.4 + §13.1 | HELM-013 |
+| Helm `templates/serviceaccount.yaml` | `deploy/helm/operator/templates/serviceaccount.yaml` | cert-manager annotation | §7.2.5 + §13.1 | HELM-014 |
+| Helm `templates/clusterrole.yaml` | `deploy/helm/operator/templates/clusterrole.yaml` | 7 apiGroups 完整 ClusterRole | §7.3.1 | RBAC-001~010 |
+| Helm `templates/clusterrolebinding.yaml` | `deploy/helm/operator/templates/clusterrolebinding.yaml` | ClusterRoleBinding | §7.3.1 | RBAC-001 |
+| Helm `templates/role.yaml` | `deploy/helm/operator/templates/role.yaml` | namespace-scoped Role(secrets only) | §7.3.2 | RBAC-006~008 |
+| Helm `templates/rolebinding.yaml` | `deploy/helm/operator/templates/rolebinding.yaml` | RoleBinding | §7.3.2 | RBAC-006 |
+| Helm `templates/webhookconfig.yaml` | `deploy/helm/operator/templates/webhookconfig.yaml` | ValidatingWebhookConfiguration(failurePolicy: Fail) | §4 + §13.1 | HELM-015~016 |
+| Helm `templates/networkpolicy.yaml` | `deploy/helm/operator/templates/networkpolicy.yaml` | ingress API Server + egress K8s API + OTLP + DNS | §7.2.7 + §13.1 | HELM-017~020 |
+| Helm `templates/prometheusrule.yaml` | `deploy/helm/operator/templates/prometheusrule.yaml` | 6 告警规则 | §7.2.8 | HELM-029~032 |
+| Helm `templates/servicemonitor.yaml` | `deploy/helm/operator/templates/servicemonitor.yaml` | 11+4 指标 scrape | §7.2.9 + §13.1 | HELM-021~024 |
+| Helm `templates/leader_election_lease.yaml` | `deploy/helm/operator/templates/leader_election_lease.yaml` | Lease 资源(可选,leaderElection.enabled=true 时渲染) | §5 + §13.1 | TOOL-028 |
+| 仓库根 `pyproject.toml` | `pyproject.toml` | uv workspace + `[tool.uv.workspace]` members | §13.3 | TOOL-013 |
+| `.github/workflows/lint.yml` | `.github/workflows/lint.yml` | ruff + pyright + bandit + pip-audit + interrogate 5 gate | §13.2 | TEST-009 |
+| `.github/workflows/test.yml` | `.github/workflows/test.yml` | pytest + coverage + envtest | §13.6 | TEST-012 |
+| `.github/workflows/e2e.yml` | `.github/workflows/e2e.yml` | kind cluster + E2E + conformance | §12.4 | TEST-019/022 |
+| `.github/workflows/release.yml` | `.github/workflows/release.yml` | docker buildx + helm package + cosign(可选) | §13.8 | TOOL-031 |
+| `.dockerignore` | `packages/operator/.dockerignore` | 排除 tests/ + docs/ + .git/ | §13.4 | TOOL-007 |
+
+**总计 25 个工程资产**(L3-1 §8 文件清单:Operator 包 4 + Helm chart 顶层 4 + Helm templates 10 + 仓库根 + CI 4 + .dockerignore = **25 工程资产**)。
+
+### 8.9 pyproject.toml 关键字段契约（继承 L2-2 §13.2）
+
+```toml
+# packages/operator/pyproject.toml
+[project]
+name = "superteam-a2a-operator"
+version = "0.2.0"
+description = "superteam-a2a Operator Core — 4 CRD lifecycle + admission + Leader Election + MemoryReconciler"
+requires-python = ">=3.12,<3.13"
+license = { text = "Apache-2.0" }
+authors = [{ name = "CoderZhangfujiang" }]
+dependencies = [
+    "kopf>=1.37",                                      # Operator framework (Kopf handlers)
+    "kubernetes-asyncio>=30.0",                        # K8s 异步客户端
+    "pydantic>=2.6",                                   # CRD 模型 + Helm values 校验
+    "prometheus-client>=0.20",                         # 11+4 Operator 指标
+    "structlog>=24.1",                                 # 8 字段 JSON 日志
+    "opentelemetry-api>=1.24",                         # OTel API
+    "opentelemetry-sdk>=1.24",                         # OTel SDK
+    "opentelemetry-exporter-otlp-proto-grpc>=1.24",    # OTLP gRPC exporter
+    "anyio>=4.3",                                      # async 抽象层
+    "httpx>=0.27",                                     # OTLP HTTP exporter + K8s client
+    "tenacity>=8.2",                                   # 重试策略
+    "uvloop>=0.19; sys_platform == 'linux'",           # Linux uvloop 加速(可选)
+]
+
+[project.optional-dependencies.dev]
+dev = [
+    "pytest>=8.0",
+    "pytest-asyncio>=0.23",
+    "pytest-cov>=4.1",
+    "pytest-mock>=3.12",
+    "hypothesis>=6.100",
+    "respx>=0.21",
+    "ruff>=0.4",
+    "pyright>=1.1.350",
+    "bandit>=1.7",
+    "pip-audit>=2.7",
+    "interrogate>=1.7",
+    "import-linter>=2.0",
+]
+
+[project.scripts]
+superteam-a2a-operator = "superteam_a2a.operator.__main__:main"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/superteam_a2a"]
+```
+
+**约束**(继承 L2-2 §13.2):
+
+- `requires-python` 锁定 `>=3.12,<3.13`(TOOL-001);ADR-0005 §2.2 允许的 Python 3.12+ 视为最低版本。
+- 运行时依赖只能新增 Python 生态库;引入第二核心语言(Go / Rust / C++ 扩展)必须走 ADR。
+- `[project.optional-dependencies.dev]` 仅用于本地开发;**禁止**进入运行时镜像(由 Dockerfile 多阶段保证,TOOL-004)。
+- `dependencies` 中所有库必须有 SPDX 兼容 license(与宪法 §3.8 一致)。
+- `version` 字段必须与 `Chart.yaml` 的 `appVersion` 同步;CI 中使用脚本验证 `pyproject.__version__ == chart.appVersion`(TOOL-010)。
+
+### 8.10 uv workspace 集成（继承 L2-2 §13.3）
+
+`superteam-a2a` 在仓库根使用 uv workspace 统一管理多包:
+
+```toml
+# pyproject.toml(仓库根)
+[tool.uv.workspace]
+members = [
+    "packages/operator",                  # 本 L3-1 Spec 落地的核心包
+    "packages/a2a-core",                  # L3-2 A2A Core Library(v0.1-draft Go baseline 已归档)
+    "packages/adapter-sdk",               # L3-3 Adapter SDK(v0.2-draft)
+    "packages/knowledge-service",         # L3-5 Knowledge Service(待起草)
+    "packages/memory-backend",            # L3-6 Memory backend(待起草)
+    "packages/hello-agent",               # L4 实施启动后第一个 hello-agent 镜像
+]
+```
+
+**约束**(继承 L2-2 §13.3):
+
+- 仓库根 `pyproject.toml` 必须包含 `[tool.uv.workspace]`;`packages/operator` 必须在 `members` 列表中(TOOL-013)。
+- `uv lock` 在仓库根执行;Operator 包的 `uv.lock` 不再单独存在。
+- 跨包导入遵循 L3-1 §2.2 边界规则;CI 通过自定义 Ruff 规则 `ST-A2A-BOUNDARY` 强制(TOOL-034)。
+- 单包构建:`uv build --package superteam-a2a-operator`,产物 `dist/superteam_a2a_operator-0.2.0-*.whl`。
+
+### 8.11 Dockerfile（多阶段 · 非 root · 继承 L2-2 §13.4）
+
+```dockerfile
+# syntax=docker/dockerfile:1.7
+# packages/operator/Dockerfile
+
+FROM python:3.12-slim AS builder
+WORKDIR /build
+RUN pip install --no-cache-dir uv==0.4.18
+COPY pyproject.toml uv.lock ./
+COPY packages/operator ./packages/operator
+RUN uv export --frozen --no-hashes --package superteam-a2a-operator \
+    --format requirements-txt > /tmp/requirements.txt
+RUN pip wheel --no-cache-dir --wheel-dir /wheels -r /tmp/requirements.txt
+
+FROM python:3.12-slim AS runtime
+RUN groupadd --system --gid 65532 superteam && \
+    useradd --system --uid 65532 --gid superteam --no-create-home superteam
+WORKDIR /app
+COPY --from=builder /wheels /wheels
+RUN pip install --no-cache-dir --no-index --find-links=/wheels superteam-a2a-operator && \
+    rm -rf /wheels
+USER 65532:65532
+EXPOSE 8080 8443
+ENTRYPOINT ["superteam-a2a-operator"]
+HEALTHCHECK --interval=30s --timeout=3s --retries=3 \
+    CMD python -c "import httpx; httpx.get('http://localhost:8080/healthz', timeout=2).raise_for_status()"
+```
+
+**契约**(继承 L2-2 §13.4):
+
+- runtime 阶段**禁止**包含 `gcc` / `git` / `pip` / `uv`;只能保留 `python` 可执行文件和 stdlib + 安装的 wheels(TOOL-004)。CI 使用 `docker history` 校验 layer 数。
+- 非 root 用户固定 `uid=65532` / `gid=65532`(TOOL-007);Linux capabilities 必须 `drop=["ALL"]` + 仅 `add=["NET_BIND_SERVICE"]`(8443 < 1024 时需要)。
+- 镜像 base 固定 `python:3.12-slim`;不得使用 `latest` 或非 slim tag。
+- 镜像必须包含 `HEALTHCHECK`(与 §7.1.2 health.py 一致);CI 使用 `docker inspect` 校验存在。
+- 镜像 tag 与 `pyproject.version` + `Chart.appVersion` 三方一致;CI 校验三处相等(TOOL-010)。
+- 多架构(`linux/amd64` + `linux/arm64`)在 v0.1 不强制;v0.5+ 启动(TOOL-031);CI 必须记录基线架构(`linux/amd64`)。
+
+### 8.12 Deployment 探针与生命周期（继承 L2-2 §13.5）
+
+- `livenessProbe`:`httpGet /healthz` 端口 8080;`initialDelaySeconds=30`,`periodSeconds=10`,`timeoutSeconds=3`,`failureThreshold=3`(TOOL-022)。
+- `readinessProbe`:`httpGet /readyz` 端口 8080;`initialDelaySeconds=5`,`periodSeconds=5`,`timeoutSeconds=2`,`failureThreshold=2`(TOOL-025)。
+- `/healthz`:liveness 端点,**必须在 Leader Election 初始化前**就绪;返回 200 当且仅当进程未僵死(TOOL-022 + §7.1.2 health.py `HLT-001~003`)。
+- `/readyz`:readiness 端点,**必须在 Lease 初始化 + admission webhook 启动之后**才返回 200(TOOL-025 + `HLT-005~006`);**非 leader 副本 `/readyz` 也必须 200**(因为 admission webhook 在所有副本上可用,E2E-014 验证)。
+- `/metrics`:端口 8080,路径 `/metrics`;不得启用 basic auth(由 ServiceMonitor 自行控制,§7.2.9 servicemonitor.yaml)。
+- 资源 requests / limits 由 §7.2.3 Helm values `controllers.resources` 控制;`requests.cpu=200m`、`requests.memory=256Mi`、`limits.cpu=1000m`、`limits.memory=1Gi` 是 v0.2 默认(HELM-008~009)。
+- `replicaCount` 默认 2;Operator 副本**必须**部署在不同的 K8s 节点(`topologySpreadConstraints` 或 `podAntiAffinity` 推荐软约束;v0.1 不强制)。
+
+### 8.13 Helm chart 关键字段（继承 L2-2 §13.6）
+
+```yaml
+# deploy/helm/operator/Chart.yaml
+apiVersion: v2
+name: superteam-a2a-operator
+description: superteam-a2a Operator Core — 4 CRD lifecycle + admission + Leader Election + MemoryReconciler
+type: application
+version: 0.2.0      # chart 自身版本(独立于 appVersion)
+appVersion: "0.2.0" # 与 packages/operator/pyproject.toml [project].version 同步(TOOL-010)
+kubeVersion: ">=1.27, <1.32"  # envtest 验证范围;v0.2 锁定(TOOL-016)
+home: https://github.com/CoderZhangfujiang/superteam-a2a
+sources:
+  - https://github.com/CoderZhangfujiang/superteam-a2a
+maintainers:
+  - name: CoderZhangfujiang
+    email: bot@superteam-a2a.local
+keywords:
+  - a2a
+  - multi-agent
+  - kubernetes-operator
+```
+
+**契约**(继承 L2-2 §13.6):
+
+- `apiVersion: v2` + `name: superteam-a2a-operator` + `type: application`;`version: 0.2.0`(chart 自身版本,独立于 appVersion)(TOOL-016)。
+- `appVersion` 必须等于 `pyproject.__version__`;CI 失败时阻塞 release(TOOL-010,`tests/tools/test_chart_version_sync.py`)。
+- `kubeVersion` 约束 `>=1.27, <1.32`(envtest 验证范围;v0.2 锁定)。
+- 依赖 chart:暂不依赖外部 chart(cert-manager 由用户集群预装,§7.2.5 serviceaccount.yaml cert-manager annotation)。
+- `values.yaml` 必须可被 §7.2.3 `HelmValues` Pydantic 模型严格校验(TOOL-019);CI `helm lint` + `helm template` 双重验证(`tests/integration/helm/test_chart_lint.py` + `test_values_schema.py`)。
+- `templates/` 渲染必须满足:`Deployment` + `Service` + `ServiceAccount` + `ClusterRole` + `ClusterRoleBinding` + `Role` + `RoleBinding` + `ValidatingWebhookConfiguration` + 可选 `Lease` + `NetworkPolicy` + `PrometheusRule` + `ServiceMonitor`(§7.2 9 模板完整继承 + §13.1 leader_election_lease.yaml 可选 = 10 模板 + chart 顶层 4 文件 = 14 文件)。
+- `NOTES.txt` 必须说明获取 Operator pod 名 + 验证 admission webhook 已注册的 `kubectl get validatingwebhookconfigurations` 命令(§7.2 占位)。
+
+### 8.14 部署时序（继承 L2-2 §13.7）
+
+```text
+helm install → 创建 Namespace(superteam-a2a-system)
+             → 创建 ServiceAccount + ClusterRoleBinding
+             → 创建 Deployment(replicaCount=2)
+             → 创建 ValidatingWebhookConfiguration(failurePolicy: Fail)
+             → 创建 admission Role + RoleBinding(secrets only)
+             → 创建 Service(双端口:8080 metrics + 8443 admission)
+             → 创建 NetworkPolicy(ingress API Server + egress K8s API + OTLP + DNS)
+             → 创建 PrometheusRule(6 告警)
+             → 创建 ServiceMonitor(11+4 指标 scrape)
+             → 创建可选 Lease(leaderElection.enabled=true)
+
+Pod 启动:
+  pre-hook     → 镜像 pull + 探针端口暴露
+  entrypoint   → superteam-a2a-operator
+                 ├─ 解析 Helm values(Pydantic §7.2.3)
+                 ├─ 初始化 K8s async client(kubernetes_asyncio)
+                 ├─ 初始化 OTel + structlog(observability/tracing.py + logging.py)
+                 ├─ 启动 admission webhook(8443 / TLS · admission/server.py)
+                 ├─ 启动 metrics server(8080 · observability/metrics.py)
+                 ├─ /healthz 立即返回 200(TOOL-022)
+                 ├─ 启动 Leader Election task(leader_election/election.py)
+                 ├─ /readyz 在 Lease acquire + webhook 就绪后返回 200(TOOL-025)
+                 └─ Kopf 处理 CRD watch(controllers/agent.py 等 4 Controller)
+```
+
+**关键不变量**(继承 L2-2 §13.7):
+
+- admission webhook 必须在 `/readyz` 返回 200**之前**完成 TLS 加载 + ValidatingWebhookConfiguration 注册;否则 API Server 无法调用 webhook → CRD 写入失败(TOOL-025 + `HLT-005`)。
+- 副本之间无强启动顺序;非 leader 副本会重复尝试 acquire Lease,全部就绪后由 Lease 决定唯一 leader(E2E-014 验证)。
+- 删除 chart 顺序:先 `kubectl delete validatingwebhookconfigurations`(避免 webhook 阻止 Finalizer cleanup,TOOL-028)→ `helm uninstall` → 残留资源(CRD / CR)由用户决策。
+- 升级期间:Helm `pre-upgrade` hook 仅打印「确认所有副本已就绪」日志;v0.1 不执行 webhooks conversion(L3-1 移交问题)。
+
+### 8.15 镜像分发与版本（继承 L2-2 §13.8）
+
+- **镜像仓库**:默认 `ghcr.io/coderzhangfujiang/superteam-a2a-operator`。
+- **Tag 规则**:`<version>`(如 `0.2.0`)、`latest`(仅 main 分支)、`<version>-dev.<short-sha>`(PR build,如 `0.2.0-dev.a1b2c3d`)。
+- **多架构**:v0.1 仅 `linux/amd64`;v0.5+ 启动 `linux/arm64`(TOOL-031)。
+- **签名**:v0.5+ 引入 `cosign` keyless 签名(sigstore);v0.1 记录为开放问题(移交 L3-1 §10)。
+- **SBOM**:v0.5+ 使用 `syft` 生成 CycloneDX SBOM;v0.1 移交 L3-1 §10。
+
+### 8.16 关键不变量与测试 ID 矩阵（TOOL- 前缀 · 继承 L2-2 §13.9）
+
+继承 L2-2 Spec §13.9 所有 TOOL- ID(完整继承 34 个,无修改无新增;L3-1 落地为具体文件路径 + 新增少量 ID):
+
+| 测试 ID | 描述 | L3-1 落地位置 |
+|---------|------|---------------|
+| `TOOL-001` | `pyproject.requires-python` 锁定 `>=3.12,<3.13` | `packages/operator/pyproject.toml` [project].requires-python |
+| `TOOL-004` | runtime 镜像不含 `pip` / `uv` / `git` / `gcc` | `packages/operator/Dockerfile` + CI `docker history` 校验 |
+| `TOOL-007` | 镜像 user 固定 `uid=65532` | `packages/operator/Dockerfile` USER 65532:65532 |
+| `TOOL-010` | `pyproject.version` == `Chart.appVersion`(CI 校验) | `tests/tools/test_chart_version_sync.py` |
+| `TOOL-013` | `uv lock --check` 在 CI 中无差异 | `tests/tools/test_lock_check.py` + CI workflow |
+| `TOOL-016` | `helm template` 无 warning,`helm lint` 通过 | `tests/integration/helm/test_chart_lint.py` |
+| `TOOL-019` | `values.schema.json` 与 `HelmValues.model_json_schema(by_alias=True)` 无差异 | `tests/integration/helm/test_values_schema.py` |
+| `TOOL-022` | `/healthz` 在 Leader Election 初始化前返回 200 | `tests/integration/envtest/test_concurrent_election.py` + `tests/e2e/kind/test_health_probe.py` E2E-016 |
+| `TOOL-025` | `/readyz` 在 admission webhook + Lease 初始化**之后**才返回 200 | `tests/integration/admission/test_webhook_registration.py` + E2E-017 |
+| `TOOL-028` | 删除 chart 时 ValidatingWebhookConfiguration 优先清理(hooks 顺序) | `tests/integration/helm/test_chart_lint.py` + NOTES.txt 说明 |
+| `TOOL-031` | 镜像 manifest 仅包含 `linux/amd64`(v0.1 基线) | `tests/tools/test_chart_version_sync.py` + `docker buildx inspect` |
+| `TOOL-034` | cross-package boundary Ruff 规则 `ST-A2A-BOUNDARY` 在 CI 中通过 | `.github/workflows/lint.yml` + `pyproject.toml [tool.ruff.lint-extend-select]` |
+| **TOOL-035**(新增) | Dockerfile HEALTHCHECK 指令存在且 timeout 合理(≤ 5s) | `tests/tools/test_dockerfile_healthcheck.py` + `docker inspect` |
+| **TOOL-036**(新增) | Operator 镜像无 `HEALTHCHECK` 时 CI 失败 | CI workflow `lint.yml` Dockerfile 静态扫描 |
+
+**L3-1 §8 新增 2 ID**(TOOL-035/036),完整继承 34 ID,**§8 工具链测试 ID 总计 36 ID**。
+
+### 8.17 与既有 L2 Spec 测试 ID 对应（59 ID TEST+TOOL）
+
+- **L2-2 Spec §12.7** 提供 TEST-001~025 = **25 ID** → L3-1 **完整继承** 无修改,落地为 87 个 test_*.py + 4 CI workflow + 1 pytest plugin(`pytest_supertem.py`);
+- **L2-2 Spec §13.9** 提供 TOOL-001~034 = **34 ID** → L3-1 **完整继承** 无修改,落地为 pyproject.toml + Dockerfile + Helm chart 顶层 4 文件 + uv workspace 根 pyproject.toml + 4 CI workflow + 2 tools test;
+- 本 §8 新增 **5 ID**(TEST-026~028 + TOOL-035~036)用于强化 L3-1 自身的镜像覆盖 + Dockerfile HEALTHCHECK gate;
+- **本节新增/继承测试 ID 总计** = **28 (TEST) + 36 (TOOL) = 64 ID**,覆盖 §A-§G 6 维度。
+
+### 8.18 与 L3-1 §0-§7 衔接
+
+- **§1.3 文件清单**:§8 新增 25 工程资产 + 50 测试夹具 = **75 文件** 新增到 §1.3 主清单;落地后 L3-1 文件清单 **87 → 162**(87 src + 25 工程 + 50 顶层测试 = 162);
+- **§2.3 Python 包结构**:§8.9 pyproject.toml 锁定依赖与 Python 版本约束,落地 §2.3.13 build / install / test 工具链;
+- **§3 4 Controllers + MemoryReconciler 概要**:`tests/unit/controllers/test_*.py` 与 `tests/unit/reconcilers/test_*.py` 1:1 镜像;
+- **§4 admission webhook**:§8.1 admission/ 子目录镜像 + §8.3 IT-AW-* 集成测试 + §8.13 webhookconfig.yaml 契约;
+- **§5 Leader Election**:§8.1 leader_election/ 子目录镜像 + §8.3 IT-ENV-CE-* 多副本并发集成 + TOOL-022/025 探针契约;
+- **§6 Memory**:§8.1 memory/ 子目录镜像(decay/reinforce 属性测试 TEST-007)+ §8.3 IT-ENV-MT-* MemoryReconciler timer 集成;
+- **§7 observability + RBAC + Helm values**:§8.1 observability/ 子目录镜像 + §8.13 Helm chart 顶层 4 文件 + §8.11 Dockerfile + TOOL-035/036 HEALTHCHECK gate。
+
+**结论**:**§8 是 §3-§7 实施工程的物理落地**(测试镜像 + 工程配置 + Helm chart 顶层),所有引用点的契约均集中在本节给出。L3-1 累计 **277 测试 ID**(§0-§7 共 218 ID + §8 新增/继承 64 ID,减 §8 测试 ID 5 自身),覆盖 §A-§G 6 维度。
+
+---
+
 ## 附录 A：跨模块引用清单（v0.2-draft 骨架稿）
 
 > 本附录列出 L3-1 文件级 Spec 引用的所有外部文档与符号,确保 L4 实施者能正确 import。L3-1 不创造新概念;所有协议 / wire contract / 业务语义均来自 L1/L2 已评审文档。
@@ -3034,20 +3581,20 @@ rules:
 
 ## v0.2-draft 骨架稿下次补完清单
 
-**已落地**(#44 + #45 + #47 累计):
+**已落地**(#44 + #45 + #47 + #48 累计):
 - ✅ 头部 frontmatter(模块 ID、层级、版本 v0.2-draft、状态、supersedes、依据)
 - ✅ §0 阅读指南
-- ✅ §1 模块使命与文件清单总览(70 文件清单 + 测试 ID 前缀分布)
+- ✅ §1 模块使命与文件清单总览(70 → 162 文件清单 + 测试 ID 前缀分布)
 - ✅ §2 Python 包结构(13 子包 + 65 Python 文件 + 5 配置 + 9 Helm 模板)
 - ✅ §3 4 Controllers + MemoryReconciler 文件级契约概要(每个 controller 一段 + 关键不变量)
 - ✅ §4 admission webhook server 完整文件级 Spec(**9 文件**:子包入口 + ASGI server + TLS 热更新 + 5 validators + CRDValidator Protocol;含 DAG 校验纯函数算法 + Knowledge↔Memory 双向互斥 + Helm `webhookconfig.yaml` 契约 + **18 UT + 4 IT = 22 测试 ID 矩阵**)
 - ✅ §5 Leader Election 完整(**3 文件**:子包入口 + AsyncLeaseClient + Election + LeaderGate;含状态机 Standby↔Leader + grace period 30s + renew 失败 3 次让位 + wire contract 完整 + **10 UT + 2 IT = 12 测试 ID 矩阵**)
 - ✅ §6 Memory 接口实现完整(**9 文件**:`models/memory/` 8 + `reconcilers/memory_reconciler.py`;含 MemorySpec/Status/Condition/Phase 完整 Pydantic + 4 纯函数(decay/reinforce/gc/promotion)数学公式 + MemoryReconcilerService 完整伪代码 + 与 L2-4 Spec §3.4 **wire sync 矩阵 19 字段全 PASS** + **8 UT-MD-ME + 3 UT-R + 1 IT-R = 12 测试 ID 矩阵**)
 - ✅ §7 observability + RBAC + Helm values 完整文件级 Spec(**17 文件新增**:observability/ 子包 6 文件 = metrics.py / health.py / tracing.py / logging.py / events.py / __init__.py + Helm 9 模板 = _helpers.tpl / deployment.yaml / service.yaml / serviceaccount.yaml / configmap.yaml / rbac.yaml / admission_rbac.yaml / networkpolicy.yaml / prometheusrule.yaml / servicemonitor.yaml + RBAC 2 子模板;L3-1 文件清单 **70 → 87 文件**;Helm values Pydantic schema + ServiceAccountConfig;完整继承 L2-2 §10.2 11 指标 + §10.3 4 runtime 指标 + §10.6 8 EventReason;新增 health.py 文件级契约(8 HLT 测试 ID)与 6 NetworkPolicy 双端口策略 + 6 prometheusrule 告警;ClusterRole 完整 7 apiGroups + admission Role namespace-scoped secrets only + 4 RBAC-IT envtest 集成;**29 HELM + 14 RBAC + 28 OBS+HLT = 71 测试 ID**(覆盖 §A-§G 6 维度);**§7.4 wire contract 总览** ~52 wire 字段 + **§7.5 与既有 L2 Spec 测试 ID 对应** + **§7.6 与 L3-1 §0-§6 衔接**)
+- ✅ §8 测试策略 + 工具链完整文件级 Spec(**新增 25 工程资产 + 50 测试夹具 = 75 文件**:测试目录 87 test_*.py 1:1 镜像 + 4 conftest.py + pytest.ini + pyproject.toml + Dockerfile + Chart.yaml + values.yaml + values.schema.json + 10 Helm 模板 + uv workspace 根 pyproject.toml + 4 CI workflow + .dockerignore;L3-1 文件清单 **87 → 162 文件**;新增 §8.18 与 §0-§7 衔接;**TEST 完整继承 25 + 新增 3 = 28 ID** + **TOOL 完整继承 34 + 新增 2 = 36 ID** + **§8 测试 ID 总计 64 ID**;L3-1 累计 **277 测试 ID**)
 - ✅ 附录 A 跨模块引用清单(L1/L2/ADR/Constitution/配套)
 
-**待补完**(后续 #48+):
-- ⏳ §8 测试策略 + 工具链(70 测试文件镜像布局 + L2-2 继承 122 UT + 11 IT + 6 E2E ID 矩阵 + pyright strict + ruff + interrogate + 70 文件 → 87 文件 v0.2 调整)
+**待补完**(后续 #49+):
 - ⏳ §9 验收清单(继承 L2-2 Spec §14 + 5 子表:功能/质量/安全/可观测/文档;每条对照本 L3-1)
 - ⏳ §10 开放问题(继承 L2-2 Spec §15 16 项 + L3-1 新发现 + v0.5+ 5 项演进路线)
 - ⏳ 附录 B ADR/Constitution 矩阵 5 子表(参照 L2-2 Spec v0.2.0 §16 附录 B 模式)
@@ -3059,4 +3606,4 @@ rules:
 
 ---
 
-> **签署**:本 L3-1 文件级 Spec Python v0.2-draft §7 补完稿(#44 骨架 + #45 §4-§6 + #47 §7 observability + RBAC + Helm values 补完)由起草人根据 [L2-2 Operator Core Spec v0.2.0](../../spec/L2-module-specs/L2-operator-core.md) + [L2-2 Design v0.2.0](../../design/L2-modules/L2-operator-core.md) + [L3-1 v0.1-draft Go baseline(已归档)](../../archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md) + [L2-4 Spec v0.2.0 §3.4 Memory CRD 完整 Pydantic schema](../../spec/L2-module-specs/L2-knowledge-memory.md) 编写,依据宪法 v0.5.0 §14.4 待评审。**评审通过后**进入 L4 实施阶段(开发者对照本文件逐文件实现 + uv workspace + pyright strict + ruff)。**累计进度**:L3-1 Spec 8 主章节中 §0-§7 + 附录 A 已落地;L3 阶段 1/4 进度 **~75%**;后续 #48+ 补完 §8-§10 + 附录 B → v0.2-draft-full → 评审 → v0.2.0。
+> **签署**:本 L3-1 文件级 Spec Python v0.2-draft §8 补完稿(#44 骨架 + #45 §4-§6 + #47 §7 observability + RBAC + Helm values + #48 §8 测试策略 + 工具链 补完)由起草人根据 [L2-2 Operator Core Spec v0.2.0](../../spec/L2-module-specs/L2-operator-core.md) + [L2-2 Design v0.2.0](../../design/L2-modules/L2-operator-core.md) + [L3-1 v0.1-draft Go baseline(已归档)](../../archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md) + [L2-4 Spec v0.2.0 §3.4 Memory CRD 完整 Pydantic schema](../../spec/L2-module-specs/L2-knowledge-memory.md) 编写,依据宪法 v0.5.0 §14.4 待评审。**评审通过后**进入 L4 实施阶段(开发者对照本文件逐文件实现 + uv workspace + pyright strict + ruff)。**累计进度**:L3-1 Spec 8 主章节中 §0-§8 + 附录 A 已落地;L3 阶段 1/4 进度 **~85%**;后续 #49+ 补完 §9-§10 + 附录 B → v0.2-draft-full → 评审 → v0.2.0。
