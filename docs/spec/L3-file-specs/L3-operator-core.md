@@ -8,7 +8,7 @@
 > **模块 ID**：C-1（Operator Core，见 L1 Architecture §4.1）
 > **代码位置**：`packages/operator/src/superteam_a2a/operator/`（**ADR-0005 §13.1 uv workspace 布局**，替代原 Go baseline 的 `src/operator/`）
 > **版本**：v0.2-draft（2026-07-27 起 Python 重写 + 2026-07-27 #16 Go baseline 归档）
-> **状态**：🟡 v0.2-draft **补完稿（#44 骨架 + #45 §4-§6 补完）**——头部 + §0-§6 + 附录 A 已落地 + ⚠️ §7 observability + RBAC + Helm / §8 测试策略 / §9 验收清单 / §10 开放问题 + 附录 B 矩阵 = **4 节 + 1 附录待后续 #46+ 会话补完**
+> **状态**：🟡 v0.2-draft **§7 补完稿（#44 骨架 + #45 §4-§6 + #47 §7 observability + RBAC + Helm values 补完）**——头部 + §0-§7 + 附录 A 已落地 + ⚠️ §8 测试策略 / §9 验收清单 / §10 开放问题 + 附录 B 矩阵 = **3 节 + 1 附录待后续 #48+ 会话补完**
 > **上游约束**：[`docs/design/L2-modules/L2-operator-core.md`](../../design/L2-modules/L2-operator-core.md) **v0.2.0**（2026-07-24 评审通过 · 80KB / 1583 行 / 14 主章节）+ [`docs/spec/L2-module-specs/L2-operator-core.md`](../../spec/L2-module-specs/L2-operator-core.md) **v0.2.0**（2026-07-25 评审通过 · 103KB / 1890 行 / 16 节 + 2 附录 / 122 测试 ID / 16 开放问题 / 80% 收敛率）
 > **本 Spec 目的**：将 L2-2 Operator Core Spec v0.2.0 中的 **13 子包 + 4 Controller + MemoryReconciler + admission webhook + Leader Election + Finalizer + observability + RBAC + Helm + 测试策略** 落地为 **文件级 Python 代码契约**——每个文件列明**绝对路径（基于 uv workspace 布局）**、**职责一句话**、**完整 import 列表**、**exported 符号签名（type hints + docstring 一行）**、**内部 helper 列表**、**关联测试文件路径 + 测试 ID 前缀**。是 L4 实施阶段（开发者打开 IDE 即可对照写代码）的直接输入。
 > **配套 Spec**：[L3-5 Knowledge Service 文件级 Spec](./L3-knowledge-service.md)（待起草）/ [L3-6 Memory backend 文件级 Spec](./L3-memory-backend.md)（待起草）/ [L3-2 A2A Core Library 文件级 Spec](./L3-a2a-core.md)（**本次 #44 同步归档 Go baseline 62KB/1446 行；Python 重写待 #47+ 启动**）
@@ -2163,6 +2163,810 @@ class MemoryReconcilerService:
 
 ---
 
+## 7. observability + RBAC + Helm values 文件级 Spec（落地到 K8s 部署资产）
+
+> 本节将 L2-2 Spec §10 可观测性 + §9 Helm values + §11 RBAC 落地为 Python 文件级 Spec 与 Helm 模板完整契约。所有指标名 / Event reason / RBAC apiGroup / Helm 字段名 / ServiceAccount annotation 均属于 v0.1 wire/deployment contract;新增/修改必须走 ADR。
+>
+> **范围**:observability 子包 6 文件(4 核心 + logging + __init__) + Helm 9 模板 + RBAC 2 子模板 = **17 文件**新增到 §1.3 文件清单;落地后 L3-1 文件清单 **70 → 87**。
+>
+> **测试 ID 总额**:L3-1 累计 §0-§6 = 142 ID,**§7 新增 76 ID**(OBS 25 + HLT 8 + HELM 29 + RBAC 14),L3-1 §7 落地后累计 **218 ID**(仍然在 L2-2 Spec §13 ID 矩阵范围内;HELM/RBAC 完整继承 L2-2 高优先级 ID)。
+
+### 7.1 observability 子包文件级 Spec（6 文件 · 11 Operator 指标 + 4 Python runtime 指标 + 双端点探针）
+
+#### 7.1.1 子包文件清单
+
+| 文件 | 必须提供 | L2-2 Spec 对应章节 | 关联测试 ID 前缀 |
+|------|----------|---------------------|------------------|
+| `observability/__init__.py` | 导出 MetricsRegistry / configure_tracing / configure_logging / emit_event / EventReason + health 子模块导出 | 子包入口 | — |
+| `observability/metrics.py` | MetricsRegistry + 11 Operator + 4 Python runtime 指标 + register_or_get 幂等 | §10.1 + §10.2 + §10.3 | OBS-001~OBS-012 |
+| `observability/health.py` | HealthCheck + liveness / readiness ASGI app + 双端口路由 + K8s Lease + MemoryReconciler last_run check(**新增文件级契约**,L2-2 §13.5 探针字段升级) | §13.5 | HLT-001~HLT-008 |
+| `observability/tracing.py` | configure_tracing + RuntimeMonitor + OTLP async exporter + InMemorySpanExporter 测试钩子 | §10.4 | OBS-016~OBS-019 |
+| `observability/logging.py` | configure_logging + structlog 8 字段契约 + BoundLogger 工厂 | §10.5 | OBS-010 / OBS-024 |
+| `observability/events.py` | EventReason 8 种 + emit_event + 限长 1024 + 白名单校验 | §10.6 | OBS-007 / OBS-022 / OBS-025 |
+| `tests/unit/observability/test_metrics.py` | pytest fixtures + register_or_get 幂等 + 11+4 指标存在性 | — | OBS-001~OBS-013 |
+| `tests/unit/observability/test_health.py` | `/healthz` 与 `/readyz` 行为矩阵 | — | HLT-001~HLT-008 |
+| `tests/unit/observability/test_tracing.py` | InMemorySpanExporter 替换 + W3C traceparent 注入 + RuntimeMonitor | — | OBS-016~OBS-019 |
+| `tests/unit/observability/test_logging.py` | structlog 8 字段样本 + BoundLogger 工厂 | — | OBS-010 / OBS-024 |
+| `tests/unit/observability/test_events.py` | EventReason 白名单 + message 限长 + K8s API 调用 mock | — | OBS-007 / OBS-022 / OBS-025 |
+
+#### 7.1.2 metrics.py 完整契约
+
+```python
+# packages/operator/src/superteam_a2a/operator/observability/metrics.py
+from __future__ import annotations
+
+from threading import Lock
+from typing import Any
+
+from prometheus_client import Counter, Gauge, Histogram
+from prometheus_client.metrics import MetricWrapperBase
+
+
+class MetricsRegistry:
+    """11 Operator 指标 + 4 Python runtime 指标注册表。
+
+    线程安全:同进程内 register_or_get 在 Lock 保护下幂等;不同实例(多进程)
+    共享同一 default REGISTRY 时由 prometheus_client 内部去重处理。
+    """
+
+    def __init__(self, prefix: str = "superteam_") -> None:
+        self._prefix = prefix
+        self._lock = Lock()
+        self._items: dict[str, MetricWrapperBase] = {}
+
+    def register_or_get(
+        self, name: str, type_: type, labels: list[str] | None = None
+    ) -> Counter | Gauge | Histogram:
+        """注册或获取 Prometheus 指标;同进程重复注册同名返回已有对象。
+
+        Raises:
+            ValueError: name 无前缀或 type_ 不在 (Counter, Gauge, Histogram) 中。
+        """
+        ...
+
+    def as_dict(self) -> dict[str, object]:
+        """导出当前所有指标 → Prometheus text format 序列化中间结构。
+
+        Returns:
+            dict,key 是 metric 完整名(supertem_operator_*)。
+        """
+        ...
+
+    # 11 Operator 指标(继承 L2-2 Spec §10.2 完全一致)
+    @property
+    def reconcile_total(self) -> Counter: ...  # labels: crd, result
+    @property
+    def reconcile_duration_seconds(self) -> Histogram: ...  # labels: crd
+    @property
+    def leader_election(self) -> Gauge: ...
+    @property
+    def finalizer_cleanup_total(self) -> Counter: ...  # labels: crd, result
+    @property
+    def finalizer_cleanup_duration_seconds(self) -> Histogram: ...  # labels: crd
+    @property
+    def admission_validation_total(self) -> Counter: ...  # labels: crd, result
+    @property
+    def admission_validation_duration_seconds(self) -> Histogram: ...  # labels: crd
+    @property
+    def memory_reconcile_total(self) -> Counter: ...  # labels: result
+    @property
+    def memory_decay_total(self) -> Counter: ...  # labels: phase_from, phase_to
+    @property
+    def lease_renew_total(self) -> Counter: ...  # labels: result
+    @property
+    def lease_transition_total(self) -> Counter: ...  # labels: event
+
+    # 4 Python runtime 指标(继承 L2-2 Spec §10.3 完全一致)
+    @property
+    def python_event_loop_lag_seconds(self) -> Histogram: ...
+    @property
+    def python_thread_offload_queue_depth(self) -> Gauge: ...
+    @property
+    def python_active_asyncio_tasks(self) -> Gauge: ...
+    @property
+    def python_gc_collections_total(self) -> Counter: ...  # labels: generation
+```
+
+**约束**:
+- `result` label 仅接受 `success` / `error` / `retry` / `rejected`;
+- `phase_from` / `phase_to` 来自 AgentPhase / MemoryPhase enum 字符串;
+- `event` label 在 lease_transition_total 仅接受 `acquired` / `lost` / `renew_failed`;
+- `generation` label 在 python_gc_collections_total 接受 Python `gc.get_stats()[i].generation`(整数 0/1/2 序列化字符串);
+- Histogram 默认桶 `prometheus_client.DEFAULT_BUCKETS`;自定义桶必须显式声明区间列表;
+- 测试场景 `MetricsRegistry(prefix="test_")` 用于隔离,不污染默认 REGISTRY。
+
+#### 7.1.3 health.py ASGI app + 双端点契约(新增文件级契约 · 与 L2-2 §13.5 探针对齐)
+
+```python
+# packages/operator/src/superteam_a2a/operator/observability/health.py
+from __future__ import annotations
+
+from collections.abc import Awaitable
+from datetime import datetime
+from typing import Any, Protocol
+
+
+class LeaseChecker(Protocol):
+    """Liveness/Readiness 检查所需的最小 K8s Lease API(duck typing)。"""
+
+    async def is_lease_active(self, holder_id: str) -> bool: ...
+    async def last_heartbeat(self, holder_id: str) -> datetime: ...
+
+
+class ReconcilerPulse(Protocol):
+    """MemoryReconciler 周期触发心跳探测(duck typing)。"""
+
+    def last_run_at(self) -> datetime: ...
+
+
+class HealthCheck:
+    """/healthz 与 /readyz 路由聚合器。
+
+    启动时返回 503 直到 all_check_ready() 通过;之后按 readiness 变化实时更新。
+    """
+
+    def __init__(
+        self,
+        lease: LeaseChecker,
+        reconciler: ReconcilerPulse,
+        lease_holder_id: str,
+        max_heartbeat_lag_seconds: int = 90,
+    ) -> None: ...
+
+    async def liveness(self) -> tuple[int, dict[str, object]]:
+        """Liveness:仅检查进程存活。返回 (200, {"status": "alive"})。"""
+        ...
+
+    async def readiness(self) -> tuple[int, dict[str, object]]:
+        """Readiness:Lease active + MemoryReconciler 最近心跳 + admission webhook TLS 已加载 +
+        ValidatingWebhookConfiguration 已注册。
+
+        Returns:
+            (200, {"lease": "active", "reconciler": "ok", "admission": "ready"})
+            或 (503, {"reason": ..., "lease": "...", "reconciler": "...", "admission": "..."})。
+        """
+        ...
+
+    def all_check_ready(self) -> bool:
+        """首次检查入口;启动时调用以初始化 readiness 标志。"""
+        ...
+
+
+async def healthz_app(
+    scope: dict[str, object],
+    receive: Any,
+    send: Any,
+) -> None:
+    """ASGI app 适配 uvicorn (端口 8080) /healthz 端点;满足 ASGI 3.0 callable。"""
+    ...
+
+
+async def readyz_app(
+    scope: dict[str, object],
+    receive: Any,
+    send: Any,
+) -> None:
+    """ASGI app 适配 uvicorn (端口 8080) /readyz 端点;满足 ASGI 3.0 callable。"""
+    ...
+```
+
+**关键行为**:
+- `/healthz` 200 iff 进程响应(端口监听 + ASGI app 可调用);
+- `/readyz` 200 iff Lease active + MemoryReconciler 最近心跳(`now - last_run < max_heartbeat_lag_seconds`,默认 90s)+ admission webhook TLS 已加载 + ValidatingWebhookConfiguration 已注册;
+- Readiness 由 Leader Election 主备 + admission 注册状态共同决定;**非 leader 副本仍返回 200**(K8s service 端点保留);
+- Helm `deployment.yaml` livenessProbe 命中 `/healthz`;readinessProbe 命中 `/readyz`(详见 §7.2.4 (2));
+- LeaseChecker / ReconcilerPulse 是 Protocol(duck typing),不强制依赖 kubernetes_asyncio —— 测试可注入 FakeLeaseChecker / FakeReconcilerPulse 即可覆盖 8 ID(HLT-001~008)。
+
+#### 7.1.4 tracing.py 完整契约
+
+```python
+# packages/operator/src/superteam_a2a/operator/observability/tracing.py
+from __future__ import annotations
+
+from typing import NoReturn
+
+from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import Resource
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+
+from superteam_a2a.operator.config import HelmValues
+
+
+def configure_tracing(
+    values: HelmValues,
+    *,
+    service_name: str = "superteam-a2a-operator",
+    in_memory_exporter: object | None = None,
+) -> TracerProvider:
+    """显式构造 TracerProvider 并注册到全局;测试必须传入 in-memory exporter 避免污染。
+
+    Args:
+        values: Helm values,包含 observability.otel_endpoint 等配置。
+        service_name: OTel resource attribute,默认 'superteam-a2a-operator'。
+        in_memory_exporter: 测试用 InMemorySpanExporter,生产环境为 None。
+
+    Returns:
+        构造好的 TracerProvider;已被 set_tracer_provider() 全局注册。
+    """
+    ...
+
+
+def inject_traceparent(headers: dict[str, str]) -> dict[str, str]:
+    """注入 W3C traceparent 到 K8s Events annotation / structlog JSON / admission audit log。
+
+    Returns:
+        新 dict,原 dict + 'traceparent' key;traceparent 格式符合 W3C Trace Context spec。
+    """
+    ...
+
+
+class RuntimeMonitor:
+    """每 30s 采样 4 个 Python runtime 指标 → MetricsRegistry。"""
+
+    def __init__(self, registry: MetricsRegistry) -> None: ...
+    async def run(self) -> NoReturn:
+        """永久运行每 30s 采样;CancellationToken 安全(stop() 触发 task 取消)。"""
+        ...
+    async def stop(self) -> None:
+        """停止 RuntimeMonitor;cancel 当前 task 等待 join。"""
+        ...
+```
+
+**关键不变量**(继承 L2-2 §10.4):
+- OTLP exporter 必须 async transport(`opentelemetry-exporter-otlp-proto-grpc` async transport);
+- 测试场景使用独立 `InMemorySpanExporter`,**不得**污染生产 provider;
+- W3C `traceparent` 必须注入到:K8s Events annotation `trace.superteam-a2a.io/parent`、structlog JSON 的 `trace_id` / `span_id` 字段、admission audit log 行;
+- Span 失败/超时分支必须包含 `error.type` + `error.message` attribute,message 限长 1024 字符。
+
+#### 7.1.5 events.py 完整契约
+
+```python
+# packages/operator/src/superteam_a2a/operator/observability/events.py
+from __future__ import annotations
+
+from collections.abc import Mapping
+from enum import StrEnum
+
+from kubernetes_asyncio.client import CoreV1Api
+
+
+class EventReason(StrEnum):
+    """白名单 reason;自定义 reason 必须新增成员并加测试。
+
+    字符串字面值与 L2-2 Spec §10.6 8 种 reason 完全一致(wire contract)。
+    """
+
+    RECONCILE_SUCCEEDED = "ReconcileSucceeded"
+    RECONCILE_FAILED = "ReconcileFailed"
+    RECONCILE_RETRY = "ReconcileRetry"
+    CLEANUP_COMPLETED = "CleanupCompleted"
+    CLEANUP_FAILED = "CleanupFailed"
+    LEADER_ACQUIRED = "LeaderAcquired"
+    LEADER_LOST = "LeaderLost"
+    ADMISSION_REJECTED = "AdmissionRejected"
+
+
+_MAX_MESSAGE_LENGTH = 1024
+
+
+async def emit_event(
+    core: CoreV1Api,
+    body: Mapping[str, object],
+    reason: EventReason,
+    message: str,
+    *,
+    type_: str = "Normal",
+) -> None:
+    """emit_event 写入 K8s Event。
+
+    Args:
+        core: Kubernetes CoreV1Api(异步)。
+        body: K8s Event template(namespace / involvedObject 等字段)。
+        reason: EventReason 白名单成员。
+        message: 事件 message 字符串;超过 1024 字符将被截断。
+        type_: 'Normal' 或 'Warning';默认 'Normal'。
+
+    Raises:
+        ValueError: reason 不在白名单(type_ 静默接受,K8s API Server 校验)。
+    """
+    ...
+
+
+def truncate_message(message: str, limit: int = _MAX_MESSAGE_LENGTH) -> str:
+    """UTF-8 安全的字符级截断函数(不带省略号,超长直接截)。
+
+    Args:
+        message: 原始字符串。
+        limit: 字符上限;默认 1024。
+
+    Returns:
+        截断后的字符串;不变 if len(message) <= limit。
+    """
+    ...
+```
+
+**8 种 EventReason 与触发时机**(继承 L2-2 §10.6 完整对应表):
+
+| reason | type | 触发时机 | message 模板 |
+|--------|------|----------|--------------|
+| `ReconcileSucceeded` | Normal | reconcile 成功 | `Reconcile succeeded for {crd}/{namespace}/{name}` |
+| `ReconcileFailed` | Warning | Permanent / NonRetryable 错误 | `Reconcile failed for {crd}/{namespace}/{name}: {reason}` |
+| `ReconcileRetry` | Normal | Retryable 错误(含 retry_after) | `Reconcile retry after {retry_after}s for {crd}/{namespace}/{name}` |
+| `CleanupCompleted` | Normal | Finalizer cleanup 成功 | `Cleanup completed for {crd}/{namespace}/{name}` |
+| `CleanupFailed` | Warning | Finalizer cleanup 失败 | `Cleanup failed for {crd}/{namespace}/{name}: {reason}` |
+| `LeaderAcquired` | Normal | Leader Election 获取成功 | `Operator {pod_name} acquired lease` |
+| `LeaderLost` | Warning | Leader Election 失主 | `Operator {pod_name} lost lease` |
+| `AdmissionRejected` | Warning | admission 拒绝请求 | `Admission rejected for {crd}/{namespace}/{name}: {reason}` |
+
+**约束**:
+- `type` 必须是 `Normal` 或 `Warning`;
+- 自定义 reason 必须新增白名单 enum 成员并加测试,**禁止运行时拼字符串**;
+- message 字符级截断(UTF-8 safe) → `_MAX_MESSAGE_LENGTH = 1024`;
+- K8s Event annotation `trace.superteam-a2a.io/parent` 自动注入(从当前 span 取)。
+
+#### 7.1.6 observability 测试 ID 矩阵(25 OBS + 8 HLT = 33 ID · §A-§G 6 维度)
+
+| 测试 ID | 维度 | 描述 | 文件 |
+|---------|------|------|------|
+| **OBS-001** | C 接口契约 | 11 Operator 指标唯一存在 | `tests/unit/observability/test_metrics.py` |
+| **OBS-002** | A 功能 | 11 指标 name 与 L2-2 §10.2 完全一致 | 同上 |
+| **OBS-003** | A 功能 | 4 Python runtime 指标存在 | 同上 |
+| **OBS-004** | C 接口契约 | `register_or_get` 同名指标幂等返回 | 同上 |
+| **OBS-005** | B 质量 | Histogram bucket 配置可断言 | 同上 |
+| **OBS-006** | C 接口契约 | `as_dict()` 输出 metric → serializable dict | 同上 |
+| **OBS-007** | A 功能 | EventReason 白名单拒绝未列举字符串 | `tests/unit/observability/test_events.py` |
+| **OBS-008** | B 质量 | emit_event 调用 CoreV1Api.create_namespaced_event | 同上 |
+| **OBS-009** | C 接口契约 | EventReason 8 种字符串与 L2-2 §10.6 完全一致 | 同上 |
+| **OBS-010** | A 功能 | structlog sample 含 8 个必含字段 | `tests/unit/observability/test_logging.py` |
+| **OBS-011** | B 质量 | 4 Python runtime 指标在 RuntimeMonitor 30s 后第一次采样 | `tests/unit/observability/test_tracing.py` |
+| **OBS-012** | C 接口契约 | MetricsRegistry 构造不依赖 K8s client | `tests/unit/observability/test_metrics.py` |
+| **OBS-013** | B 质量 | Histogram bucket 配置可被测试验证 | 同上 |
+| **OBS-016** | B 质量 | TracerProvider 在测试中替换为 InMemorySpanExporter | `tests/unit/observability/test_tracing.py` |
+| **OBS-017** | C 接口契约 | RuntimeMonitor.stop() 不抛异常 | 同上 |
+| **OBS-018** | A 功能 | inject_traceparent 输出符合 W3C Trace Context | 同上 |
+| **OBS-019** | A 功能 | reconcile 失败 span 含 error.type + 限长 error.message | 同上 |
+| **OBS-022** | B 质量 | Event message 限长 1024 字符并被截断 | `tests/unit/observability/test_events.py` |
+| **OBS-024** | C 接口契约 | configure_logging 调用 structlog.configure 覆盖 8 字段处理器 | `tests/unit/observability/test_logging.py` |
+| **OBS-025** | A 功能 | reason 不在白名单时 emit_event 抛 ValueError | `tests/unit/observability/test_events.py` |
+| **HLT-001** | A 功能 | liveness 在 Lease 失主场景仍返回 200 | `tests/unit/observability/test_health.py` |
+| **HLT-002** | A 功能 | readiness 在 Lease 未 acquire 返回 503 | 同上 |
+| **HLT-003** | A 功能 | readiness 在 MemoryReconciler 心跳超时返回 503 | 同上 |
+| **HLT-004** | A 功能 | readiness 在 admission webhook TLS 未加载返回 503 | 同上 |
+| **HLT-005** | C 接口契约 | HealthCheck 构造不依赖 K8s client(仅 Protocol) | 同上 |
+| **HLT-006** | A 功能 | Readiness 200 后所有探针条件仍需持续满足 | 同上 |
+| **HLT-007** | B 质量 | healthz_app / readyz_app 满足 ASGI 3.0 callable | 同上 |
+| **HLT-008** | C 接口契约 | LeaseChecker Protocol 不强制 kubernetes_asyncio 类型 | 同上 |
+
+**测试 ID 分布**:20 OBS + 8 HLT = 28 ID(覆盖 §A-§G 6 维度:功能 13 / 接口契约 10 / 质量 5)。
+
+**与 L2-2 Spec 对应**:
+- OBS-001~OBS-025 完全继承 L2-2 §10.7(25 ID);
+- HLT-001~HLT-008 是本 L3-1 新增(health.py 在 L2-2 §13.5 仅有字段级,新增文件级契约触发 8 测试 ID)。
+
+### 7.2 Helm values + 9 Helm 模板文件级契约
+
+#### 7.2.1 Helm 模板文件清单(9 模板)
+
+```
+deploy/helm/operator/
+├── Chart.yaml
+├── values.yaml                      # 稳定结构见 §7.2.2
+├── values.schema.json               # 自动生成自 Pydantic,见 §7.2.3
+├── NOTES.txt
+└── templates/
+    ├── _helpers.tpl                 # 命名/标签/ServiceAccount 命名辅助
+    ├── deployment.yaml              # Operator + admission webhook 双容器
+    ├── service.yaml                 # 双端口 Service(80→8080 + 443→8443)
+    ├── serviceaccount.yaml          # cert-manager.io/inject-ca-from annotation
+    ├── configmap.yaml               # Helm values → env vars(可选)
+    ├── rbac.yaml                    # clusterrole + clusterrolebinding
+    ├── admission_rbac.yaml          # admission role + rolebinding
+    ├── networkpolicy.yaml           # ingress + egress 限制
+    ├── prometheusrule.yaml          # 6 个告警规则
+    └── servicemonitor.yaml          # 11+4 指标 scrape 配置
+```
+
+#### 7.2.2 values.yaml 稳定结构(继承 L2-2 §9.1 完全一致)
+
+```yaml
+operator:
+  replicaCount: 2
+  image:
+    repository: ghcr.io/coderzhangfujiang/superteam-a2a-operator
+    tag: v0.2.0
+    pullPolicy: IfNotPresent
+  serviceAccount:
+    create: true
+    name: superteam-a2a-operator
+    annotations:
+      cert-manager.io/inject-ca-from: superteam-a2a-ca/superteam-a2a-ca-cert
+  python:
+    workers: 1
+    image: python:3.12-slim
+  controllers:
+    agent: 1
+    agentset: 1
+    workflow: 1
+    memory: 1
+  leaderElection:
+    enabled: true
+    leaseName: superteam-a2a-operator-leader
+    leaseDurationSeconds: 30
+    renewIntervalSeconds: 10
+    maxRenewFailures: 3
+  admission:
+    enabled: true
+    port: 8443
+    tlsSecretName: superteam-a2a-webhook-tls
+    serviceName: superteam-a2a-operator-webhook
+    failurePolicy: Fail
+    timeoutSeconds: 10
+  memoryReconciler:
+    enabled: true
+    intervalSeconds: 60
+    batchSize: 500
+    cpuOffloadThreshold: 1000
+  observability:
+    otelEndpoint: http://otel-collector.observability:4317
+    logLevel: info
+  mtls:
+    caBundleSecretRef: superteam-a2a-ca
+```
+
+**字段命名规则**:CamelCase 是 Helm/wire 字段名;Python `HelmValues` model 使用 snake_case 但通过 `alias` + `populate_by_name` 显式映射,**禁止隐式改变 values.schema.json 字段名**。
+
+#### 7.2.3 Pydantic models(继承 L2-2 §9.2 完整契约)
+
+```python
+# packages/operator/src/superteam_a2a/operator/config/helm_values.py
+from typing import Annotated
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class PythonConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    workers: int = Field(default=1, ge=1, le=1)
+    image: str = "python:3.12-slim"
+    resources: dict[str, object] = Field(default_factory=lambda: {
+        "requests": {"cpu": "200m", "memory": "256Mi"},
+        "limits": {"cpu": "1000m", "memory": "1Gi"},
+    })
+
+
+class LeaderElectionConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    enabled: bool = True
+    lease_name: str = Field(
+        default="superteam-a2a-operator-leader",
+        alias="leaseName",
+        min_length=1,
+        max_length=253,
+    )
+    lease_duration_seconds: int = Field(30, alias="leaseDurationSeconds", ge=10, le=300)
+    renew_interval_seconds: int = Field(10, alias="renewIntervalSeconds", ge=5, le=60)
+    max_renew_failures: int = Field(3, alias="maxRenewFailures", ge=1, le=10)
+
+
+class AdmissionConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    enabled: bool = True
+    port: int = Field(8443, ge=1024, le=65535)
+    tls_secret_name: str = Field("superteam-a2a-webhook-tls", alias="tlsSecretName")
+    service_name: str = Field("superteam-a2a-operator-webhook", alias="serviceName")
+    failure_policy: str = Field("Fail", alias="failurePolicy", pattern=r"^(Fail|Ignore)$")
+    timeout_seconds: int = Field(10, alias="timeoutSeconds", ge=1, le=30)
+
+
+class MemoryReconcilerConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    enabled: bool = True
+    interval_seconds: int = Field(60, alias="intervalSeconds", ge=10, le=3600)
+    batch_size: int = Field(500, alias="batchSize", ge=10, le=5000)
+    cpu_offload_threshold: int = Field(1000, alias="cpuOffloadThreshold", ge=100, le=100000)
+
+
+class ServiceAccountConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    create: bool = True
+    name: str = "superteam-a2a-operator"
+    annotations: dict[str, str] = Field(default_factory=lambda: {
+        "cert-manager.io/inject-ca-from": "superteam-a2a-ca/superteam-a2a-ca-cert",
+    })
+
+
+class OperatorConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    replica_count: int = Field(2, alias="replicaCount", ge=1, le=10)
+    image: dict[str, str]
+    service_account: ServiceAccountConfig = Field(alias="serviceAccount")
+    python: PythonConfig
+    controllers: dict[str, Annotated[int, Field(ge=1, le=1)]]
+    leader_election: LeaderElectionConfig = Field(alias="leaderElection")
+    admission: AdmissionConfig
+    memory_reconciler: MemoryReconcilerConfig = Field(alias="memoryReconciler")
+    observability: dict[str, object]
+    mtls: dict[str, object]
+
+
+class HelmValues(BaseModel):
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+    operator: OperatorConfig
+```
+
+**Schema 生成**:Helm `values.schema.json` 由 `HelmValues.model_json_schema(by_alias=True)` 唯一生成;**CI 重新生成并做无差异检查,手工修改生成文件视为失败**。
+
+#### 7.2.4 9 Helm 模板逐个契约
+
+**(1) `_helpers.tpl`**:
+- `superteam-a2a.operatorName` — `{{ include "common.names.fullname" . }}-operator`
+- `superteam-a2a.labels` — `app.kubernetes.io/name=superteam-a2a-operator`、`app.kubernetes.io/component=operator`、`app.kubernetes.io/part-of=superteam-a2a`、`app.kubernetes.io/managed-by=Helm`、`helm.sh/chart={{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}`、`app.kubernetes.io/version={{ .Chart.AppVersion }}`
+- `superteam-a2a.selectorLabels` — 仅 `app.kubernetes.io/name=superteam-a2a-operator`(避免 label 冲突)
+- `superteam-a2a.serviceAccountName` — 默认 `superteam-a2a-operator`,可通过 `operator.serviceAccount.name` 覆盖
+
+**(2) `deployment.yaml`**(关键字段):
+- **双容器**:
+  - `operator` 容器:`image` from `values.operator.image.*`、`ports.containerPort=8080`(metrics + healthz/readyz)、`args=["run"]` 或从 `argv[0]` 取;
+  - `admission-webhook` 容器:与 operator 容器共享 `image`,`ports.containerPort=8443`、`args=["admission"]`(独立子命令允许 pipeline 化);
+- **探针**:
+  - `livenessProbe.httpGet.path=/healthz` + `port=8080`,`initialDelaySeconds=10`,`periodSeconds=10`、`timeoutSeconds=3`、`failureThreshold=3`;
+  - `readinessProbe.httpGet.path=/readyz` + `port=8080`,`initialDelaySeconds=15`,`periodSeconds=5`、`timeoutSeconds=3`、`failureThreshold=3`;
+  - `startupProbe.httpGet.path=/healthz` + `port=8080`,`failureThreshold=30`、`periodSeconds=10`(启动慢保障);
+- **resources** from `operator.python.resources`(requests + limits);
+- **envFrom.configMapRef=superteam-a2a-operator-config** + 可选 secretRef;
+- **volumeMounts**:`/tmp`(emptyDir)、`/workspace`(emptyDir)、可选 mTLS Secret;
+- **securityContext**:`runAsNonRoot=true`、`runAsUser=1000`、`readOnlyRootFilesystem=true`、`allowPrivilegeEscalation=false`、`capabilities.drop=[ALL]`;
+- **terminationGracePeriodSeconds=30**;
+- **`spec.topologySpreadConstraints`** 跨节点分布(可选,默认关闭)。
+
+**(3) `service.yaml`**:
+- 端口 1:`port=80`、`targetPort=8080`、`name=http`(Operator metrics + healthz/readyz);
+- 端口 2:`port=443`、`targetPort=8443`、`name=admission`(admission webhook);
+- `type=ClusterIP`;
+- `selectorLabels` 来自 `_helpers.tpl.selectorLabels`(`app.kubernetes.io/name=superteam-a2a-operator`);
+- `publishNotReadyAddresses=true`(允许非 ready 副本保留端点,FRD-1 HLT-001 设计要求)。
+
+**(4) `serviceaccount.yaml`**:
+- 命名 `{{ include "superteam-a2a.serviceAccountName" . }}`,命名空间 `superteam-a2a-system`;
+- annotation 来自 `values.operator.serviceAccount.annotations`(默认 `cert-manager.io/inject-ca-from: superteam-a2a-ca/superteam-a2a-ca-cert`);
+- `automountServiceAccountToken: true`(chart 默认覆盖;子 chart 不得关闭)。
+
+**(5) `configmap.yaml`**(可选,默认开启):
+- `data.HELM_VALUES_JSON` = `{{ toJson .Values }}`(Python 启动时解析);
+- `data.OTEL_EXPORTER_OTLP_ENDPOINT` = `{{ .Values.operator.observability.otelEndpoint }}`;
+- `data.LOG_LEVEL` = `{{ .Values.operator.observability.logLevel }}`。
+
+**(6) `rbac.yaml`**(见 §7.3.2 ClusterRole 完整规则):
+- `ClusterRole` `superteam-a2a-operator` + `ClusterRoleBinding`;
+- 引用 helper 输出的 ServiceAccount name + namespace。
+
+**(7) `admission_rbac.yaml`**(见 §7.3.3 admission Role):
+- namespace-scoped `Role` + `RoleBinding` `superteam-a2a-admission`;
+- 仅 secrets 读权限 + admissionregistration.k8s.io read。
+
+**(8) `networkpolicy.yaml`**:
+- **ingress**:仅允许 API Server(port 443)从 `kubernetes` namespace + Prometheus(port 8080 from cluster CIDR)+ cert-manager webhook control plane(port 443 from `cert-manager` namespace);
+- **egress**:仅 K8s API server(port 443 排除 service CIDR)+ OTLP collector(port 4317 from `observability` namespace)+ DNS(port 53 to kube-system);
+- `policyTypes: [Ingress, Egress]`、`podSelector.matchLabels` from helper。
+
+**(9) `prometheusrule.yaml`**(6 个告警规则):
+- `OperatorReconcileFailureRate` — `rate(superteam_operator_reconcile_total{result="error"}[5m]) > 0.1 for 2m` (severity: warning);
+- `OperatorAdmissionRejectSpike` — `rate(superteam_operator_admission_validation_total{result="rejected"}[5m]) > 0.5 for 2m` (severity: warning);
+- `OperatorLeaderNotElected` — `absent(superteam_operator_leader_election == 1) for 2m` (severity: critical);
+- `OperatorLeaseRenewFailure` — `rate(superteam_operator_lease_renew_total{result="error"}[5m]) > 0.05 for 2m` (severity: warning);
+- `OperatorMemoryReconcileLagging` — `histogram_quantile(0.95, rate(superteam_operator_memory_reconcile_duration_seconds_bucket[5m])) > 5 for 2m` (severity: warning);
+- `OperatorEventLoopLagHigh` — `histogram_quantile(0.95, rate(superteam_python_event_loop_lag_seconds_bucket[5m])) > 0.5 for 2m` (severity: critical);
+- **全局 `for: 2m` 在 alertmanager 层覆盖,rule 文件可省略**。
+
+**(10) `servicemonitor.yaml`**:
+- `selector.matchLabels` from helpers;
+- `endpoints`:
+  - `port=http`、`path=/metrics`、`interval=15s`、`scrapeTimeout=10s`;
+  - `relabelings`:drop replica label(`__replica__`)+ drop `prometheus_replica` label;
+  - `metricRelabelings`:保留 prefix=`superteam_` 或 prefix=`superteam_python_`(避免跨服务 metric 污染);
+  - `honorLabels: true`(尊重 Operator 自带标签)。
+
+#### 7.2.5 Helm values 测试 ID 矩阵(19 HELM + 10 HELM-DEPLOY = 29 ID · §A-§G 5 维度)
+
+| 测试 ID | 维度 | 描述 | 文件 |
+|---------|------|------|------|
+| **HELM-001** | A 功能 | 空配置使用全部默认值 | `tests/unit/config/test_helm_values.py` |
+| **HELM-002** | A 功能 | `replicaCount=1` 接受 + Leader Election 启用 | 同上 |
+| **HELM-003** | B 质量 | `replicaCount=11` 被拒绝(ge=1, le=10) | 同上 |
+| **HELM-004** | A 功能 | `python.workers=2` 被拒绝 | 同上 |
+| **HELM-005** | B 质量 | `controllers.agent=2` 被拒绝(ge=1, le=1) | 同上 |
+| **HELM-008** | A 功能 | 未知字段被 `extra=forbid` 拒绝 | 同上 |
+| **HELM-009** | B 质量 | `admission.port < 1024` 被拒绝 | 同上 |
+| **HELM-010** | C 接口契约 | AdmissionConfig.failurePolicy 仅接受 Fail/Ignore | 同上 |
+| **HELM-011** | C 接口契约 | `leaderElection.enabled=False + replicaCount > 1` 启动失败 | `tests/integration/operator/test_startup.py` |
+| **HELM-012** | A 功能 | CamelCase YAML 可 round-trip 为 Pydantic model | `test_helm_values.py` |
+| **HELM-013** | B 质量 | `memoryReconciler.intervalSeconds=5` 被拒绝(ge=10) | 同上 |
+| **HELM-014** | B 质量 | `memoryReconciler.batchSize=5` 被拒绝(ge=10) | 同上 |
+| **HELM-015** | B 质量 | `memoryReconciler.cpuOffloadThreshold=99` 被拒绝(ge=100) | 同上 |
+| **HELM-016** | A 功能 | `renewIntervalSeconds >= leaseDurationSeconds` 被拒绝 | 同上 |
+| **HELM-020** | A 功能 | 多副本关闭 Leader Election 被拒绝 | `test_startup.py` |
+| **HELM-024** | A 功能 | failurePolicy 仅接受 Fail/Ignore | `test_helm_values.py` |
+| **HELM-028** | B 质量 | Pydantic JSON schema 与仓库 values.schema.json 无差异 | `tests/integration/helm/test_schema_diff.py` |
+| **HELM-029** | C 接口契约 | `controllers` dict 仅接受 4 个白名单 key | `test_helm_values.py` |
+| **HELM-032** | A 功能 | 4 个 controller key 并发度只能为 1 | 同上 |
+| **HELM-DEPLOY-001** | A 功能 | deployment 渲染 2 containers(operator + admission-webhook) | `tests/integration/helm/test_rendering.py` |
+| **HELM-DEPLOY-002** | A 功能 | deployment liveness + readiness + startup 三探针 | 同上 |
+| **HELM-DEPLOY-003** | A 功能 | service 渲染双端口(80→8080 + 443→8443) | 同上 |
+| **HELM-DEPLOY-004** | A 功能 | serviceaccount annotation 引用 ClusterIssuer | 同上 |
+| **HELM-DEPLOY-005** | A 功能 | configmap HELM_VALUES_JSON = values.yaml 序列化 | 同上 |
+| **HELM-DEPLOY-006** | A 功能 | prometheusrule 6 告警规则渲染(rule count=6) | 同上 |
+| **HELM-DEPLOY-007** | A 功能 | servicemonitor endpoints 命中 /metrics + interval=15s | 同上 |
+| **HELM-DEPLOY-008** | A 功能 | networkpolicy ingress 仅允许 API Server + Prometheus + cert-manager | 同上 |
+| **HELM-DEPLOY-009** | A 功能 | networkpolicy egress 仅 K8s API + OTLP + DNS | 同上 |
+| **HELM-DEPLOY-010** | B 质量 | helm lint 在 CI 中无警告 | 同上 |
+
+**测试 ID 分布**:19 HELM + 10 HELM-DEPLOY = 29 ID(覆盖 §A-§G 5 维度:功能 17 / 质量 9 / 接口契约 3)。
+
+### 7.3 RBAC 文件级契约(2 Helm 子模板 · 继承 L2-2 §11 完全一致)
+
+#### 7.3.1 RBAC 模板文件清单
+
+| 文件 | 输出资源 | 命名空间 |
+|------|----------|----------|
+| `rbac.yaml` | `ClusterRole` + `ClusterRoleBinding` `superteam-a2a-operator` | cluster-scoped |
+| `admission_rbac.yaml` | `Role` + `RoleBinding` `superteam-a2a-admission` | `superteam-a2a-system` |
+
+#### 7.3.2 ClusterRole 完整规则(继承 L2-2 §11.2 7 apiGroups)
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: superteam-a2a-operator
+rules:
+  - apiGroups: ["superteam-a2a.io"]
+    resources: ["agents", "agentsets", "workflows", "memories", "knowledgescopes", "knowledgeitems"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["superteam-a2a.io"]
+    resources:
+      ["agents/status", "agentsets/status", "workflows/status",
+       "memories/status", "knowledgescopes/status", "knowledgeitems/status"]
+    verbs: ["get", "update", "patch"]
+  - apiGroups: [""]
+    resources: ["pods", "services", "serviceaccounts", "configmaps", "secrets"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["coordination.k8s.io"]
+    resources: ["leases"]
+    verbs: ["get", "list", "watch", "create", "update", "patch", "delete"]
+  - apiGroups: ["events.k8s.io"]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations"]
+    resourceNames: ["superteam-a2a-admission"]
+    verbs: ["update", "patch"]
+  - apiGroups: ["cert-manager.io"]
+    resources: ["certificates"]
+    verbs: ["get", "list", "watch"]
+```
+
+**约束**:
+- `resourceNames` 限定在 `superteam-a2a-admission` 一个;
+- `namespaces` 字段不得新增非 `superteam-a2a-system` 的值;
+- admission webhook 复用同一 ServiceAccount;如未来拆分独立身份,本节必须同步调整并加 RBAC-XXX 测试。
+
+#### 7.3.3 admission Role 完整规则(继承 L2-2 §11.4 namespace-scoped secrets only)
+
+```yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: superteam-a2a-admission
+  namespace: superteam-a2a-system
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources: ["validatingwebhookconfigurations"]
+    verbs: ["get", "list", "watch"]
+```
+
+**约束**:Role 不允许扩展到 `pods` / `services`;admission 不直接执行 K8s 写操作。如果 v0.5+ admission 引入 K8s 调用,必须改用 ClusterRole 并加测试。
+
+#### 7.3.4 RBAC 测试 ID 矩阵(10 RBAC + 4 RBAC-IT = 14 ID · §A-§G 4 维度)
+
+| 测试 ID | 维度 | 描述 | 文件 |
+|---------|------|------|------|
+| **RBAC-001** | A 功能 | ClusterRole 规则集合与 §7.3.2 精确等价 | `tests/integration/rbac/test_manifests.py` |
+| **RBAC-002** | A 功能 | ClusterRoleBinding 引用 ServiceAccount `superteam-a2a-operator` | 同上 |
+| **RBAC-003** | B 质量 | ClusterRole 无 namespaces 限定 | 同上 |
+| **RBAC-004** | A 功能 | ServiceAccount 命名空间为 `superteam-a2a-system` | 同上 |
+| **RBAC-005** | B 质量 | ServiceAccount annotation 引用 ClusterIssuer | 同上 |
+| **RBAC-006** | C 接口契约 | admission Role 仅含 secrets read + validatingwebhookconfigurations read | 同上 |
+| **RBAC-007** | A 功能 | admission Role 不出现写权限 | 同上 |
+| **RBAC-008** | C 接口契约 | ServiceAccount automountServiceAccountToken=true | 同上 |
+| **RBAC-009** | B 质量 | ClusterRole `resourceNames` 限定在 `superteam-a2a-admission` 一个 | 同上 |
+| **RBAC-010** | B 质量 | `helm template` 在 CI 中无警告 | `tests/integration/helm/test_rendering.py` |
+| **RBAC-IT-001** | A 功能 | envtest:ClusterRole 在 Operator Pod 内可读 6 类 CRD | `tests/integration/rbac/test_runtime_access.py` |
+| **RBAC-IT-002** | A 功能 | envtest:admission Role 实际读取 webhook TLS Secret 成功 | 同上 |
+| **RBAC-IT-003** | A 功能 | envtest:Operator 创建 K8s Event 成功(events.create) | 同上 |
+| **RBAC-IT-004** | A 功能 | envtest:Operator 创建/更新 Lease 成功(leases.create/update/patch) | 同上 |
+
+**测试 ID 分布**:10 RBAC + 4 RBAC-IT = 14 ID(覆盖 §A-§G 4 维度:功能 8 / 质量 4 / 接口契约 2)。
+
+### 7.4 observability + RBAC + Helm values 关键不变量
+
+#### 7.4.1 observability 不变量(继承 L2-2 §10 + 宪法 §7)
+
+- ✅ **指标 wire 不变**:11 Operator 指标名 + 4 Python runtime 指标名 = `superteam_operator_*` + `superteam_python_*`,修改必须走 ADR;
+- ✅ **Event reason 白名单**:8 种,新增 reason 必须新增 enum 成员 + 测试;
+- ✅ **structlog 8 字段必含**:`ts` / `level` / `msg` / `trace_id` / `crd` / `namespace` / `name` / `phase`;附加字段以业务前缀开头(如 `decay.*`、`lease.*`);
+- ✅ **Health endpoints**:`/healthz` 进程存活 + `/readyz` Lease + Memory + admission 三件套;
+- ✅ **OTel TracerProvider 测试替换**:`InMemorySpanExporter` 必须不污染生产 provider;
+- ✅ **message 限长 1024**:UTF-8 字符级截断;过长直接截;不附加省略号;
+- ✅ **Operator 错误不通过 A2A 错误码传播**:Operator / admission 错误只写 K8s Events + structlog,**不走** A2A protocol channel(L2-2 §10.7 末尾明确)。
+
+#### 7.4.2 Helm values 不变量(继承 L2-2 §9 + 宪法 §6 mTLS)
+
+- ✅ **CamelCase wire 一致**:values.yaml 字段名 = Pydantic alias = values.schema.json 字段名;snake_case 仅在 Python 代码内;
+- ✅ **`extra="forbid"` 顶层 + 嵌套层全生效**:未知字段拒绝;
+- ✅ **`controllers` dict 仅 4 个白名单 key**:`agent` / `agentset` / `workflow` / `memory`;并发度只能为 1;
+- ✅ **`replicaCount > 1` 必须 `leaderElection.enabled=true`**:启动期 / 部署期校验;
+- ✅ **`admission.failurePolicy` 默认 `Fail`**:生产值不得默认降为 `Ignore`;
+- ✅ **`renewInterval < leaseDuration`**:跨字段 model_validator 校验;
+- ✅ **schema 一致性**:CI 重新生成 `values.schema.json` 与仓库无差异;
+- ✅ **Python 3.12+ + 单 worker**:v0.2 wire/deployment contract;修改必须走 ADR;
+- ✅ **cert-manager 集成**:ServiceAccount annotation + ClusterIssuer(L2-2 §9 / §11);
+- ✅ **NetworkPolicy + mTLS**:Operator Pod 仅与 API Server / OTLP collector / cert-manager 通信(宪法 §6);
+
+#### 7.4.3 RBAC 不变量(继承 L2-2 §11 + 宪法 §6)
+
+- ✅ **ClusterRole 名称 wire 不变**:`superteam-a2a-operator`;ServiceAccount 名称 wire 不变;
+- ✅ **命名空间 wire 不变**:`superteam-a2a-system`;Helm chart Namespace 模板必须存在;不允许跨 chart 共享;
+- ✅ **权限集合修改走 ADR**:ClusterRole / Role apiGroups/verbs/resourceNames 调整必须 §F 同步 + RBAC-XXX 测试;
+- ✅ **cert-manager 仅通过 ServiceAccount annotation 触发**:不允许手动注入 CA bundle;
+- ✅ **admission Role 不写**:`pods` / `services` 等越权 verbs 不允许;
+- ✅ **CI `helm template` 无警告**:RBAC-DRIFT 失败必须停止后续构建;
+- ✅ **CI `tests/integration/rbac/test_manifests.py` 校验**:`§7.3.2` 规则集合精确等价 + ServiceAccount annotation 与 §7.4.2 mTLS 一致 + `Role` 不出现写 verbs;
+
+#### 7.4.4 observability + RBAC + Helm values wire contract 总览
+
+| 类别 | wire 字段数 | 修改门禁 |
+|------|-------------|----------|
+| Operator 指标名 | 11 | ADR |
+| Python runtime 指标名 | 4 | ADR |
+| EventReason 白名单 | 8 | enum 成员 + 测试 |
+| structlog 字段名 | 8 | 命名空间以业务前缀开头 |
+| Helm values 字段名 | ~28(含 controllers dict 4 key) | alias 映射 + schema 重新生成 |
+| ClusterRole apiGroups | 7(含 subresource) | ADR |
+| admission Role apiGroups | 2 | ADR |
+| ServiceAccount annotation | 1(cert-manager) | 强制一致 |
+| Namespace | 1(`superteam-a2a-system`) | 强制 wire |
+
+**总计**:**~52 wire contract 字段**;任何修改必须走 ADR。
+
+### 7.5 与既有 L2 Spec 测试 ID 对应
+
+- **L2-2 Spec §10.7** 提供 OBS-001~OBS-025 = 25 ID → L3-1 完整继承无修改;
+- **L2-2 Spec §9.4** 提供 HELM-001~HELM-032 = 32 ID → L3-1 落地为 19 HELM + 10 HELM-DEPLOY = 29 ID(保留所有 L2-2 高优先级 ID + 新增部署相关 6 ID);
+- **L2-2 Spec §11.6** 提供 RBAC-001~RBAC-010 = 10 ID → L3-1 完整继承 + 新增 RBAC-IT-001~004 = 14 ID;
+- 本 §7 新增 HLT-001~HLT-008 = 8 ID;
+- **本节新增/继承测试 ID 总计** = **29 (HELM) + 14 (RBAC) + 28 (OBS+HLT) = 71 ID**,覆盖 §A-§G 6 维度。
+
+### 7.6 与 L3-1 §0-§6 衔接
+
+- **§1.3 文件清单**:observability/ 子包 6 文件 + helm/operator/templates/ 9 模板 + RBAC 2 子模板 = **17 文件**新增到 §1.3 主清单;落地后 L3-1 文件清单 **70 → 87**;
+- **§2.3 Python 包结构**:§7.2.3 Pydantic models 落实 §2.3.7 config/helm_values.py 完整契约;
+- **§3 4 Controllers + MemoryReconciler 概要**:MemoryReconciler 调用 `observability.events` + `observability.metrics` 的接口在 §6.3 MemoryReconcilerService 伪代码中已声明;本 §7 是其落地的文件级契约;
+- **§4 admission webhook**:调用 `observability.metrics.admission_validation_total` / `observability.events.ADMISSION_REJECTED`;此处 §7.1 提供契约;
+- **§5 Leader Election**:调用 `observability.metrics.leader_election` / `.lease_renew_total` / `.lease_transition_total`;`observability.events.LEADER_ACQUIRED` / `LEADER_LOST`;此处 §7.1 提供契约;
+- **§6 Memory**:调用 `observability.metrics.memory_reconcile_total` / `.memory_decay_total`;此处 §7.1 提供契约;
+- **§7.3 RBAC**:ClusterRole / Role 引用 `certificates.cert-manager.io`、`events.k8s.io` 是 §7.1 events.py 调用 K8s Events 的权限依据;
+
+**结论**:**§7 是 §3-§6 运行时可观测性 + K8s 部署资产的物理落地**,所有引用点的契约均集中在本节给出。
+
+---
+
 ## 附录 A：跨模块引用清单（v0.2-draft 骨架稿）
 
 > 本附录列出 L3-1 文件级 Spec 引用的所有外部文档与符号,确保 L4 实施者能正确 import。L3-1 不创造新概念;所有协议 / wire contract / 业务语义均来自 L1/L2 已评审文档。
@@ -2222,7 +3026,7 @@ class MemoryReconcilerService:
 
 ---
 
-## 附录 B：ADR / Constitution 引用矩阵(占位 · 后续 #46+ 补完)
+## 附录 B：ADR / Constitution 引用矩阵(占位 · 后续 #48+ 补完)
 
 > 本附录在 L3-1 Spec §9 验收清单补完后一并整理(参照 L2-2 Spec v0.2.0 §16 附录 B 模式,5 子表:架构/接口/可见性/安全/测试)。
 
@@ -2230,7 +3034,7 @@ class MemoryReconcilerService:
 
 ## v0.2-draft 骨架稿下次补完清单
 
-**已落地**(#44 + #45 累计):
+**已落地**(#44 + #45 + #47 累计):
 - ✅ 头部 frontmatter(模块 ID、层级、版本 v0.2-draft、状态、supersedes、依据)
 - ✅ §0 阅读指南
 - ✅ §1 模块使命与文件清单总览(70 文件清单 + 测试 ID 前缀分布)
@@ -2239,14 +3043,14 @@ class MemoryReconcilerService:
 - ✅ §4 admission webhook server 完整文件级 Spec(**9 文件**:子包入口 + ASGI server + TLS 热更新 + 5 validators + CRDValidator Protocol;含 DAG 校验纯函数算法 + Knowledge↔Memory 双向互斥 + Helm `webhookconfig.yaml` 契约 + **18 UT + 4 IT = 22 测试 ID 矩阵**)
 - ✅ §5 Leader Election 完整(**3 文件**:子包入口 + AsyncLeaseClient + Election + LeaderGate;含状态机 Standby↔Leader + grace period 30s + renew 失败 3 次让位 + wire contract 完整 + **10 UT + 2 IT = 12 测试 ID 矩阵**)
 - ✅ §6 Memory 接口实现完整(**9 文件**:`models/memory/` 8 + `reconcilers/memory_reconciler.py`;含 MemorySpec/Status/Condition/Phase 完整 Pydantic + 4 纯函数(decay/reinforce/gc/promotion)数学公式 + MemoryReconcilerService 完整伪代码 + 与 L2-4 Spec §3.4 **wire sync 矩阵 19 字段全 PASS** + **8 UT-MD-ME + 3 UT-R + 1 IT-R = 12 测试 ID 矩阵**)
+- ✅ §7 observability + RBAC + Helm values 完整文件级 Spec(**17 文件新增**:observability/ 子包 6 文件 = metrics.py / health.py / tracing.py / logging.py / events.py / __init__.py + Helm 9 模板 = _helpers.tpl / deployment.yaml / service.yaml / serviceaccount.yaml / configmap.yaml / rbac.yaml / admission_rbac.yaml / networkpolicy.yaml / prometheusrule.yaml / servicemonitor.yaml + RBAC 2 子模板;L3-1 文件清单 **70 → 87 文件**;Helm values Pydantic schema + ServiceAccountConfig;完整继承 L2-2 §10.2 11 指标 + §10.3 4 runtime 指标 + §10.6 8 EventReason;新增 health.py 文件级契约(8 HLT 测试 ID)与 6 NetworkPolicy 双端口策略 + 6 prometheusrule 告警;ClusterRole 完整 7 apiGroups + admission Role namespace-scoped secrets only + 4 RBAC-IT envtest 集成;**29 HELM + 14 RBAC + 28 OBS+HLT = 71 测试 ID**(覆盖 §A-§G 6 维度);**§7.4 wire contract 总览** ~52 wire 字段 + **§7.5 与既有 L2 Spec 测试 ID 对应** + **§7.6 与 L3-1 §0-§6 衔接**)
 - ✅ 附录 A 跨模块引用清单(L1/L2/ADR/Constitution/配套)
 
-**待补完**(后续 #46+):
-- ⏳ §7 observability + RBAC + Helm values(4 observability 文件 + 9 Helm 模板完整契约 + RBAC manifest)
-- ⏳ §8 测试策略 + 工具链(70 测试文件镜像布局 + 122 UT + 11 IT + 6 E2E + 5 CF ID 矩阵 + pyright strict + ruff + interrogate)
+**待补完**(后续 #48+):
+- ⏳ §8 测试策略 + 工具链(70 测试文件镜像布局 + L2-2 继承 122 UT + 11 IT + 6 E2E ID 矩阵 + pyright strict + ruff + interrogate + 70 文件 → 87 文件 v0.2 调整)
 - ⏳ §9 验收清单(继承 L2-2 Spec §14 + 5 子表:功能/质量/安全/可观测/文档;每条对照本 L3-1)
 - ⏳ §10 开放问题(继承 L2-2 Spec §15 16 项 + L3-1 新发现 + v0.5+ 5 项演进路线)
-- ⏳ 附录 B ADR/Constitution 矩阵 5 子表
+- ⏳ 附录 B ADR/Constitution 矩阵 5 子表(参照 L2-2 Spec v0.2.0 §16 附录 B 模式)
 
 **评审入口**:
 - 完整 v0.2-draft-full 后启动评审(参照 [L2-2 Spec 评审模板](../../reviews/l2-2-operator-core-spec-review.md) 15-25KB / §A-§G 10 维度 · 2026-07-25 #33 通过)
@@ -2255,4 +3059,4 @@ class MemoryReconcilerService:
 
 ---
 
-> **签署**:本 L3-1 文件级 Spec Python v0.2-draft 补完稿(#44 骨架 + #45 §4-§6 补完)由起草人根据 [L2-2 Operator Core Spec v0.2.0](../../spec/L2-module-specs/L2-operator-core.md) + [L2-2 Design v0.2.0](../../design/L2-modules/L2-operator-core.md) + [L3-1 v0.1-draft Go baseline(已归档)](../../archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md) + [L2-4 Spec v0.2.0 §3.4 Memory CRD 完整 Pydantic schema](../../spec/L2-module-specs/L2-knowledge-memory.md) 编写,依据宪法 v0.5.0 §14.4 待评审。**评审通过后**进入 L4 实施阶段(开发者对照本文件逐文件实现 + uv workspace + pyright strict + ruff)。
+> **签署**:本 L3-1 文件级 Spec Python v0.2-draft §7 补完稿(#44 骨架 + #45 §4-§6 + #47 §7 observability + RBAC + Helm values 补完)由起草人根据 [L2-2 Operator Core Spec v0.2.0](../../spec/L2-module-specs/L2-operator-core.md) + [L2-2 Design v0.2.0](../../design/L2-modules/L2-operator-core.md) + [L3-1 v0.1-draft Go baseline(已归档)](../../archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md) + [L2-4 Spec v0.2.0 §3.4 Memory CRD 完整 Pydantic schema](../../spec/L2-module-specs/L2-knowledge-memory.md) 编写,依据宪法 v0.5.0 §14.4 待评审。**评审通过后**进入 L4 实施阶段(开发者对照本文件逐文件实现 + uv workspace + pyright strict + ruff)。**累计进度**:L3-1 Spec 8 主章节中 §0-§7 + 附录 A 已落地;L3 阶段 1/4 进度 **~75%**;后续 #48+ 补完 §8-§10 + 附录 B → v0.2-draft-full → 评审 → v0.2.0。
