@@ -7,8 +7,9 @@
 > **层级**：L3 — 文件级 Spec
 > **模块 ID**：C-2（A2A Core Library，见 L1 v0.2.0 Architecture §4.1）
 > **代码位置**：`packages/a2a-core/src/superteam_a2a/a2a/`（**ADR-0005 §13.1 uv workspace 布局**，替代原 Go baseline 的 `src/a2a/`）
-> **版本**：v0.2-draft（2026-07-27 起 Python 重写 + 2026-07-27 #44 Go baseline 归档）
-> **状态**：✅ v0.2-draft-full **完整版（#50 骨架 + #51 §10-§12 + #52 §13 + #53 §14-§15 + 附录 B）**——头部 + §0-§15 + 附录 A + 附录 B **全部落地，0 个占位章节**，具备 §A-§G 10 维度评审条件
+> **版本**：**v0.2.0**（2026-07-28 评审通过；2026-07-27 起 Python 重写 + 2026-07-27 #44 Go baseline 归档）
+> **状态**：✅ **v0.2.0 已评审通过**（2026-07-28 · §A-§J 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项）——头部 + §0-§15 + 附录 A + 附录 B 全部落地，0 个占位章节
+> **配套评审**：[L3-2 A2A Core Spec 评审报告](../../reviews/l3-2-a2a-core-spec-review.md)（2026-07-28 · 217 行 / 20KB / §A-§P）
 > **Python 栈基线**：Python 3.12+（**ADR-0005 §3.1**）+ uv workspace + 官方 `a2a-sdk` envelope/ASGI 复用 + Pydantic v2 + httpx + OpenTelemetry + structlog + cert-manager
 > **wire contract 不变性**（与 v0.1.0 Go baseline + L2-1 Spec v0.2.0 完全一致，contract test 锁定）：JSON 字段名 / camelCase / RFC 3339 时间 / Agent Card 路径 / 错误码 / 任务状态机 / metric name
 > **上游约束**：[`docs/spec/L2-module-specs/L2-a2a-protocol.md`](../../spec/L2-module-specs/L2-a2a-protocol.md) **v0.2.0**（2026-07-24 评审通过 · 72KB / 1919 行 / 16 节 + 2 附录 / 14 错误码 / 100 测试 ID / 4 时序图 / 15 开放问题 / 80% 收敛率）
@@ -2806,3 +2807,46 @@ subjects:
 | §16 会话纪律 | 宪法 v0.5.0 §16.1 | 单会话水位 < 50% 临界；超出即保存-暂停-交接 | MUST |
 
 **基线引用**：[L3-1 Operator Core Spec 附录 B](./L3-operator-core.md) + [L2-1 Spec v0.2.0 附录 B](../../spec/L2-module-specs/L2-a2a-protocol.md)（13 行矩阵）+ [L2-4 Spec v0.2.0 附录 B](../../spec/L2-module-specs/L2-knowledge-memory.md)（6 子表模板）。
+
+---
+
+## 16. 文档元数据
+
+### 16.1 版本与状态
+
+| 项 | 值 |
+|---|---|
+| **版本** | **v0.2.0**（2026-07-28 评审通过） |
+| **状态** | ✅ 已评审通过 · §A-§P 16 节 / 10 维度全 PASS / 0 阻塞项 |
+| **层级 / 模块 ID** | L3 文件级 Spec / C-2（A2A Core Library） |
+| **代码位置** | `packages/a2a-core/src/superteam_a2a/a2a/`（uv workspace） |
+| **规模** | 30 Python 文件 + 9 Helm 模板 + 30 测试文件镜像 / 276 测试 ID / 24 错误码 / 15 指标 / 6 method / 4 endpoint |
+| **supersedes** | v0.1-draft Go baseline（仅 Go 实现条款；wire contract + 业务语义继续有效）；归档于 [`docs/archive/pre-python-2026-07-24/L3-a2a-core-spec-v0.1-draft-go-baseline.md`](../../archive/pre-python-2026-07-24/L3-a2a-core-spec-v0.1-draft-go-baseline.md)（62KB / 1446 行 / 未评审） |
+| **评审人** | 项目发起人（单点评审 · 宪法 §14.5 MVP 例外时间窗口内） |
+
+### 16.2 变更记录
+
+| 会话 | 日期 | 变更 |
+|---|---|---|
+| #50 | 2026-07-27 | v0.2-draft 骨架稿：头部 + §0-§9 + 附录 A + §10-§15 占位（78.1KB / 1518 行）；Go baseline 归档 |
+| #51 | 2026-07-27 | §10 上游追踪 + §11 测试策略（276 ID 完整清单）+ §12 Helm values 9 模板补完 |
+| #52 | 2026-07-27 | §13 生命周期契约 4 时序图补完（启动 / 稳态 / 关闭 / 证书热更新） |
+| #53 | 2026-07-28 | §14 验收清单（82 条 / §A-§G 10 维度）+ §15 开放问题（21 项三层模式）+ 附录 B（6 子表）补完 → **v0.2-draft-full 完整版**；§11.2 测试 ID 汇总表由 105 修正为 **276**（与 §11.2.1-§11.2.21 逐文件清单对账一致）；§11.4 3 处"占位"引用清理 |
+| #53 | 2026-07-28 | §A-§P 评审通过（10 维度全 PASS / 0 阻塞项 / 3 关注项 / 4 建议项）→ **升级 v0.2.0**；新增本 §16 文档元数据 |
+
+### 16.3 配套文档
+
+| 类型 | 文档 |
+|---|---|
+| **上游约束** | [L2-1 A2A Protocol Spec v0.2.0](../../spec/L2-module-specs/L2-a2a-protocol.md) + [L2-1 Design v0.2.0](../../design/L2-modules/L2-a2a-protocol.md) |
+| **配套评审** | [L3-2 A2A Core Spec 评审报告](../../reviews/l3-2-a2a-core-spec-review.md)（2026-07-28 · 10 维度全 PASS） |
+| **同级 L3** | [L3-1 Operator Core v0.2-draft](./L3-operator-core.md)（§0-§9 已落地）/ L3-3 Adapter SDK（待起草）/ L3-4 Hello Agent（待起草）/ L3-5 Knowledge Service（待起草）/ L3-6 Memory backend（待起草） |
+| **元决策** | [ADR-0005 Python-first](../adr/0005-python-first-technology-stack.md) + [CONSTITUTION v0.5.0](../../../CONSTITUTION.md) |
+
+### 16.4 下次会话入口
+
+1. **§F 跨文档同步**（本 Spec v0.2.0 → ROADMAP / README / CONSTITUTION-CHANGELOG / L3-1 附录 A.4 / L2-1 附录 A · ~5-8% 极低风险）
+2. **L3-1 Operator Core §10 + 附录 B 补完**（L3-1 当前 §0-§9 已落地，附录 B 仍为占位 → 补完后可评审升级 v0.2.0，收口 L3 阶段 1/4）
+3. **L3-3 Adapter SDK 文件级 Spec 起草**（L3 阶段 3/6；基于 L2-3 v0.2.0 Spec；建议拆骨架 + 补完 + 评审 3 会话）
+
+**关键交接事实**：L3-2 的 3 项关注项（OPEN-A2A-001 `a2a-sdk` 包名 / OPEN-A2A-004 `jsonrpc_app` 内部结构 / OPEN-A2A-007 conformance 入口）均为 **L4 spike 前置项**，不阻塞 L3-3 起草；但 L3-3 若复用 A2AClient 契约，需引用本 Spec §6 而非重新定义。

@@ -85,7 +85,10 @@ This roadmap is a living document, kept in sync with the authoritative [ADR-0001
 - [x] **L2-3 Adapter Python v0.2 评审**（[评审](docs/reviews/l2-3-adapter-python-review.md) · §A-§P 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项 · 49.7KB / 657 行 · 升级 v0.2.0）✅ 2026-07-26
 - [x] **L2-3 Adapter Python v0.2 Spec**（[Spec](docs/spec/L2-module-specs/L2-adapter.md) · 114KB / 2705 行 / 14 节 + 2 附录）✅ 2026-07-26
 - [x] **L2-4 Knowledge/Memory Python v0.2**（[Design](docs/design/L2-modules/L2-knowledge-memory.md) 1920 行 / 97KB + [Spec](docs/spec/L2-module-specs/L2-knowledge-memory.md) 4152 行 / 194.6KB + [评审](docs/reviews/l2-4-knowledge-memory-spec-python-review.md) 697 行 / 59.7KB · §A-§P 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项 · 60 测试 ID + 30 验收点 + 22 开放问题）✅ 2026-07-27
-- [ ] **L3 Python 文件级 Spec 重启**（L3-1 Operator Core + L3-2 A2A Core + L3-3 Adapter + L3-4 Knowledge/Memory）
+- [x] **L3-1 Operator Core v0.2-draft**（[Spec](docs/spec/L3-file-specs/L3-operator-core.md) · 3750 行 / 162KB / §0-§9 + 附录 A/B）✅ 2026-07-27
+- [x] **L3-2 A2A Core v0.2.0**（[Spec](docs/spec/L3-file-specs/L3-a2a-core.md) · 2852 行 / 160KB / 16 节 + 2 附录 / 30 文件 + 9 Helm + 30 测试 / 276 测试 ID / 24 错误码 / 15 指标 / [评审](docs/reviews/l3-2-a2a-core-spec-review.md) 217 行 / 20KB · §A-§P 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项）✅ 2026-07-28
+- [ ] **L3-3 Adapter SDK Python 重写**（基于 L2-3 v0.2.0 Spec）
+- [ ] **L3-4 Hello Agent 文件级 Spec 启动**（L3 阶段 4/6）
 - [ ] **L4 Python 实现启动**（uv workspace + packages/operator + packages/a2a-core + packages/adapter-sdk + packages/knowledge + packages/memory + packages/hello-agent）
 
 **Done when**：L2 Python 设计 + Spec + 评审全 4 模块通过；L3 Python 文件级 Spec 全模块通过；uv workspace 初始化；L4 至少 1 个 Python 包可 `uv sync` 安装并 `pytest` 通过

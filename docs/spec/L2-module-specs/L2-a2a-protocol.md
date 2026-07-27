@@ -17,6 +17,8 @@
 
 本文档定义 `superteam-a2a` **L2-1 A2A Protocol 模块**（通信层 · C-2）的 **Python 文件级契约**：7 个子包的完整文件清单、4 个 ExtensionRouter 的 Pydantic schema、`ssl.SSLContext` 构造 + 热更新路径、Discovery/Retry/CB/P2C 完整契约、Helm values schema、测试 ID 矩阵、生命周期时序、Python-first 硬约束验收。**不**重复设计决策的"为什么"（见配套设计 v0.2-draft）；**不**定义每个函数的具体实现（L3-2 文件级 Spec 负责）。
 
+> **下游落地**：[L3-2 A2A Core Library 文件级 Spec v0.2.0](../../file-specs/L3-a2a-core.md)（2026-07-28 #54 评审通过 · 2852 行 / 160KB / 30 文件 + 9 Helm + 30 测试 / 276 测试 ID / 24 错误码 / 15 指标；[评审报告](../../reviews/l3-2-a2a-core-spec-review.md) §A-§P 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项）
+
 **读者**：L3-2 Spec 作者、Adapter SDK 作者、Knowledge Service / Memory backend 作者、架构评审者。
 
 **与 L2-1 设计的边界**：

@@ -459,7 +459,7 @@ Pod:
 | ID | 组件名 | 层级 | 语言 | Python 包路径 |
 |----|--------|------|------|----------------|
 | C-1 | superteam-a2a Operator | ② | **Python 3.12+** | `packages/operator/src/superteam_a2a/operator/` |
-| C-2 | A2A Core Library | ④ | **Python 3.12+** | `packages/a2a-core/src/superteam_a2a/a2a/` |
+| C-2 | A2A Core Library | ④ | **Python 3.12+** | `packages/a2a-core/src/superteam_a2a/a2a/` | [L3-2 Spec v0.2.0 ✅](../spec/L3-file-specs/L3-a2a-core.md) |
 | C-3 | Adapter SDK | ④ | **Python 3.12+** | `packages/adapter-sdk/src/superteam_a2a/adapter/` |
 | C-4 | Framework Adapters | ④ | **Python 3.12+** | `adapters/{langchain,autogen,crewai,sk,strands,smolagents}/` |
 | C-5 | Hello Agent | ⑤ | **Python 3.12+** | `agents/hello/src/superteam_a2a/hello/` |

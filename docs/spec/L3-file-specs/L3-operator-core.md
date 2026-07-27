@@ -3709,7 +3709,7 @@ Pod 启动:
 
 | L3 配套 | 状态 | L3-1 引用位置 |
 |---|---|---|
-| `docs/spec/L3-file-specs/L3-a2a-core.md` | **v0.1-draft Go baseline 已归档**(本次 #44 同步归档 62KB/1446 行);**Python 重写待 #47+ 启动** | §0 阅读指南 + 头部 frontmatter |
+| `docs/spec/L3-file-specs/L3-a2a-core.md` | **v0.2.0 已通过评审**（2026-07-28 · 2852 行 / 160KB / 16 节 + 2 附录 / 30 文件 + 9 Helm + 30 测试 / 276 测试 ID / 24 错误码 / 15 指标；[评审报告](../../reviews/l3-2-a2a-core-spec-review.md) §A-§P 10 维度全 PASS）| §0 阅读指南 + 头部 frontmatter + 附录 A.4 |
 | `docs/spec/L3-file-specs/L3-knowledge-service.md` | **待起草**(L3-5)| §3.4 + 后续 #45+ |
 | `docs/spec/L3-file-specs/L3-memory-backend.md` | **待起草**(L3-6)| §3.4 + 后续 #45+ |
 
