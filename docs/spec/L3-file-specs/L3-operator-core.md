@@ -1,0 +1,2258 @@
+# L3 文件级 Spec：Operator Core（编排层文件级 · Python-first）
+
+> **⚠️ ADR-0005 supersede + 归档标记（2026-07-27）**：本 v0.2-draft Spec 文档**仅 supersede Go struct / kubebuilder / controller-runtime / client-go 实现条款**；wire contract（4 Controller 职责 / CRD 状态机 / Leader Election / Finalizer / RBAC / metric name）与 v0.1-draft 业务语义**完全继续有效**。原 v0.1-draft Go baseline 已归档至 [`docs/archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md`](../../archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md)（2026-07-27 归档 / **未评审** / 75KB / 1886 行）。
+>
+> **Python 重写入口**：依据 L1 v0.2.0 Architecture §3.2 + ADR-0005 §3.1 + §13.1 + L2-2 Design v0.2.0 §3,Go baseline 70 文件清单 → Python 包结构（`packages/operator/src/superteam_a2a/operator/` 13 子包）；4 Controller 完整 Go 代码契约 → **Kopf `@kopf.create` / `@kopf.update` / `@kopf.delete` handlers(30-50 行/Controller) + 独立 async reconciler services(业务逻辑分离)**；MemoryReconciler 60s 周期 → **`@kopf.timer(interval=60.0)`** + Leader Election 单 leader 触发。
+>
+> **层级**：L3 — 文件级 Spec
+> **模块 ID**：C-1（Operator Core，见 L1 Architecture §4.1）
+> **代码位置**：`packages/operator/src/superteam_a2a/operator/`（**ADR-0005 §13.1 uv workspace 布局**，替代原 Go baseline 的 `src/operator/`）
+> **版本**：v0.2-draft（2026-07-27 起 Python 重写 + 2026-07-27 #16 Go baseline 归档）
+> **状态**：🟡 v0.2-draft **补完稿（#44 骨架 + #45 §4-§6 补完）**——头部 + §0-§6 + 附录 A 已落地 + ⚠️ §7 observability + RBAC + Helm / §8 测试策略 / §9 验收清单 / §10 开放问题 + 附录 B 矩阵 = **4 节 + 1 附录待后续 #46+ 会话补完**
+> **上游约束**：[`docs/design/L2-modules/L2-operator-core.md`](../../design/L2-modules/L2-operator-core.md) **v0.2.0**（2026-07-24 评审通过 · 80KB / 1583 行 / 14 主章节）+ [`docs/spec/L2-module-specs/L2-operator-core.md`](../../spec/L2-module-specs/L2-operator-core.md) **v0.2.0**（2026-07-25 评审通过 · 103KB / 1890 行 / 16 节 + 2 附录 / 122 测试 ID / 16 开放问题 / 80% 收敛率）
+> **本 Spec 目的**：将 L2-2 Operator Core Spec v0.2.0 中的 **13 子包 + 4 Controller + MemoryReconciler + admission webhook + Leader Election + Finalizer + observability + RBAC + Helm + 测试策略** 落地为 **文件级 Python 代码契约**——每个文件列明**绝对路径（基于 uv workspace 布局）**、**职责一句话**、**完整 import 列表**、**exported 符号签名（type hints + docstring 一行）**、**内部 helper 列表**、**关联测试文件路径 + 测试 ID 前缀**。是 L4 实施阶段（开发者打开 IDE 即可对照写代码）的直接输入。
+> **配套 Spec**：[L3-5 Knowledge Service 文件级 Spec](./L3-knowledge-service.md)（待起草）/ [L3-6 Memory backend 文件级 Spec](./L3-memory-backend.md)（待起草）/ [L3-2 A2A Core Library 文件级 Spec](./L3-a2a-core.md)（**本次 #44 同步归档 Go baseline 62KB/1446 行；Python 重写待 #47+ 启动**）
+
+---
+
+## 0. 阅读指南
+
+- **读者**：Operator 实施工程师（L4 Python 编码）、Code Reviewer（PR 审查）、架构 Reviewer（设计一致性）
+- **必读章节**：§1（模块使命 + 70 文件清单总览）/ §2（Python 包结构）/ §3（4 Controller + MemoryReconciler 概要）/ 附录 A（跨模块引用清单）
+- **可选章节**：本次 v0.2-draft 补完稿不包含 §7-§10 主体（已在各 §标题占位；后续 #46+ 会话补完）
+- **配套阅读**：[L2-2 Operator Core Spec v0.2.0](../../spec/L2-module-specs/L2-operator-core.md) §1-§15 + 附录 A/B · [L2-2 Operator Core Design v0.2.0](../../design/L2-modules/L2-operator-core.md) §3-§14 · [L1 Architecture v0.2.0 §3.2 编排层](../../design/L1-architecture.md) · [ADR-0003 §4 Memory 衰减算法](../adr/0003-memory-design.md) · [ADR-0005 §3.1 Operator 模块映射](../adr/0005-python-first-technology-stack.md) · [Kopf 官方文档](https://kopf.readthedocs.io/) · [kubernetes_asyncio 文档](https://github.com/kubernetes-client/python/tree/master/kubernetes_asyncio)
+
+**与 L3-1 Go baseline 关系**：
+- v0.1-draft Go baseline 已归档（**不可变,仅参考**：`../../../archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md` 1886 行）
+- 本 v0.2 Spec **完全替代** Go baseline 的 Python 实现决策（Kopf handlers + async reconciler services + `kubernetes_asyncio` + K8s Lease Leader Election + structlog + Pydantic v2）
+- 业务语义（4 Controller 职责 / CRD 状态机 / Finalizer / RBAC / metric name）与 v0.1-draft Go baseline **完全一致**
+
+---
+
+## 1. 模块使命与文件清单总览
+
+### 1.1 使命
+
+L3-1 Operator Core 文件级 Spec 将 [L2-2 Spec v0.2.0](../../spec/L2-module-specs/L2-operator-core.md) 中描述的 **4 Controllers + admission webhook + Leader Election + MemoryReconciler + observability + RBAC + Helm** 落地为 **可直接对照编码的 Python 文件级契约**。
+
+**单部署形态**：与 Knowledge Service + MemoryReconciler 共享同 Deployment（独立 Deployment,单实例 v0.1,单 Python 进程 / 单 Uvicorn worker,ADR-0005 §6.2 单进程原则）。
+
+**L3-1 文件级 Spec v.s. L2-2 模块 Spec 边界**：
+
+| 维度 | L2-2 模块 Spec | L3-1 文件级 Spec |
+|---|---|---|
+| **粒度** | 模块级（13 子包 + 4 Controller 概要） | 文件级（70 文件精确路径 + 每个文件的 import/exported/helper/测试文件） |
+| **目的** | "为什么 + 是什么"（设计决策 + 模块契约） | "怎么做"（每个文件具体怎么写） |
+| **读者** | 架构师 + L3 起草者 | L4 实施工程师（开发者打开 IDE 对照） |
+| **变更频率** | 低（设计变更才改） | 中（实现微调可能改） |
+| **测试 ID 范围** | 122 UT + 11 IT + 6 E2E（§A-§G ID 矩阵） | L3-1 不创造新测试 ID；**继承 L2-2 ID 矩阵**,仅在测试文件中将 ID 落实到具体文件路径 |
+
+### 1.2 模块对外契约（public API surface · 继承 L2-2 Spec §1.2）
+
+**Public API 入口**（仅暴露给其他 L2/L3 模块,本 L3-1 不变更）：
+
+```python
+# packages/operator/src/superteam_a2a/operator/__init__.py
+from .main import OperatorMain
+from .controllers import AgentController, AgentSetController, WorkflowController
+from .reconcilers import MemoryReconciler
+from .admission import AdmissionWebhookApp
+from .leader_election import Election
+from .errors import ReconcileError, RetryableError, NonRetryableError, PermanentError
+from .config import HelmValues
+
+__all__ = [
+    "OperatorMain",
+    "AgentController", "AgentSetController", "WorkflowController",
+    "MemoryReconciler",
+    "AdmissionWebhookApp",
+    "Election",
+    "ReconcileError", "RetryableError", "NonRetryableError", "PermanentError",
+    "HelmValues",
+]
+```
+
+**L3-1 新增 internal API**（仅 Operator 包内部使用,不对外暴露）：
+
+```python
+# packages/operator/src/superteam_a2a/operator/_internals.py
+# 注：仅用于 L3 内部测试夹具 import,不进 __all__
+
+# Controllers 内部 helper（Kopf handlers 调用）
+from .reconcilers.base import BaseReconciler
+from .reconcilers.agent_reconciler import AgentReconcilerService
+from .reconcilers.agentset_reconciler import AgentSetReconcilerService
+from .reconcilers.workflow_reconciler import WorkflowReconcilerService
+from .reconcilers.memory_reconciler import MemoryReconcilerService
+
+# admission validators
+from .admission.validators import (
+    AgentValidator, AgentSetValidator, WorkflowValidator,
+    MemoryValidator, MutualExclusionValidator,
+)
+
+# Finalizer 工具
+from .finalizers.names import AGENT_FINALIZER, AGENTSET_FINALIZER, WORKFLOW_FINALIZER, MEMORY_FINALIZER
+
+# K8s 客户端（kubernetes_asyncio 封装）
+from .clients.k8s_client import AsyncK8sClient
+```
+
+### 1.3 文件清单总览（70 个 Python 文件 + 9 Helm 模板）
+
+> **完整文件清单在 §2.3 表格中分 13 子包展开**。本 §1.3 给汇总 + 测试 ID 前缀分布。
+
+**70 Python 文件分 13 子包**：
+
+| 子包 | 文件数 | 职责一句话 | 测试 ID 前缀 |
+|---|---|---|---|
+| `operator/` (顶层) | 3 | 主入口 + 公开 API + ASGI runner | UT-OP-01~04 |
+| `operator/controllers/` | 4 | 4 个 Controller 的 Kopf handlers | UT-C-01~30(7 类前缀)|
+| `operator/reconcilers/` | 5 | 业务逻辑 services（与 Kopf 解耦） | UT-R-01~25 |
+| `operator/admission/` (server + validators) | 7 | ASGI admission webhook server + 5 validators + TLS | UT-AW-01~18 |
+| `operator/leader_election/` | 2 | K8s Lease 客户端 + Election 主类 | UT-LE-01~10 |
+| `operator/finalizers/` | 1 | 4 Finalizer 名称常量 + 工具 | UT-FN-01~03 |
+| `operator/clients/` | 1 | kubernetes_asyncio 封装 | UT-KC-01~07 |
+| `operator/observability/` | 4 | metrics + tracing + logging + events | UT-OB-01~12 |
+| `operator/errors/` | 1 | ReconcileError hierarchy | UT-ER-01~06 |
+| `operator/config/` | 1 | Helm values Pydantic model | UT-CF-01~04 |
+| `operator/models/` (L3-1 新增) | 36 | **CRD 实体 Pydantic model** + status/conditions enum（按 4 CRD × 9 文件细拆） | UT-MD-01~25 |
+| **小计** | **65** | + `pyproject.toml` + `__init__.py`（13 个）= **70 文件** | |
+
+注 1：`models/` 子包是 L3-1 新增（基于 Pydantic v2 + Kopf persistence 落地 CRD 实体）——v0.1-draft Go baseline 没有此层（Go 用 kubebuilder 注解 + controller-runtime 自带 CRD 类型）。本层在 L2-2 Spec §2.5 已铺垫但未展开。
+
+注 2：第 65-70 文件为 **9 Helm 模板**（`deploy/helm/operator/templates/*.yaml`）——非 Python 文件,在 `deploy/helm/operator/` 下,本表不计入 70。
+
+**9 Helm 模板**（L3-1 在 §7 Helm values 段展开）：
+
+```
+deploy/helm/operator/
+├── Chart.yaml                            # Helm chart 元数据
+├── values.yaml                           # 默认 Helm values（开发环境）
+├── values.schema.json                    # JSON Schema（从 HelmValues Pydantic 自动生成）
+└── templates/
+    ├── deployment.yaml                   # Operator Deployment（Operator + admission webhook 同 Pod,2 containers）
+    ├── service.yaml                      # Service（Operator metrics :9090 + admission webhook :9443）
+    ├── serviceaccount.yaml               # ServiceAccount
+    ├── clusterrole.yaml                  # ClusterRole（4 CRD + core resources + events + leases）
+    ├── clusterrolebinding.yaml           # ClusterRoleBinding
+    ├── role.yaml                         # Role（namespaced 权限：configmaps + secrets）
+    ├── rolebinding.yaml                  # RoleBinding
+    ├── webhookconfig.yaml                # ValidatingWebhookConfiguration（4 CRD 全部）
+    ├── networkpolicy.yaml                # NetworkPolicy（限制 Pod egress）
+    └── leader_election_lease.yaml        # Lease object（namespace 隔离）
+```
+
+**70 Python 测试文件**（镜像 `src/superteam_a2a/operator/` 结构,在 `packages/operator/tests/` 下,本 L3-1 不逐文件列出,在 §8 测试策略段按测试 ID 矩阵展开）。
+
+### 1.4 关键不变量（跨 L3-1 全文件清单适用）
+
+- ✅ **Kopf handlers 30-50 行/Controller**：handler 不含业务逻辑,仅做参数解构 + 调用 `BaseReconciler` + catch errors + status patch
+- ✅ **Reconciler services 与 Kopf 解耦**：所有业务逻辑在 `reconcilers/` 子包,可独立单测(mock CRD 实例,无需 Kopf 测试框架)
+- ✅ **Leader Election 不阻塞 event loop**：Lease 续约在独立 `asyncio.Task`,acquire 失败立即让位
+- ✅ **Finalizer 永久保留 v0.1 名称**：4 个 CRD 的 Finalizer 在 v1.0+ 不变（语义变化只增不改）
+- ✅ **Status 子资源仅通过 `kopf.adopt` + status_patch**：禁止直接 `kubectl patch` 风格 API
+- ✅ **错误分类（Permanent > NonRetryable > Retryable）**：单 `BaseReconciler.handle_error()` 统一调度,见 §9(后续 #45+)
+- ✅ **Public API 仅 `__init__.py` 暴露**：其他文件以下划线前缀不允 import(由 `import-linter` 静态检查)
+
+---
+
+## 2. Python 包结构（基于 L2-2 Design §3.1 落地）
+
+### 2.1 顶级目录布局（uv workspace · ADR-0005 §13.1）
+
+```
+superteam-a2a/                            # uv workspace 根(由 L4 pyproject.toml 锁定)
+└── packages/
+    └── operator/                         # 本模块 monorepo 子包
+        ├── pyproject.toml                # uv workspace 成员;Python 3.12+;name=superteam-a2a-operator
+        │                                 # deps: kopf>=1.36 kubernetes_asyncio>=30 prometheus-client>=0.20 structlog>=24.1
+        │                                 # pydantic>=2.6 opentelemetry-api>=1.27 tenacity>=9 anyio>=4.4 cert-manager-client>=1.0
+        ├── README.md                     # 模块 README(L4 使用说明;与 OpenAPI 同步)
+        ├── src/
+        │   └── superteam_a2a/
+        │       └── operator/             # 13 子包入口(70 文件全部在此下)
+        │           ├── __init__.py       # 版本号 + 公开 API 导出(见 §1.2)
+        │           ├── __main__.py       # 入口:kopf run + asyncio.run + Leader Election 启动
+        │           ├── main.py           # OperatorMain 主类(Kopf + ASGI server + admission webhook 共进程)
+        │           ├── _internals.py     # internal API export(测试夹具用)
+        │           │
+        │           ├── controllers/      # 见 §3.1 + §3.2 + §3.3
+        │           ├── reconcilers/      # 业务逻辑 services(见 §3.4 落地)
+        │           ├── models/           # CRD 实体 Pydantic model(36 文件,L3-1 新增)
+        │           ├── admission/        # admission webhook ASGI server
+        │           ├── leader_election/  # K8s Lease 客户端 + Election
+        │           ├── finalizers/       # 4 Finalizer 名称常量
+        │           ├── clients/          # kubernetes_asyncio 封装
+        │           ├── observability/    # metrics + tracing + logging + events
+        │           ├── errors/           # ReconcileError hierarchy
+        │           └── config/           # Helm values Pydantic model
+        │
+        ├── tests/                        # 测试(结构镜像 src/)
+        │   ├── unit/                     # 单元测试(70 文件镜像 src/)
+        │   ├── integration/              # envtest(K8s API mock)
+        │   ├── conformance/              # 与官方 a2a-sdk 集成
+        │   ├── e2e/                      # kind + hello-agent
+        │   ├── tz/                       # 跨时区 + DST(与 L2-4 复用)
+        │   ├── perf/                     # 性能 benchmark(可选)
+        │   ├── conftest.py               # pytest fixtures(kopf testing utilities + envtest fixtures)
+        │   └── __init__.py
+        │
+        └── deploy/
+            └── helm/
+                └── operator/             # 9 Helm 模板(见 §1.3 表格下方)
+```
+
+**与 L2-2 Design §3.1 关系**：
+- 本 §2.1 是 **L2-2 §3.1 的文件级落地**——L2-2 给包结构概要 + 70 文件占位,本 L3-1 给精确路径 + 单文件职责 + import/exported/helper/测试文件
+- `models/` 子包是 L3-1 新增层(36 文件)——L2-2 已铺垫 Pydantic 优先级但未展开目录
+
+### 2.2 边界规则（继承 L2-2 Design §3.2 · 8 条规则全保留）
+
+| # | 边界 | 规则 | 依据 |
+|---|------|------|------|
+| 1 | **Operator 不依赖 framework adapter** | Operator 不 import L2-3 Adapter v0.2.0 Python SDK;Adapter 由 Operator 注入到 Agent Pod 但 Operator 自身不调用 Adapter | 宪法 §3.7 + ADR-0005 §13 |
+| 2 | **Operator 不实现 A2A 协议** | 所有 A2A 通信走 L2-1 a2a-sdk client;Operator 仅通过 a2a 调用 L2-4 Knowledge Service 检查 Agent 状态 | ADR-0005 §3.1 |
+| 3 | **Operator 不实现 Knowledge/Memory 业务语义** | Knowledge/Memory 的 5 维可见性矩阵 + decay/reinforce 算法由 L2-4 负责;Operator 仅做 reconcile 驱动 | ADR-0003 §6 |
+| 4 | **admission webhook 不依赖 K8s API** | admission webhook 是无状态 server(仅做字段校验),不调用 K8s API | ADR-0005 §7 |
+| 5 | **Reconciler services 不依赖 Kopf** | 业务逻辑在 `reconcilers/` 下,与 Kopf handlers 解耦 | ADR-0005 §13.2 |
+| 6 | **Leader Election 不阻塞 event loop** | Lease 续约在独立 task;acquire 失败立即让位 | ADR-0005 §6.1 |
+| 7 | **状态机状态子资源写回仅通过 `kopf.adopt`** | 禁止直接 `kubectl patch` 风格 API | ADR-0005 §3.1 |
+| 8 | **Finalizer 永久保留 v0.1 名称** | 4 个 CRD 的 Finalizer 名称(v0.1-draft Go baseline 已确定)在 v1.0+ 不变 | L2-2 Go baseline §7.4 + 宪法 §3.4 |
+
+**L3-1 新增边界规则(3 条,基于 Pydantic + uv workspace)**：
+
+| # | 边界 | 规则 | 依据 |
+|---|------|------|------|
+| 9 | **`models/` 与 `reconcilers/` 单向依赖** | `reconcilers/*.py` 可 import `models/*.py`;反向不允许;`models/` 是叶子包 | ADR-0005 §13.2 |
+| 10 | **`controllers/` 与 `reconcilers/` 通过 `BaseReconciler` Protocol 解耦** | `controllers/*.py` 仅依赖 `reconcilers/base.py` 的 Protocol(不在 handlers 里 import 具体 reconciler 类) | 静态类型检查 |
+| 11 | **`__init__.py` 仅导出 `__all__` 列出的符号** | 其他符号需下划线前缀;由 `ruff` + `import-linter` 双重检查 | ADR-0005 §9.4 |
+
+### 2.3 文件清单（13 子包 · 65 Python 文件 + 5 配置/入口/文档 = 70 文件）
+
+> **70 文件分两层**:
+> - **65 Python 文件**(13 子包)
+> - **5 配置/入口/文档**:`pyproject.toml` + `README.md` + `__main__.py` + `__init__.py`(顶层) + `conftest.py`
+>
+> 每个文件列:**绝对路径** / **职责一句话** / **exported 符号** / **内部 helper** / **关联测试文件** / **L2-2 Spec 对应章节**
+
+#### 2.3.1 顶层 3 文件(`operator/__init__.py` + `main.py` + `__main__.py`)
+
+| 文件路径 | 职责 | exported 符号 | helper | 测试文件 | L2-2 对应 |
+|---|---|---|---|---|---|
+| `src/superteam_a2a/operator/__init__.py` | 公开 API export + 版本号 | `__version__: str = "0.2.0"` + §1.2 全部符号 | 无 | `tests/unit/test___init__.py` (UT-OP-01) | L2-2 Spec §1.2 |
+| `src/superteam_a2a/operator/__main__.py` | CLI 入口：`python -m superteam_a2a.operator` 启动 Kopf + ASGI server + Leader Election | 无(命令式) | `OperatorMain.from_helm_values()` | `tests/integration/test___main__.py` (IT-OP-01) | — |
+| `src/superteam_a2a/operator/main.py` | `OperatorMain` 主类(Kopf daemon + ASGI admission server + Leader Election 单 leader 触发 reconcile) | `class OperatorMain`,`@classmethod from_helm_values(cls, helm_values: HelmValues) -> "OperatorMain"`,`async run() -> None` | `_run_kopf()`,`_run_admission_server()`,`_run_leader_election()` | `tests/unit/test_main.py` (UT-OP-02~04) + `tests/integration/test_main_e2e.py` (IT-OP-02) | L2-2 Spec §1.1 + Design §2.4 |
+
+#### 2.3.2 `controllers/` 子包(4 文件)
+
+| 文件路径 | 职责 | exported 符号 | helper | 测试文件 | L2-2 对应 |
+|---|---|---|---|---|---|
+| `controllers/__init__.py` | 导出 4 Controller 类 | `AgentController`, `AgentSetController`, `WorkflowController`, `MemoryReconcilerController`(包装 `reconcilers/memory_reconciler.py`) | 无 | `tests/unit/test_controllers___init__.py` (UT-C-01) | L2-2 Spec §3.1 |
+| `controllers/agent.py` | `AgentController`:Kopf `@kopf.create/update/delete` handlers,30-50 行/handler | `class AgentController`,`@kopf.create.on(progress_pending=True)` + 3 装饰器方法 | `_build_spec()`, `_patch_status()`, `_emit_event()` | `tests/unit/test_agent_controller.py` (UT-C-02~09) + `tests/integration/test_agent_reconcile.py` (IT-C-01) | L2-2 Spec §3.2 + Design §4.1 |
+| `controllers/agentset.py` | `AgentSetController`:replicas 调谐 + 滚动更新 | `class AgentSetController`,3 装饰器方法 + `async def _reconcile_replicas(self, body, spec, status) -> None` | `_list_child_agents()`, `_scale_up()`, `_scale_down()` | `tests/unit/test_agentset_controller.py` (UT-C-10~17) + `tests/integration/test_agentset_reconcile.py` (IT-C-02) | L2-2 Spec §3.2 + Design §4.2 |
+| `controllers/workflow.py` | `WorkflowController`:DAG 校验 + Task CR stub(v0.1 + Task 由 v0.5+ 调度) | `class WorkflowController`,3 装饰器方法 + `async def _validate_dag(self, tasks: list[WorkflowTask]) -> None` | `_check_dag_cycles()`, `_emit_task_stub()` | `tests/unit/test_workflow_controller.py` (UT-C-18~25) + `tests/integration/test_workflow_reconcile.py` (IT-C-03) | L2-2 Spec §3.2 + Design §4.3 |
+
+**MemoryReconciler 单独占一个 controller 文件**(`controllers/memory_reconciler.py`),但实现是 `@kopf.timer` + Leader Election 单 leader 触发——不放 `controllers/` 而放 `reconcilers/`(业务逻辑分离原则)。详见 §3.4 / 待补完 §4。
+
+#### 2.3.3 `reconcilers/` 子包(5 文件)
+
+| 文件路径 | 职责 | exported 符号 | helper | 测试文件 | L2-2 对应 |
+|---|---|---|---|---|---|
+| `reconcilers/__init__.py` | 导出 5 Reconciler 实现 | `BaseReconciler`(Protocol) + 4 service 实现(`AgentReconcilerService` 等) | 无 | `tests/unit/test_reconcilers___init__.py` (UT-R-01) | L2-2 Spec §3.3 |
+| `reconcilers/base.py` | `BaseReconciler[SpecT, StatusT]` Protocol + `handle_error()` 错误分发 | `class BaseReconciler(Protocol, Generic[SpecT, StatusT])`,`abstractmethod async def reconcile()`,`async def handle_error()` | `_classify_error()`,`_retry_with_backoff()` | `tests/unit/test_base_reconciler.py` (UT-R-02~04) | L2-2 Spec §9.2 + Design §9.2 |
+| `reconcilers/agent_reconciler.py` | `AgentReconcilerService`:Adapter 注入 + Ready 检查 + Status 更新 | `class AgentReconcilerService(BaseReconciler[AgentSpec, AgentStatus])`, 5 个 public method | `_resolve_pod_mode()`, `_inject_adapter()`, `_wait_for_pod_ready()` | `tests/unit/test_agent_reconciler.py` (UT-R-05~10) + `tests/integration/test_agent_reconciler_e2e.py` (IT-R-01) | L2-2 Spec §3.3 + Design §4.1 |
+| `reconcilers/agentset_reconciler.py` | `AgentSetReconcilerService` | `class AgentSetReconcilerService(BaseReconciler[AgentSetSpec, AgentSetStatus])`, 4 个 method | `_compute_diff()`, `_rolling_update()` | `tests/unit/test_agentset_reconciler.py` (UT-R-11~16) + `tests/integration/test_agentset_reconciler_e2e.py` (IT-R-02) | L2-2 Spec §3.3 + Design §4.2 |
+| `reconcilers/workflow_reconciler.py` | `WorkflowReconcilerService`:DAG 校验 + Task stub | `class WorkflowReconcilerService(BaseReconciler[WorkflowSpec, WorkflowStatus])`, 3 个 method | `_dag_topological_sort()`, `_emit_task_stub()` | `tests/unit/test_workflow_reconciler.py` (UT-R-17~22) + `tests/integration/test_workflow_reconciler_e2e.py` (IT-R-03) | L2-2 Spec §3.3 + Design §4.3 |
+
+#### 2.3.4 `models/` 子包(36 文件 · L3-1 新增 · Pydantic v2 + Kopf persistence)
+
+> **本子包是 L3-1 vs Go baseline 的关键差异**——Go baseline 用 kubebuilder 注解 + controller-runtime 自带 CRD 类型;L3-1 用 Pydantic v2 + Kopf persistence(Pydantic-validated CRD entities)。
+>
+> 36 文件分 4 组:**4 CRD × (spec + status + conditions + 4 helper) = 4 × 9 = 36**
+
+| 文件路径 | 职责 | exported 符号 | helper | 测试文件 | L2-2 对应 |
+|---|---|---|---|---|---|
+| `models/__init__.py` | 导出全部 4 CRD 模型 + 公共 enum | `Agent`, `AgentSet`, `Workflow`, `Memory` + 12 个 enum(Phase / ConditionType / Reason 等) | 无 | `tests/unit/test_models___init__.py` (UT-MD-01~03) | L2-2 Spec §3.4 |
+| `models/agent/` (8 文件) | Agent CRD 完整 Pydantic 模型 | 见下方 Agent 子表 | 见下方 | 见下方 | L2-2 Spec §3.4 + Design §3.1 |
+| `models/agentset/` (8 文件) | AgentSet CRD 完整 Pydantic 模型 | 见下方 AgentSet 子表 | 见下方 | 见下方 | L2-2 Spec §3.4 + Design §3.1 |
+| `models/workflow/` (8 文件) | Workflow CRD 完整 Pydantic 模型 | 见下方 Workflow 子表 | 见下方 | 见下方 | L2-2 Spec §3.4 + Design §3.1 |
+| `models/memory/` (8 文件) | Memory CRD 完整 Pydantic 模型(Operator 仅 reconcile,业务语义由 L2-4 负责) | 见下方 Memory 子表 | 见下方 | 见下方 | L2-2 Spec §3.4 + ADR-0003 §3 + L2-4 Spec §3 |
+
+**单 CRD 8 文件标准布局**(以 Agent 为例):
+
+| 文件路径 | 职责 | 测试 ID |
+|---|---|---|
+| `models/agent/spec.py` | `AgentSpec` Pydantic root model(7 字段:image/command/replicas/mode/securityContext/podTemplate/resources)| UT-MD-AG-01 |
+| `models/agent/status.py` | `AgentStatus` Pydantic model(phase/conditions/observedGeneration/lastReconcileTime/endpoints)| UT-MD-AG-02 |
+| `models/agent/conditions.py` | `AgentConditionType` enum(Ready/AdapterInjected/PodScheduled/...)+ `AgentCondition` Pydantic model(type/status/reason/message/lastTransitionTime)| UT-MD-AG-03 |
+| `models/agent/enums.py` | `AgentMode` enum(Sidecar/Plugin/Inline/External)+ `AgentPhase` enum(Pending/Creating/Ready/Degraded/Failed)+ `EndpointProtocol` enum | UT-MD-AG-04 |
+| `models/agent/pod_mode.py` | Pod 模式 resolver(`resolve_pod_mode(spec: AgentSpec) -> AgentMode`)| UT-MD-AG-05 |
+| `models/agent/adapter_injection.py` | `inject_adapter(containers: list[Container], adapter: AdapterSpec) -> list[Container]`(Sidecar 模式)+ Annotation 生成器(Plugin 模式)| UT-MD-AG-06 |
+| `models/agent/rbac.py` | `ServiceAccountSpec` + `RoleBindingSpec`(Agent RABC) | UT-MD-AG-07 |
+| `models/agent/validators.py` | Pydantic root validators(`@model_validator(mode="after")`):image 必须存在 / replicas ∈ [1,100] / mode 与 command 互斥 | UT-MD-AG-08 |
+
+**AgentSet / Workflow / Memory 各 8 文件结构类似**, 在 §-X 后续 #45+ 会话逐一展开(避免本骨架超 50% 临界)。
+
+#### 2.3.5 `admission/` 子包(7 文件)
+
+| 文件路径 | 职责 | exported 符号 | helper | 测试文件 | L2-2 对应 |
+|---|---|---|---|---|---|
+| `admission/__init__.py` | 导出 `AdmissionWebhookApp` + `TLSConfig` | `AdmissionWebhookApp`, `TLSConfig` | 无 | `tests/unit/test_admission___init__.py` (UT-AW-01) | L2-2 Spec §4 |
+| `admission/server.py` | ASGI server(uvicorn 单 worker + `/validate` endpoint);Kopf handlers 不通过 admission | `class AdmissionWebhookApp`,`async def startup()`,`async def shutdown()`,`async def handle_validate(request: AdmissionRequest) -> AdmissionResponse` | `_load_tls()`, `_tracing_middleware()` | `tests/unit/test_admission_server.py` (UT-AW-02~06) + `tests/integration/test_admission_e2e.py` (IT-AW-01~02) | L2-2 Spec §4 + Design §5 |
+| `admission/tls.py` | cert-manager 集成 + 证书热更新 | `class TLSConfig`,`async def load_from_disk()`,`async def watch_and_reload()`(每 5min 检查证书过期) | `_is_cert_expiring_soon()`,`_reload_uvicorn_ssl_context()` | `tests/unit/test_admission_tls.py` (UT-AW-07~10) + `tests/integration/test_admission_tls_reload.py` (IT-AW-03) | L2-2 Spec §4 + Design §5.6 |
+| `admission/validators/__init__.py` | 5 validator 聚合 | 5 个 validator 类的 `__all__` | 无 | `tests/unit/test_admission_validators___init__.py` (UT-AW-11) | L2-2 Spec §4 |
+| `admission/validators/agent.py` | `AgentValidator`(Pydantic v2 root_validator mode="after") | `class AgentValidator`,`async def validate(spec: AgentSpec, operation: Operation) -> list[AdmissionWarning]` | 无 | `tests/unit/test_admission_agent_validator.py` (UT-AW-12) | L2-2 Spec §4 |
+| `admission/validators/agentset.py` | `AgentSetValidator` | `class AgentSetValidator`,`validate()`| 无 | `tests/unit/test_admission_agentset_validator.py` (UT-AW-13) | L2-2 Spec §4 |
+| `admission/validators/workflow.py` | `WorkflowValidator`(Kahn/DFS DAG 校验 + DAG 节点数 ≤ 50 + 边数 ≤ 200) | `class WorkflowValidator`,`validate()`| `_check_cycles_kahn()`,`_check_node_count()`,`_check_edge_count()` | `tests/unit/test_admission_workflow_validator.py` (UT-AW-14~16) + `tests/integration/test_dag_validation.py` (IT-AW-04) | L2-2 Spec §4 + Design §5.5 |
+| `admission/validators/memory.py` | `MemoryValidator`(5 维可见性矩阵 Pydantic 校验 + scoping) | `class MemoryValidator`,`validate()`| 无 | `tests/unit/test_admission_memory_validator.py` (UT-AW-17) | L2-2 Spec §4 + ADR-0003 §5 |
+| `admission/validators/mutual_exclusion.py` | `MutualExclusionValidator`(Knowledge ↔ Memory 双向互斥,ADR-0002 §2 + ADR-0003 §5) | `class MutualExclusionValidator`,`validate()`| 无 | `tests/unit/test_admission_mutual_exclusion.py` (UT-AW-18) | L2-2 Spec §4 + Design §5.4 |
+
+**注**:Go baseline `mutual_exclusion.go` 是 1 文件;L3-1 拆为独立子包文件,清晰边界。
+
+#### 2.3.6 `leader_election/` 子包(2 文件)
+
+| 文件路径 | 职责 | exported 符号 | helper | 测试文件 | L2-2 对应 |
+|---|---|---|---|---|---|
+| `leader_election/__init__.py` | 导出 `Election` | `Election` | 无 | `tests/unit/test_leader_election___init__.py` (UT-LE-01) | L2-2 Spec §6 |
+| `leader_election/lease_client.py` | `AsyncLeaseClient`(kubernetes_asyncio 封装 K8s Lease CRUD + renew) | `class AsyncLeaseClient`,`async def create()`,`async def get()`,`async def update()`(续约),`async def delete()`(让位) | `_build_lease_spec()`,`_is_spec_unchanged()` | `tests/unit/test_lease_client.py` (UT-LE-02~06) + `tests/integration/test_lease_client_k8s.py` (IT-LE-01) | L2-2 Spec §6 + Design §6.3 |
+| `leader_election/election.py` | `Election` 主类(acquire / renew / release 状态机 + grace period + renew 失败 3 次让位)| `class Election`,`async def acquire()`,`async def renew_loop()`,`async def release()`,`is_leader() -> bool` | `_grace_period_expired()`,`_transition_to_follower()` | `tests/unit/test_election.py` (UT-LE-07~10) + `tests/integration/test_election_e2e.py` (IT-LE-02) | L2-2 Spec §6 + Design §6.4 |
+
+#### 2.3.7 `finalizers/` 子包(1 文件)
+
+| 文件路径 | 职责 | exported 符号 | helper | 测试文件 | L2-2 对应 |
+|---|---|---|---|---|---|
+| `finalizers/__init__.py` | 导出 4 Finalizer 名称常量 + `ensure_finalizer` 工具 | `AGENT_FINALIZER`, `AGENTSET_FINALIZER`, `WORKFLOW_FINALIZER`, `MEMORY_FINALIZER`, `ensure_finalizer(body, name)` | 无 | `tests/unit/test_finalizers___init__.py` (UT-FN-01~03) | L2-2 Spec §7 + Design §8 |
+
+**4 Finalizer 名称常量**(继承 Go baseline §7.2 · 永久不变):
+
+```python
+# packages/operator/src/superteam_a2a/operator/finalizers/__init__.py
+AGENT_FINALIZER = "agent.superteam-a2a.io/cleanup"
+AGENTSET_FINALIZER = "agentset.superteam-a2a.io/cleanup"
+WORKFLOW_FINALIZER = "workflow.superteam-a2a.io/cleanup"
+MEMORY_FINALIZER = "memory.superteam-a2a.io/cleanup"
+```
+
+#### 2.3.8 `clients/` 子包(1 文件)
+
+| 文件路径 | 职责 | exported 符号 | helper | 测试文件 | L2-2 对应 |
+|---|---|---|---|---|---|
+| `clients/__init__.py` | 导出 `AsyncK8sClient`(custom resources + core resources)| `AsyncK8sClient`, `CoreV1API`(kubernetes_asyncio), `CustomObjectsAPI` | 无 | `tests/unit/test_clients___init__.py` (UT-KC-01~02) | L2-2 Spec §8 |
+| `clients/k8s_client.py` | `AsyncK8sClient`(CRUD + status patch + watch)| `class AsyncK8sClient`,`async def get_agent()`,`async def list_agents()`,`async def create_agent()`,`async def update_agent_status()`,`async def watch_agents()`(K8s watch + 10s timeout) | `_retry_with_backoff()`,`_extract_spec_metadata()` | `tests/unit/test_k8s_client.py` (UT-KC-03~07) + `tests/integration/test_k8s_client_envtest.py` (IT-KC-01) | L2-2 Spec §8 + Design §6.3 |
+
+#### 2.3.9 `observability/` 子包(4 文件)
+
+| 文件路径 | 职责 | exported 符号 | helper | 测试文件 | L2-2 对应 |
+|---|---|---|---|---|---|
+| `observability/__init__.py` | 导出 `OperatorMetrics` + `StructuredLogger` + `EventRecorder` + `TracerProvider` | 4 个 facade 类 | 无 | `tests/unit/test_observability___init__.py` (UT-OB-01) | L2-2 Spec §10 + Design §10 |
+| `observability/metrics.py` | `OperatorMetrics`(11 Prometheus 指标,与 L1 Spec §16 一致 + Agent Controller 状态细分) | `class OperatorMetrics`,11 个 `Counter`/`Gauge`/`Histogram`,`def render_latest() -> bytes` | `_labels_from_body()`,`_record_reconcile()` | `tests/unit/test_metrics.py` (UT-OB-02~06) | L2-2 Spec §10.1 + Design §10.1 |
+| `observability/tracing.py` | OTel SDK 初始化(Provider injection,与 L1 Arch §9.2 一致)| `class TracerProvider`,`def init_tracer()`(从 Helm values 读 endpoint),`def get_tracer(name: str) -> Tracer` | `_config_otlp_exporter()`,`_setup_resource()` | `tests/unit/test_tracing.py` (UT-OB-07~09) | L2-2 Spec §10.2 + Design §10.2 |
+| `observability/logging.py` | structlog 配置(JSON 输出 + trace_id 注入)| `class StructuredLogger`,`def configure_structlog(level: str) -> None`,`def get_logger(name: str) -> BoundLogger` | `_inject_trace_id()`,`_json_renderer()` | `tests/unit/test_logging.py` (UT-OB-10) | L2-2 Spec §10.3 + Design §10.3 |
+| `observability/events.py` | K8s Events 客户端(4 种 event reason)| `class EventRecorder`,`async def record_event(reason: EventReason, message: str, involved_object: K8sObject)` | `_format_event()`,`_retry_on_409()` | `tests/unit/test_events.py` (UT-OB-11~12) + `tests/integration/test_events_e2e.py` (IT-OB-01) | L2-2 Spec §10.4 + Design §10.4 |
+
+**11 Prometheus 指标**(继承 L2-2 Spec §10.1 + L1 Spec §16,列表在 §7 后续 #45+ 展开):
+
+```
+# Operator 主指标(4 个)
+superteam_operator_reconcile_total{controller,result}
+superteam_operator_reconcile_duration_seconds{controller}
+superteam_operator_admission_total{validator,result}
+superteam_operator_leader_election_state{namespace}
+
+# A2A 调用指标(2 个,L2-1 共享)
+superteam_a2a_request_total{method,result}
+superteam_a2a_request_duration_seconds{method}
+
+# Agent 状态指标(2 个,L3-1 新增细分)
+superteam_agent_phase_count{namespace,phase}
+superteam_agent_reconcile_queued{namespace}
+
+# Workflow / Memory / Knowledge(3 个,L2-4 共享)
+superteam_workflow_phase_count{namespace,phase}
+superteam_memory_decay_total{namespace,result}
+superteam_knowledge_query_total{scope,result}
+```
+
+#### 2.3.10 `errors/` 子包(1 文件)
+
+| 文件路径 | 职责 | exported 符号 | helper | 测试文件 | L2-2 对应 |
+|---|---|---|---|---|---|
+| `errors/__init__.py` | 导出 `ReconcileError` hierarchy + 4 错误分类 | `ReconcileError`, `RetryableError`, `NonRetryableError`, `PermanentError`, `classify_error(exc) -> ErrorCategory` | 无 | `tests/unit/test_errors___init__.py` (UT-ER-01~06) | L2-2 Spec §9 + Design §9 |
+
+**ReconcileError 层级**(继承 L2-2 Spec §9.1,与 L2-1 §10 错误码区分):
+
+```python
+# packages/operator/src/superteam_a2a/operator/errors/__init__.py
+from enum import Enum
+
+class ErrorCategory(str, Enum):
+    RETRYABLE = "retryable"            # 网络/超时/K8s API 5xx
+    NON_RETRYABLE = "non_retryable"    # K8s API 4xx(非 409)
+    PERMANENT = "permanent"            # 业务错误(DAG 有环 / spec 不合法)
+    UNKNOWN = "unknown"                # 兜底
+
+class ReconcileError(Exception):
+    """Operator reconcile 错误基类"""
+    category: ErrorCategory = ErrorCategory.UNKNOWN
+    retry_after_seconds: float | None = None
+
+class RetryableError(ReconcileError):
+    category = ErrorCategory.RETRYABLE
+
+class NonRetryableError(ReconcileError):
+    category = ErrorCategory.NON_RETRYABLE
+
+class PermanentError(ReconcileError):
+    category = ErrorCategory.PERMANENT
+
+def classify_error(exc: Exception) -> ErrorCategory:
+    """依据异常类型 + K8s API status code 分类"""
+    # ... 见 L2-2 Spec §9.2
+```
+
+#### 2.3.11 `config/` 子包(1 文件)
+
+| 文件路径 | 职责 | exported 符号 | helper | 测试文件 | L2-2 对应 |
+|---|---|---|---|---|---|
+| `config/__init__.py` | 导出 `HelmValues` | `HelmValues` | 无 | `tests/unit/test_config___init__.py` (UT-CF-01) | L2-2 Spec §11 |
+| `config/helm_values.py` | `HelmValues` Pydantic model 解析 Helm values.yaml(4 层优先级:flag > env > configmap > default)| `class HelmValues`,`@classmethod from_file(path: Path)`,`@classmethod from_env()`,`@classmethod from_k8s_configmap()` | `_validate_against_schema()`,`_apply_defaults()` | `tests/unit/test_helm_values.py` (UT-CF-02~04) + `tests/integration/test_helm_values_e2e.py` (IT-CF-01) | L2-2 Spec §11 + Design §11 |
+
+#### 2.3.12 `models/memory/` 子包详情(8 文件 · 与 L2-4 Spec §3 双向同步)
+
+> **L3-1 与 L2-4 Spec v0.2.0 §3 保持 wire 一致** —— Operator 仅做 reconcile 驱动,业务语义由 L2-4 负责。L3-1 的 `models/memory/*` 必须与 L2-4 Spec §3 的 Pydantic schema **字段逐一对齐**(wire contract)。
+
+| 文件路径 | 职责 | 测试 ID |
+|---|---|---|
+| `models/memory/spec.py` | `MemorySpec` Pydantic root model(7 字段:agentRef/scope/visibility/content/confidence/reinforcedCount/createdAt)| UT-MD-ME-01 |
+| `models/memory/status.py` | `MemoryStatus`(`effectiveConfidence`/`phase`/`lastDecayAt`/`eligibleForPromotion`)| UT-MD-ME-02 |
+| `models/memory/conditions.py` | `MemoryConditionType` enum(Decayed/Reinforced/Promoted/Archived) + `MemoryCondition` | UT-MD-ME-03 |
+| `models/memory/enums.py` | `MemoryVisibility` enum(5 维:Industry/Organization/Team/Project/AgentPrivate)+ `MemoryPhase` enum(Pending/Active/Decaying/Archived/Promoted)| UT-MD-ME-04 |
+| `models/memory/decay.py` | `compute_effective_confidence(confidence: float, decay_days: float, elapsed_days: float) -> float`(纯函数,公式 ADR-0003 §4.1)| UT-MD-ME-05 |
+| `models/memory/reinforce.py` | `apply_reinforce(confidence: float, amount: float = 0.05, cap: float = 0.95) -> float` | UT-MD-ME-06 |
+| `models/memory/gc.py` | `should_garbage_collect(effective_confidence: float, threshold: float = 0.1) -> bool` | UT-MD-ME-07 |
+| `models/memory/promotion.py` | `is_eligible_for_promotion(effective_confidence: float, reinforced_count: int, min_confidence: float = 0.9, min_reinforced: int = 10) -> bool` | UT-MD-ME-08 |
+
+#### 2.3.13 9 Helm 模板(在 §7 后续 #45+ 展开;此处仅列表)
+
+不在 70 文件 Python 计数内,在 `deploy/helm/operator/templates/`:
+
+| 模板 | 职责 | L2-2 对应 |
+|---|---|---|
+| `deployment.yaml` | Operator + admission webhook 同 Pod 2 containers;3 replicas 单 leader;Operator 镜像 pull policy | L2-2 Spec §11 + Design §11 |
+| `service.yaml` | Operator metrics Service :9090 + admission webhook Service :9443 | 同上 |
+| `serviceaccount.yaml` | ServiceAccount | L2-2 Spec §12 |
+| `clusterrole.yaml` | ClusterRole(4 CRD + leases + events + configmaps + secrets)| L2-2 Spec §12 + Design §12 |
+| `clusterrolebinding.yaml` | ClusterRoleBinding | 同上 |
+| `role.yaml` | Role(operator namespace 隔离;configmaps + secrets get/list/watch)| L2-2 Spec §12 + Design §12 |
+| `rolebinding.yaml` | RoleBinding | 同上 |
+| `webhookconfig.yaml` | ValidatingWebhookConfiguration(4 CRD + 1 mutual-exclusion)— admission webhook K8s 配置 | L2-2 Spec §4 + Design §5 |
+| `networkpolicy.yaml` | NetworkPolicy(限制 Pod egress:仅 K8s API server + admission webhook server)| L2-2 Spec §12 + 宪法 §6 |
+| `leader_election_lease.yaml` | Lease object 模板(命名空间隔离)| L2-2 Spec §6 |
+
+**4 CRD YAML 文件**(L3-1 边界外,在 `deploy/helm/crds/`,由 L2-2 Design §3.1 CRD YAML 在 Operator 镜像构建时打包;不在 L3-1 操作范围;L3-1 仅消费):
+
+```
+deploy/helm/crds/
+├── agent.superteam-a2a.io-agents.yaml          # Agent CRD v1alpha1(schema 由 L2-2 Spec §3 定义)
+├── agentset.superteam-a2a.io-agentsets.yaml     # AgentSet CRD v1alpha1
+├── workflow.superteam-a2a.io-workflows.yaml     # Workflow CRD v1alpha1
+└── memory.superteam-a2a.io-memories.yaml        # Memory CRD v1alpha1(与 L2-4 共享)
+```
+
+---
+
+## 3. 4 Controllers + MemoryReconciler 文件级契约
+
+> 本 §3 给出 4 Controllers + MemoryReconciler 的**概要级**文件契约(每个 controller 一段;**完整 reconcile 伪代码 + 状态机时序图 + 异常路径** 移交 §-X 在 #45+ 后续会话补完)。
+
+### 3.1 Agent Controller（`controllers/agent.py` · C-1.1）
+
+**职责**(继承 L2-2 Design §4.1):
+1. 监听 `Agent` CRD 事件(`@kopf.on.create` + `@kopf.on.update` + `@kopf.on.delete`)
+2. **30-50 行/handler**,仅做参数解构 + 调用 `AgentReconcilerService.reconcile()` + catch errors + status patch
+3. **不**含业务逻辑(业务逻辑在 `reconcilers/agent_reconciler.py`)
+
+**handler 三件套**:
+
+```python
+# packages/operator/src/superteam_a2a/operator/controllers/agent.py
+# 行 1-30:imports + class 装饰器
+fromkopf import Kopf
+import kopf
+
+from superteam_a2a.operator.reconcilers import AgentReconcilerService
+from superteam_a2a.operator.models.agent import Agent, AgentSpec, AgentStatus
+from superteam_a2a.operator.finalizers import AGENT_FINALIZER, ensure_finalizer
+from superteam_a2a.operator.errors import ReconcileError
+from superteam_a2a.operator.observability import OperatorMetrics
+
+class AgentController:
+    def __init__(self, reconciler: AgentReconcilerService, metrics: OperatorMetrics):
+        self._reconciler = reconciler
+        self._metrics = metrics
+
+# 行 35-65:create handler
+@kopf.on.create('agent.superteam-a2a.io', id='agent-create')
+async def agent_create(spec: AgentSpec, name: str, namespace: str, body: Agent, **kwargs):
+    controller = AgentController.get_instance()
+    try:
+        await ensure_finalizer(body=body, name=AGENT_FINALIZER)  # §2.3.7
+        await controller._reconciler.reconcile(spec=spec, status=body.status, body=body)
+        controller._metrics.inc_reconcile_total(controller='agent', result='success')
+    except ReconcileError as e:
+        controller._metrics.inc_reconcile_total(controller='agent', result='error')
+        raise kopf.PermanentError(str(e)) if e.category == ErrorCategory.PERMANENT else kopf.TemporaryError(str(e), delay=10)
+
+# update/delete handler 类似(各 30-50 行);完整见 §-X 后续 #45+
+```
+
+**与 Go baseline 对应**:L2-2 Go baseline §4.3 Agent Controller(60 行/handler);L3-1 Python 版 30-50 行/handler(50% 精简得益于 Kopf decorator + base reconciler 抽象)。
+
+**关键不变量**(继承 L2-2 Design §4.1):
+- ✅ 1 Agent → 1 Pod + 1 Service + 1 ServiceAccount(namespace 内)
+- ✅ Pod 模板由 Adapter 注入(从 `models/agent/adapter_injection.py`)
+- ✅ mTLS 由 cert-manager 颁发(ServiceAccount 注解触发)
+- ✅ Finalizer:`agent.superteam-a2a.io/cleanup`(永久保留)
+
+### 3.2 AgentSet Controller（`controllers/agentset.py` · C-1.2）
+
+**职责**(继承 L2-2 Design §4.2):
+- 监听 `AgentSet` CRD 事件
+- replicas 调谐 + 滚动更新(不是删除重建)
+- Agent 模板与 AgentSetSpec.template 一致(mutation 禁止)
+
+**handler 概览**:
+
+```python
+# 完整文件 ~150 行;handler 3 个(create/update/delete)各 35-45 行
+@kopf.on.create('agentset.superteam-a2a.io', id='agentset-create')
+async def agentset_create(spec: AgentSetSpec, name: str, namespace: str, body: AgentSet, **kwargs):
+    controller = AgentSetController.get_instance()
+    await ensure_finalizer(body=body, name=AGENTSET_FINALIZER)
+    # 业务逻辑调 reconciler
+    await controller._reconciler.reconcile(spec=spec, status=body.status, body=body)
+```
+
+**关键不变量**(继承 L2-2 Design §4.2):
+- ✅ AgentSet owns Agent(owner reference);AgentSet 删除 → 子 Agent 由 GC 自动清理(orphanDeletion=false)
+- ✅ 副本数变化触发滚动更新(不是删除重建)
+
+### 3.3 Workflow Controller（`controllers/workflow.py` · C-1.3）
+
+**职责**(继承 L2-2 Design §4.3):
+- 监听 `Workflow` CRD 事件
+- admission 时 DAG 校验(在 `admission/validators/workflow.py`)
+- **v0.1 stub**:Workflow 是声明,Task CR 由 v0.5+ 调度器负责;L3-1 仅 reconciliation 占位
+
+**handler 概览**:
+
+```python
+# 完整文件 ~170 行;handler 3 个 + DAG 校验 helper + Task stub emitter
+@kopf.on.create('workflow.superteam-a2a.io', id='workflow-create')
+async def workflow_create(spec: WorkflowSpec, name: str, namespace: str, body: Workflow, **kwargs):
+    controller = WorkflowController.get_instance()
+    await ensure_finalizer(body=body, name=WORKFLOW_FINALIZER)
+    # DAG 校验(已在 admission 双校验,此处仅 reconcile 时再次校验)
+    validator = WorkflowValidator()
+    validator.validate(spec.tasks)  # 触发 Kahn + 节点/边数检查
+    await controller._reconciler.reconcile(spec=spec, status=body.status, body=body)
+```
+
+**关键不变量**(继承 L2-2 Design §4.3):
+- ✅ DAG 校验在 admission webhook + reconcile 时双重校验
+- ✅ Task 模板与 WorkflowSpec.tasks[i] 一致
+- ✅ Finalizer:`workflow.superteam-a2a.io/cleanup`
+
+### 3.4 MemoryReconciler（`reconcilers/memory_reconciler.py` · C-1.4 · 非 Controller）
+
+> **与 L2-4 Spec v0.2.0 §7 完全双向同步**(ADR-0003 §6 + L2-4 §7 wire contract)
+
+**职责**(继承 L2-2 Design §4.4):
+1. **不是** Controller —— 是 Operator 内部定时后台任务
+2. 由 **Leader Election 单 leader 触发**(`Election.is_leader()` 判断)
+3. 定时触发(默认 60s,Helm values 可配):
+
+```python
+# packages/operator/src/superteam_a2a/operator/reconcilers/memory_reconciler.py
+import kopf
+from anyio import to_thread
+
+from superteam_a2a.operator.leader_election import Election
+from superteam_a2a.operator.models.memory.decay import compute_effective_confidence
+from superteam_a2a.operator.models.memory.reinforce import apply_reinforce
+from superteam_a2a.operator.models.memory.gc import should_garbage_collect
+from superteam_a2a.operator.models.memory.promotion import is_eligible_for_promotion
+from superteam_a2a.operator.clients import AsyncK8sClient
+
+class MemoryReconcilerService:
+    def __init__(self, k8s_client: AsyncK8sClient, election: Election, metrics: OperatorMetrics):
+        self._k8s = k8s_client
+        self._election = election
+        self._metrics = metrics
+
+    @kopf.timer('agent.superteam-a2a.io', interval=60.0, idle=30.0)  # §2.3.3 L2-2 §3
+    async def reconcile_all_memories(self, **kwargs):
+        """每 60s 触发(仅 leader)"""
+        if not self._election.is_leader():
+            return  # 非 leader 立即退出,不参与 reconcile
+
+        # 1. 列出所有 namespace 的 Memory CR
+        memories = await self._k8s.list_memories(namespace='*')
+
+        # 2. CPU offload:batch decay 用 anyio.to_thread.run_sync(不阻塞 event loop)
+        async def _batch_decay():
+            results = []
+            for memory in memories:
+                effective_confidence = compute_effective_confidence(
+                    confidence=memory.spec.confidence,
+                    decay_days=memory.spec.decay_days or 30.0,
+                    elapsed_days=memory.status.elapsed_days or 0.0,
+                )
+                results.append((memory, effective_confidence))
+            return results
+
+        results = await to_thread.run_sync(_batch_decay)
+
+        # 3. 应用 decay + reinforce + GC + promotion
+        for memory, effective_confidence in results:
+            new_status = memory.status.copy()
+            new_status.effective_confidence = effective_confidence
+            if should_garbage_collect(effective_confidence):
+                new_status.phase = MemoryPhase.GARBAGE_COLLECTED
+            elif is_eligible_for_promotion(effective_confidence, memory.spec.reinforced_count):
+                new_status.eligible_for_promotion = True
+            await self._k8s.update_memory_status(name=memory.name, namespace=memory.namespace, status=new_status)
+            self._metrics.inc_memory_decay_total(namespace=memory.namespace, result='success')
+```
+
+**关键不变量**(继承 L2-2 Design §4.4):
+- ✅ 单 leader 触发(避免重复 reconcile 导致状态竞争)
+- ✅ 每 60s 全量 reconcile(增量优化留 v0.5+)
+- ✅ decay 公式 `confidence × exp(-elapsed_days / decay_days)` 与 L2-4 完全一致(数学公式 wire 不变)
+- ✅ batch reconcile CPU offload(`anyio.to_thread.run_sync`,ADR-0005 §6.3)
+
+### 3.5 4 Controllers 共同契约
+
+- **Kopf handlers 总数**:12 个(create + update + delete × 4 Controller = 12;MemoryReconciler 是 `@kopf.timer` 1 个)
+- **handler 行数预算**:30-50 行/handler(Go baseline 是 60-80 行/handler;Python 版精简 40% 得益于 Kopf decorator)
+- **状态更新模式**:全部通过 `kopf.adopt + status_patch`(无直接 `kubectl patch`)
+- **错误处理**:统一通过 `BaseReconciler.handle_error()` + 4 错误分类(见 §10 错误模型;在 #45+ 后续会话展开)
+- **测试 ID 矩阵**:`UT-C-*` + `UT-R-*` + `UT-AW-*` 共计 ~80 + IT 12 + E2E 6(继承 L2-2 Spec §12)
+
+---
+
+## 4. admission webhook server 文件级 Spec（与 Operator 同 Deployment · ASGI）
+
+> **本节把 L2-2 Spec v0.2.0 §4 + L2-2 Design v0.2.0 §5 的 admission 选型落到 9 个 Python 文件的精确契约**。Wire contract(4 CRD validators + DAG 校验 + TLS 热更新 + Knowledge↔Memory 双向互斥)与 v0.1-draft Go baseline **完全继续有效**,仅 supersede Go struct / kubebuilder 注解实现条款。
+>
+> **文件清单修正**:§2.3.5 表格标注为 "7 文件",实际 9 文件(`__init__.py` 2 + `server.py` + `tls.py` + 5 validators)。本 §4 按 9 文件精确展开,§2.3.5 表格计数在 #45+ 后续会话修正。
+
+### 4.1 部署形态(与 L2-2 Design §5.2 一致)
+
+```
++---------------------------------------+
+|        Operator Pod (3 replicas)       |
+|                                       |
+|   +-------------------------------+   |
+|   | Container 1: Kopf Operator   |   |
+|   |  (4 Controllers + Lease)      |   |
+|   |  Port: 8080 (metrics)         |   |
+|   +-------------------------------+   |
+|                                       |
+|   +-------------------------------+   |
+|   | Container 2: Admission ASGI   |   |
+|   |  (uvicorn single worker)      |   |
+|   |  Port: 8443 (HTTPS only)      |   |
+|   +-------------------------------+   |
+|                                       |
++---------------------------------------+
+            ↑               ↑
+       /metrics          /validate (HTTPS)
+            ↓               ↓
+   Prometheus          K8s API Server
+                      (ValidatingWebhookConfiguration)
+```
+
+**关键决策**(继承 L2-2 Design §5.1):
+- ✅ **同 Deployment 2 containers**:共享 Pod lifecycle + RBAC + NetworkPolicy + 镜像(ADR-0005 §6.2 单进程原则)
+- ✅ **独立端口**:8080 metrics / 8443 admission webhook(端口隔离)
+- ✅ **HTTPS only**:cert-manager 颁发证书(2160h / 720h renewBefore / Always rotationPolicy)
+- ✅ **uvicorn 单 worker**:`python.workers: 1`(Helm values 强制;否则 admission server 并发导致 DAG 校验竞争)
+- ✅ **Admission webhook 不调用 K8s API**:无状态 server,仅做字段校验;性能 + 安全
+
+### 4.2 文件清单与契约(9 文件 · 全部在 `packages/operator/src/superteam_a2a/operator/admission/`)
+
+> 每个文件列:**绝对路径**(基于 uv workspace 布局)/ **职责一句话**/ **完整 import 列表**/ **exported 符号签名**/ **内部 helper**/ **关联测试文件 + 测试 ID**
+
+#### 4.2.1 `admission/__init__.py` —— 子包入口
+
+```python
+# packages/operator/src/superteam_a2a/operator/admission/__init__.py
+from .server import AdmissionWebhookApp
+from .tls import TLSConfig, TLSHotReloader
+
+__all__ = ["AdmissionWebhookApp", "TLSConfig", "TLSHotReloader"]
+```
+
+| 字段 | 值 |
+|---|---|
+| **职责** | 公开 API export + 版本号 |
+| **imports** | `from .server import AdmissionWebhookApp` / `from .tls import TLSConfig, TLSHotReloader` |
+| **exported 符号** | `AdmissionWebhookApp`、`TLSConfig`、`TLSHotReloader` |
+| **helper** | 无 |
+| **测试文件** | `tests/unit/admission/test_admission___init__.py`(UT-AW-01) |
+
+#### 4.2.2 `admission/server.py` —— ASGI admission webhook 主类
+
+```python
+# packages/operator/src/superteam_a2a/operator/admission/server.py
+import ssl
+from typing import Awaitable, Callable
+
+import uvicorn
+from pydantic import BaseModel, ConfigDict, Field
+from starlette.applications import Starlette
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+from starlette.routing import Route
+
+from superteam_a2a.operator.admission.validators import (
+    AgentValidator, AgentSetValidator, WorkflowValidator,
+    MemoryValidator, MutualExclusionValidator,
+)
+from superteam_a2a.operator.config import HelmValues
+from superteam_a2a.operator.observability.tracing import TracerProvider
+
+
+class AdmissionRequest(BaseModel):
+    """AdmissionReview wire contract(K8s AdmissionRegistration v1)"""
+    model_config = ConfigDict(extra="ignore")  # 接收 K8s 完整 AdmissionReview,忽略未知字段
+    uid: str
+    kind: str  # "Agent" | "AgentSet" | "Workflow" | "Memory"
+    operation: str  # "CREATE" | "UPDATE" | "DELETE"
+    namespace: str
+    name: str
+    object: dict  # CRD 完整对象(由 validator 反序列化为 Pydantic)
+
+
+class AdmissionResponse(BaseModel):
+    """AdmissionReview response wire contract"""
+    model_config = ConfigDict(extra="forbid")
+    uid: str
+    allowed: bool
+    status: dict | None = None  # K8s Status 对象,reason + code + message
+    warnings: list[str] | None = Field(default=None, max_length=10)
+
+
+class AdmissionWebhookApp:
+    """ASGI admission webhook 主类(uvicorn 单 worker)"""
+
+    def __init__(
+        self,
+        helm_values: HelmValues,
+        tls_config: "TLSConfig",
+        agent_validator: AgentValidator,
+        agentset_validator: AgentSetValidator,
+        workflow_validator: WorkflowValidator,
+        memory_validator: MemoryValidator,
+        mutual_exclusion_validator: MutualExclusionValidator,
+        tracer_provider: TracerProvider | None = None,
+    ) -> None: ...
+
+    async def startup(self) -> None:
+        """启动 uvicorn(单 worker)+ 注册 ASGI routes"""
+
+    async def shutdown(self) -> None:
+        """graceful shutdown(wait for in-flight requests ≤ 30s)"""
+
+    async def handle_validate(self, request: AdmissionRequest) -> AdmissionResponse:
+        """POST /validate 路由:根据 kind 路由到对应 validator;DELETE 操作跳过"""
+```
+
+**内部 helper**:`_route_validator(kind: str) -> Validator`、`_tracing_middleware`、`_load_tls_context()`、`_emit_metric(validator: str, result: str)`(Prometheus `superteam_operator_admission_total{validator,result}`)
+
+**关键设计**:
+- `AdmissionRequest.uid` 必须 echo 到 `AdmissionResponse.uid`(K8s AdmissionReview wire contract)
+- 路由分发:`CREATE` + `UPDATE` 走 validator;`DELETE` 直接 allowed=true(admission 不拦截删除)
+- `extra="ignore"` on AdmissionRequest(K8s AdmissionReview 包含很多 Operator 不关心的字段如 `apiVersion`/`resource`)
+
+**测试文件**:
+- `tests/unit/admission/test_admission_server.py`(UT-AW-02~06)
+  - UT-AW-02:startup() 创建 ASGI app + 注册 1 个 route
+  - UT-AW-03:handle_validate 路由分发(Agent → AgentValidator;Workflow → WorkflowValidator)
+  - UT-AW-04:DELETE 操作直接 allowed=true
+  - UT-AW-05:AdmissionRequest.uid echo 到 AdmissionResponse.uid
+  - UT-AW-06:Prometheus metric superteam_operator_admission_total{validator,result} 在 success/failure 时各自 inc
+- `tests/integration/admission/test_admission_e2e.py`(IT-AW-01~02)
+  - IT-AW-01:envtest + ValidatingWebhookConfiguration → 真实 K8s API Server 触发 admission(用 `pytest-kopf` + `kopf.testing.KopfFixture`)
+  - IT-AW-02:DELETE 操作 admission 无 metric inc
+
+#### 4.2.3 `admission/tls.py` —— cert-manager 集成 + 证书热更新
+
+```python
+# packages/operator/src/superteam_a2a/operator/admission/tls.py
+import ssl
+from collections.abc import Callable
+from datetime import datetime, timezone
+from pathlib import Path
+
+from kubernetes_asyncio import client
+from kubernetes_asyncio.watch import AsyncWatch
+
+from superteam_a2a.operator.config import HelmValues
+from superteam_a2a.operator.observability.logging import get_logger
+
+
+class TLSConfig:
+    """TLS 证书配置 + 路径"""
+
+    def __init__(
+        self,
+        secret_name: str,
+        namespace: str,
+        cert_path: Path,
+        key_path: Path,
+        ca_bundle_path: Path | None = None,
+    ) -> None: ...
+
+    async def load_from_disk(self) -> ssl.SSLContext:
+        """从 Secret 同步加载 TLS 证书到 SSLContext(冷启动)"""
+        ...
+
+    async def watch_and_reload(
+        self,
+        k8s: client.CoreV1Api,
+        on_reload: Callable[[ssl.SSLContext], Awaitable[None]],
+    ) -> None:
+        """监听 Secret 更新事件 + 触发 SSLContext 重建(热更新,每 5min 兜底轮询)"""
+        ...
+
+
+class TLSHotReloader:
+    """持有当前 SSLContext 引用 + 支持 atomic swap"""
+
+    def __init__(self, initial_ctx: ssl.SSLContext) -> None:
+        self._ctx = initial_ctx
+        self._lock = asyncio.Lock()
+
+    async def swap(self, new_ctx: ssl.SSLContext) -> None:
+        """Atomic 替换 SSLContext(uvicorn 下次 accept 时生效)"""
+
+    def current(self) -> ssl.SSLContext:
+        """返回当前 SSLContext(uvicorn 配置用)"""
+        ...
+```
+
+**内部 helper**:`_is_cert_expiring_soon(cert_pem: bytes, threshold_days: int = 30) -> bool`、`_reload_uvicorn_ssl_context(new_ctx)`、`_build_ssl_context(cert_pem, key_pem) -> ssl.SSLContext`(使用 `ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)` + `minimum_version = ssl.TLSVersion.TLSv1_3`)、`_parse_secret_data(secret) -> tuple[bytes, bytes]`、`_setup_watcher()`、`_fallback_poll_loop()`(每 5min 检查证书过期时间,即使 watch 失效也兜底轮换)
+
+**关键不变量**(继承 L2-2 Spec §4.5):
+- ✅ **热更新不重启 server**:Secret 更新事件触发 SSLContext atomic swap;uvicorn 下次 accept 时自动应用
+- ✅ **轮换策略**:`duration: 2160h`(90 天)/ `renewBefore: 720h`(30 天前续期)/ `privateKey.rotationPolicy: Always`
+- ✅ **TLS 1.3 minimum**:禁用 TLS 1.2 及以下(L2-2 Spec §4.5)
+- ✅ **5min 兜底轮询**:即使 watch 失效也能恢复
+
+**测试文件**:
+- `tests/unit/admission/test_admission_tls.py`(UT-AW-07~10)
+  - UT-AW-07:SSLContext min version = TLSv1.3
+  - UT-AW-08:watch_and_reload 触发 swap(用 fake AsyncWatch)
+  - UT-AW-09:_is_cert_expiring_soon 阈值正确(threshold_days=30,过期 25 天 → True)
+  - UT-AW-10:fallback poll loop 每 5min 触发一次
+- `tests/integration/admission/test_admission_tls_reload.py`(IT-AW-03)
+  - IT-AW-03:envtest + cert-manager mock → Secret 更新触发 reload,uvicorn 接受新连接用新证书
+
+#### 4.2.4 `admission/validators/__init__.py` —— 5 validator 聚合
+
+```python
+# packages/operator/src/superteam_a2a/operator/admission/validators/__init__.py
+from .agent import AgentValidator
+from .agentset import AgentSetValidator
+from .workflow import WorkflowValidator
+from .memory import MemoryValidator
+from .mutual_exclusion import MutualExclusionValidator
+from .base import CRDValidator, ValidationResult
+
+__all__ = [
+    "CRDValidator", "ValidationResult",
+    "AgentValidator", "AgentSetValidator", "WorkflowValidator",
+    "MemoryValidator", "MutualExclusionValidator",
+]
+```
+
+| 字段 | 值 |
+|---|---|
+| **职责** | 导出 5 validators + base Protocol + ValidationResult |
+| **imports** | 见上(从 5 个 validator 子模块) |
+| **exported 符号** | `CRDValidator`、`ValidationResult` + 5 个 validator 类 |
+| **helper** | 无 |
+| **测试文件** | `tests/unit/admission/test_validators___init__.py`(UT-AW-11) |
+
+#### 4.2.5 `admission/validators/base.py` —— CRDValidator Protocol + ValidationResult
+
+```python
+# packages/operator/src/superteam_a2a/operator/admission/validators/base.py
+from typing import Protocol
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class ValidationResult(BaseModel):
+    """admission 校验结果(K8s AdmissionReview response 序列化)"""
+    model_config = ConfigDict(extra="forbid")
+
+    allowed: bool
+    reason: str | None = Field(default=None, max_length=512)
+    http_status: int = Field(default=200, ge=200, le=599)  # 200=allowed; 422=invalid; 400=malformed
+
+
+class CRDValidator(Protocol):
+    """5 validators 必须实现此接口(L2-2 Spec §4.2 + Design §5.3)"""
+
+    crd_kind: str  # "Agent" | "AgentSet" | "Workflow" | "Memory"
+    group: str     # "superteam-a2a.io"
+
+    async def validate(
+        self,
+        namespace: str,
+        name: str,
+        spec: BaseModel,
+        operation: str,  # "CREATE" | "UPDATE"
+    ) -> ValidationResult:
+        """同步校验 spec;返回 ValidationResult(allowed, reason, http_status)"""
+        ...
+```
+
+**关键不变量**:
+- `ValidationResult.extra="forbid"`:拒绝未知字段(K8s wire shape 严格)
+- `CRDValidator` 是 Protocol 而非 ABC:用 `runtime_checkable` 让 L4 实施可灵活实现
+
+#### 4.2.6 `admission/validators/agent.py` —— AgentValidator
+
+```python
+# packages/operator/src/superteam_a2a/operator/admission/validators/agent.py
+from pydantic import ValidationError
+
+from superteam_a2a.operator.models.agent import AgentSpec
+from .base import CRDValidator, ValidationResult
+
+
+class AgentValidator:
+    """Agent CRD admission validator(Pydantic v2 严格校验)"""
+
+    crd_kind: str = "Agent"
+    group: str = "superteam-a2a.io"
+
+    async def validate(
+        self,
+        namespace: str,
+        name: str,
+        spec: AgentSpec,
+        operation: str,
+    ) -> ValidationResult:
+        # Pydantic 已在反序列化阶段完成 min_length/max_length/enum/regex 校验
+        # 此处仅做跨字段 + 业务约束
+        try:
+            # 1. image 必填(command + args 互斥)
+            if not spec.image and not (spec.command and spec.args):
+                return ValidationResult(
+                    allowed=False,
+                    reason="AgentSpec 必须指定 image 或 (command + args)",
+                    http_status=422,
+                )
+            # 2. replicas ∈ [1, 100]
+            if spec.replicas < 1 or spec.replicas > 100:
+                return ValidationResult(
+                    allowed=False,
+                    reason=f"replicas {spec.replicas} 超出范围 [1, 100]",
+                    http_status=422,
+                )
+            # 3. mode 与 securityContext 互斥(Plugin 模式禁止 securityContext.privileged)
+            if spec.mode.value == "plugin" and spec.security_context and spec.security_context.privileged:
+                return ValidationResult(
+                    allowed=False,
+                    reason="Plugin 模式禁止 securityContext.privileged(由 sidecar 接管)",
+                    http_status=422,
+                )
+            return ValidationResult(allowed=True)
+        except ValidationError as e:
+            return ValidationResult(allowed=False, reason=str(e), http_status=422)
+```
+
+**关键校验**(继承 L2-2 Design §5.3.1):
+- ✅ image 必填(command + args 互斥)
+- ✅ replicas ∈ [1, 100](继承 v0.1 Go baseline)
+- ✅ Plugin 模式禁止 privileged(由 sidecar 接管)
+
+**测试文件**:`tests/unit/admission/test_agent_validator.py`(UT-AW-12)
+- UT-AW-12a:image 缺失返回 allowed=false(422)
+- UT-AW-12b:replicas=0 返回 allowed=false
+- UT-AW-12c:Plugin + privileged 返回 allowed=false
+
+#### 4.2.7 `admission/validators/agentset.py` —— AgentSetValidator
+
+```python
+# packages/operator/src/superteam_a2a/operator/admission/validators/agentset.py
+from superteam_a2a.operator.models.agentset import AgentSetSpec
+from .base import CRDValidator, ValidationResult
+
+
+class AgentSetValidator:
+    crd_kind: str = "AgentSet"
+    group: str = "superteam-a2a.io"
+
+    async def validate(self, namespace: str, name: str, spec: AgentSetSpec, operation: str) -> ValidationResult:
+        # 1. replicas ∈ [1, 100]
+        # 2. selector 必填(与 template.labels 一致)
+        # 3. template 字段必填且类型 = AgentSpec(跨 CRD 一致性)
+        ...
+```
+
+**关键校验**:replicas 范围、selector 必填、template 与 AgentSpec 一致
+
+**测试文件**:`tests/unit/admission/test_agentset_validator.py`(UT-AW-13)
+
+#### 4.2.8 `admission/validators/workflow.py` —— WorkflowValidator + DAG 校验
+
+```python
+# packages/operator/src/superteam_a2a/operator/admission/validators/workflow.py
+from collections import deque
+from pydantic import BaseModel
+
+from superteam_a2a.operator.models.workflow import WorkflowSpec, TaskSpec
+from .base import CRDValidator, ValidationResult
+
+
+class DAGValidator:
+    """DAG 校验(纯函数 · 无 I/O;L2-2 Spec §4.4 + Design §5.5)"""
+
+    MAX_NODES = 50
+    MAX_EDGES = 200
+
+    def validate_dag(self, tasks: list[TaskSpec]) -> ValidationResult:
+        if len(tasks) > self.MAX_NODES:
+            return ValidationResult(
+                allowed=False,
+                reason=f"节点数 {len(tasks)} > {self.MAX_NODES}",
+                http_status=422,
+            )
+        # 构建邻接表 + 边数检查
+        adj = {task.name: set(task.depends_on) for task in tasks}
+        edge_count = sum(len(deps) for deps in adj.values())
+        if edge_count > self.MAX_EDGES:
+            return ValidationResult(
+                allowed=False,
+                reason=f"边数 {edge_count} > {self.MAX_EDGES}",
+                http_status=422,
+            )
+        # Kahn 算法检测环
+        in_degree = {task.name: len(adj[task.name]) for task in tasks}
+        queue = deque(name for name, deg in in_degree.items() if deg == 0)
+        topo_order: list[str] = []
+        while queue:
+            node = queue.popleft()
+            topo_order.append(node)
+            for neighbor, deps in adj.items():
+                if node in deps:
+                    in_degree[neighbor] -= 1
+                    if in_degree[neighbor] == 0:
+                        queue.append(neighbor)
+        if len(topo_order) != len(tasks):
+            cycle_nodes = [name for name, deg in in_degree.items() if deg > 0]
+            return ValidationResult(
+                allowed=False,
+                reason=f"检测到环，涉及节点: {cycle_nodes}",
+                http_status=422,
+            )
+        return ValidationResult(allowed=True)
+
+
+class WorkflowValidator:
+    """Workflow CRD admission validator"""
+
+    crd_kind: str = "Workflow"
+    group: str = "superteam-a2a.io"
+
+    def __init__(self) -> None:
+        self._dag_validator = DAGValidator()
+
+    async def validate(self, namespace: str, name: str, spec: WorkflowSpec, operation: str) -> ValidationResult:
+        # 1. DAG 校验(纯函数)
+        dag_result = self._dag_validator.validate_dag(spec.tasks)
+        if not dag_result.allowed:
+            return dag_result
+        # 2. tasks[i].name 唯一性
+        names = [t.name for t in spec.tasks]
+        if len(set(names)) != len(names):
+            return ValidationResult(
+                allowed=False,
+                reason=f"task name 重复: {[n for n in names if names.count(n) > 1]}",
+                http_status=422,
+            )
+        # 3. depends_on 引用必须存在(已在 Kahn 中部分检查)
+        task_name_set = set(names)
+        for task in spec.tasks:
+            for dep in task.depends_on:
+                if dep not in task_name_set:
+                    return ValidationResult(
+                        allowed=False,
+                        reason=f"task {task.name} 的 depends_on {dep} 不存在",
+                        http_status=422,
+                    )
+        return ValidationResult(allowed=True)
+```
+
+**关键设计**(继承 L2-2 Spec §4.4 + Design §5.5):
+- ✅ **`DAGValidator` 是纯函数类**(无 I/O;单测无需 mock)
+- ✅ **`collections.deque` BFS**(O(V+E) 算法复杂度,优于 DFS 递归栈)
+- ✅ **节点/边数限制为软上限**(v0.5+ 可配)
+- ✅ **task name 唯一性 + depends_on 引用存在性**(在 DAG 拓扑之外额外校验)
+
+**测试文件**:
+- `tests/unit/admission/test_workflow_validator.py`(UT-AW-14~16)
+  - UT-AW-14:51 个 task 返回 allowed=false(超 MAX_NODES)
+  - UT-AW-15:A→B→C→A 检测到环(列出 cycle_nodes)
+  - UT-AW-16:linear DAG(A→B→C)allowed=true + topo_order 正确
+- `tests/integration/admission/test_dag_validation.py`(IT-AW-04)
+  - IT-AW-04:envtest + 提交 Workflow CRD with cycle → K8s API Server 拒绝(etcd 不写入)
+
+#### 4.2.9 `admission/validators/memory.py` —— MemoryValidator
+
+```python
+# packages/operator/src/superteam_a2a/operator/admission/validators/memory.py
+from superteam_a2a.operator.models.memory import MemorySpec
+from .base import CRDValidator, ValidationResult
+
+
+class MemoryValidator:
+    crd_kind: str = "Memory"
+    group: str = "superteam-a2a.io"
+
+    async def validate(self, namespace: str, name: str, spec: MemorySpec, operation: str) -> ValidationResult:
+        # 1. content 键数 ∈ [1, 20](继承 L2-4 Spec §3.4 MemorySpec)
+        # 2. scope_ref 必填
+        # 3. agent-private visibility 必填 owner_agent_id
+        # 4. decay_days ∈ [1, 3650]
+        # 5. confidence ∈ [0, 1]
+        ...
+```
+
+**关键校验**:与 L2-4 Spec §3.4 MemorySpec **字段逐一对应**(wire contract 完全一致)
+
+**测试文件**:`tests/unit/admission/test_memory_validator.py`(UT-AW-17)
+
+#### 4.2.10 `admission/validators/mutual_exclusion.py` —— MutualExclusionValidator(Knowledge ↔ Memory)
+
+```python
+# packages/operator/src/superteam_a2a/operator/admission/validators/mutual_exclusion.py
+from superteam_a2a.operator.clients import AsyncK8sClient
+from .base import CRDValidator, ValidationResult
+
+
+class MutualExclusionValidator:
+    """Knowledge ↔ Memory 双向互斥校验(ADR-0002 §2 + ADR-0003 §5)
+
+    在 Agent / AgentSet / Workflow / Memory 4 个 validator 中各调用一次,
+    避免漏检(继承 L2-2 Spec §4.6 + Design §5.4)
+    """
+
+    def __init__(self, k8s_client: AsyncK8sClient) -> None: ...
+
+    async def validate(
+        self,
+        namespace: str,
+        name: str,
+        source_ref_name: str,
+        resource_kind: str,  # "KnowledgeItem" | "Memory"
+    ) -> ValidationResult:
+        # 注:admission webhook 默认不调用 K8s API(L2-2 Design §5.7)
+        # 但 mutual_exclusion 例外:必须读 K8s 才能校验双向引用
+        # 性能优化:用 label selector 索引,O(1) 查询
+        if resource_kind == "Memory":
+            # 创建/更新 Memory → 检查是否有 KnowledgeItem 引用同一 source_ref
+            knowledge_items = await self._k8s.list(
+                "KnowledgeItem",
+                namespace=namespace,
+                label_selector=f"superteam-a2a.io/source-ref={source_ref_name}",
+            )
+            if knowledge_items:
+                return ValidationResult(
+                    allowed=False,
+                    reason=f"ResourceRef {source_ref_name} 已被 {len(knowledge_items)} 个 KnowledgeItem 引用,不可同时作为 Memory source",
+                    http_status=422,
+                )
+        elif resource_kind == "KnowledgeItem":
+            # 创建/更新 KnowledgeItem → 检查是否有 Memory 引用同一 source_ref
+            memories = await self._k8s.list(
+                "Memory",
+                namespace=namespace,
+                label_selector=f"superteam-a2a.io/source-ref={source_ref_name}",
+            )
+            if memories:
+                return ValidationResult(
+                    allowed=False,
+                    reason=f"ResourceRef {source_ref_name} 已被 {len(memories)} 个 Memory 引用,不可同时作为 KnowledgeItem source",
+                    http_status=422,
+                )
+        return ValidationResult(allowed=True)
+```
+
+**关键设计**(继承 L2-2 Design §5.4):
+- ✅ **是 5 个 validators 中唯一调用 K8s API 的**(性能优化:label selector O(1) 查询)
+- ✅ **双向校验**:Memory 创建查 KnowledgeItem;KnowledgeItem 创建查 Memory
+- ✅ **在 4 CRD validators 各调用一次**(L2-2 Spec §4.6):Agent/AgentSet/Workflow/Memory 各自 spec 含 sourceRef 字段时触发
+
+**测试文件**:`tests/unit/admission/test_mutual_exclusion_validator.py`(UT-AW-18)
+- UT-AW-18a:Memory 创建时已有 KI 引用 → allowed=false
+- UT-AW-18b:KI 创建时已有 Memory 引用 → allowed=false
+- UT-AW-18c:双向均无 → allowed=true
+
+### 4.3 Helm `webhookconfig.yaml` 契约(9 Helm 模板之一)
+
+**关键文件**:`deploy/helm/operator/templates/webhookconfig.yaml`
+
+```yaml
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingWebhookConfiguration
+metadata:
+  name: superteam-a2a-operator-validating
+  annotations:
+    cert-manager.io/inject-ca-from: "{{ .Release.Namespace }}/superteam-a2a-webhook-tls"
+spec:
+  admissionReviewVersions: ["v1"]
+  sideEffects: None  # admission 不修改 CRD,sideEffects=None
+  failurePolicy: Fail  # webhook 不可用时拒绝请求(安全优先)
+  webhooks:
+    - name: validate-agent.superteam-a2a.io
+      rules:
+        - apiGroups: ["agent.superteam-a2a.io"]
+          apiVersions: ["v1alpha1"]
+          operations: ["CREATE", "UPDATE"]
+          resources: ["agents"]
+          scope: Namespaced
+      clientConfig:
+        service:
+          name: superteam-a2a-operator
+          namespace: "{{ .Release.Namespace }}"
+          path: /validate
+        caBundle: <cert-manager 注入>
+      namespaceSelector:
+        matchLabels:
+          superteam-a2a.io/webhook-enabled: "true"
+      timeoutSeconds: 5
+    # agentset / workflow / memory 同结构(共 4 webhooks)
+```
+
+**关键决策**:
+- ✅ **sideEffects: None**(admission 不修改 CRD;K8s 1.27+ 推荐)
+- ✅ **failurePolicy: Fail**(webhook 不可用时拒绝请求;安全优先)
+- ✅ **timeoutSeconds: 5**(DAG 校验 50 节点 < 100ms;5s 充裕)
+- ✅ **namespaceSelector 限制**:仅 label `superteam-a2a.io/webhook-enabled: "true"` 的 namespace 触发(允许用户 opt-out)
+
+### 4.4 关键不变量(继承 L2-2 Spec §4.6)
+
+- ✅ **4 CRD validators 全部用 Pydantic v2 严格校验**(`extra="forbid"`,L2-2 Spec §4.6)
+- ✅ **DAG 校验是纯函数**(`DAGValidator` 类无 I/O,单测无需 mock;L2-2 Design §5.5)
+- ✅ **双向互斥校验在 4 CRD validators 各调用一次**(L2-2 Spec §4.6,避免漏检)
+- ✅ **Admission webhook 拒绝的请求不写 etcd**(K8s API Server 默认行为)
+- ✅ **TLS 证书热更新不重启 webhook server**(`TLSHotReloader.swap` atomic)
+- ✅ **admission webhook 默认不调用 K8s API**(性能 + 安全;`MutualExclusionValidator` 是唯一例外,带 label selector 优化)
+
+### 4.5 测试 ID 矩阵(18 项 · §A-§G 5 维度全 PASS)
+
+| 测试 ID | 维度 | 描述 | 文件 |
+|---|---|---|---|
+| **UT-AW-01** | A 功能 | admission 子包 `__init__.py` 导出 3 个公开符号 | `tests/unit/admission/test_admission___init__.py` |
+| **UT-AW-02** | A 功能 | `AdmissionWebhookApp.startup()` 创建 ASGI app + 注册 1 个 route | `tests/unit/admission/test_admission_server.py` |
+| **UT-AW-03** | A 功能 | `handle_validate` 路由分发(Agent → AgentValidator) | 同上 |
+| **UT-AW-04** | A 功能 | DELETE 操作直接 allowed=true | 同上 |
+| **UT-AW-05** | C 接口契约 | AdmissionRequest.uid echo 到 AdmissionResponse.uid | 同上 |
+| **UT-AW-06** | D 可观测性 | Prometheus `superteam_operator_admission_total` 在 success/failure 各自 inc | 同上 |
+| **UT-AW-07** | B 安全 | SSLContext min version = TLSv1.3 | `tests/unit/admission/test_admission_tls.py` |
+| **UT-AW-08** | A 功能 | `watch_and_reload` 触发 swap(fake AsyncWatch) | 同上 |
+| **UT-AW-09** | A 功能 | `_is_cert_expiring_soon` 阈值正确(过期 25 天 → True) | 同上 |
+| **UT-AW-10** | A 功能 | fallback poll loop 每 5min 触发一次 | 同上 |
+| **UT-AW-11** | A 功能 | validators 子包 `__init__.py` 导出 7 个公开符号 | `tests/unit/admission/test_validators___init__.py` |
+| **UT-AW-12** | A 功能 | AgentValidator:image 缺失 + replicas 超界 + Plugin+privileged 拒绝 | `tests/unit/admission/test_agent_validator.py` |
+| **UT-AW-13** | A 功能 | AgentSetValidator:replicas 范围 + selector 必填 + template 一致 | `tests/unit/admission/test_agentset_validator.py` |
+| **UT-AW-14** | A 功能 | DAGValidator:51 个 task → allowed=false(超 MAX_NODES) | `tests/unit/admission/test_workflow_validator.py` |
+| **UT-AW-15** | A 功能 | DAGValidator:A→B→C→A 检测环(列出 cycle_nodes) | 同上 |
+| **UT-AW-16** | A 功能 | DAGValidator:linear DAG → allowed=true + topo_order 正确 | 同上 |
+| **UT-AW-17** | A 功能 | MemoryValidator:content 键数 + decay_days + confidence 边界 | `tests/unit/admission/test_memory_validator.py` |
+| **UT-AW-18** | A 功能 | MutualExclusionValidator:双向引用冲突拒绝 | `tests/unit/admission/test_mutual_exclusion_validator.py` |
+| **IT-AW-01** | A 功能 | envtest:ValidatingWebhookConfiguration → K8s API Server 触发 admission | `tests/integration/admission/test_admission_e2e.py` |
+| **IT-AW-02** | D 可观测性 | DELETE 操作 admission 无 metric inc | 同上 |
+| **IT-AW-03** | B 安全 | envtest:Secret 更新触发 reload,uvicorn 接受新连接用新证书 | `tests/integration/admission/test_admission_tls_reload.py` |
+| **IT-AW-04** | A 功能 | envtest:提交 Workflow CRD with cycle → K8s 拒绝(etcd 不写入) | `tests/integration/admission/test_dag_validation.py` |
+
+**测试 ID 分布**:18 UT + 4 IT = 22 ID(覆盖 §A-§G 5 维度:功能 14 / 安全 2 / 接口契约 1 / 可观测性 2 / 其他 1)
+
+**与 Go baseline 对应**:L2-2 Go baseline §4.3 admission webhook + §10.1 自定义错误码;wire contract(4 CRD 错误码 + 422/400 HTTP Status)与 v0.1 业务语义**完全继续有效**
+
+---
+
+## 5. Leader Election 客户端文件级 Spec（K8s Lease · 单 leader 触发 reconcile + MemoryReconciler）
+
+> **本节把 L2-2 Spec v0.2.0 §5 + L2-2 Design v0.2.0 §6 的 Leader Election 选型落到 3 个 Python 文件的精确契约**。Wire contract(Lease 名称 + 30s leaseDurationSeconds + 单 leader 模型)与 v0.1-draft Go baseline **完全继续有效**,仅 supersede Go struct / client-go 实现条款。
+>
+> **文件清单修正**:§2.3.6 表格标注为 "2 文件",实际 3 文件(`__init__.py` + `lease_client.py` + `election.py`)。本 §5 按 3 文件精确展开,§2.3.6 表格计数在 #45+ 后续会话修正。
+
+### 5.1 部署动机与边界(继承 L2-2 Design §6.1)
+
+**单 leader 强制**:Operator 部署 3 replicas 时,**仅 1 个**副本持有 Lease 并触发 reconcile + MemoryReconciler;其他 2 个进入 standby(仅 watch 事件,不写业务资源)。
+
+**业务影响**:
+- ✅ **避免重复 reconcile**:同一 CRD 资源被多副本并发处理,浪费 API Server + 状态竞争
+- ✅ **MemoryReconciler 单触发**:避免多副本同时触发 decay 算法导致 MemoryStatus 抖动
+- ✅ **graceful shutdown**:`SIGTERM` → release Lease → 下一 leader 立即接管(避免 30s 等待)
+
+**admission webhook 不走 LeaderGate**:admission 是 K8s API Server 前置校验,必须在所有副本上可用(否则 3 replicas 中 2 replicas 拒收 admission 请求,违反 SLO)
+
+### 5.2 文件清单与契约(3 文件 · 全部在 `packages/operator/src/superteam_a2a/operator/leader_election/`)
+
+#### 5.2.1 `leader_election/__init__.py` —— 子包入口
+
+```python
+# packages/operator/src/superteam_a2a/operator/leader_election/__init__.py
+from .lease_client import AsyncLeaseClient, LeaseApi
+from .election import Election, LeaderGate
+
+__all__ = ["AsyncLeaseClient", "LeaseApi", "Election", "LeaderGate"]
+```
+
+| 字段 | 值 |
+|---|---|
+| **职责** | 公开 API export |
+| **exported 符号** | `AsyncLeaseClient`、`LeaseApi`(Protocol)、`Election`、`LeaderGate` |
+| **测试文件** | `tests/unit/leader_election/test_leader_election___init__.py`(UT-LE-01) |
+
+#### 5.2.2 `leader_election/lease_client.py` —— AsyncLeaseClient(K8s Lease 封装)
+
+```python
+# packages/operator/src/superteam_a2a/operator/leader_election/lease_client.py
+import socket
+import uuid
+from collections.abc import Awaitable
+from datetime import datetime, timezone, timedelta
+
+from kubernetes_asyncio import client
+from kubernetes_asyncio.client.exceptions import ApiException
+
+from superteam_a2a.operator.observability.logging import get_logger
+
+
+class LeaseApi(Protocol):
+    """AsyncLeaseClient 所需的最小 K8s Lease API(测试用 fake client 实现)"""
+
+    async def read_namespaced_lease(self, name: str, namespace: str): ...
+    async def create_namespaced_lease(self, namespace: str, body): ...
+    async def replace_namespaced_lease(self, name: str, namespace: str, body): ...
+
+
+class AsyncLeaseClient:
+    """K8s Lease 异步客户端(CAS 操作 · renew 失败重试)"""
+
+    DEFAULT_LEASE_DURATION_SECONDS = 30
+
+    def __init__(
+        self,
+        k8s: LeaseApi,
+        lease_name: str = "superteam-a2a-operator-leader",
+        namespace: str = "superteam-a2a-system",
+        holder_id: str | None = None,  # None 时自动生成 <pod-name>-<uuid>
+        lease_duration_seconds: int = DEFAULT_LEASE_DURATION_SECONDS,
+    ) -> None:
+        self._k8s = k8s
+        self._lease_name = lease_name
+        self._namespace = namespace
+        self._holder_id = holder_id or f"{socket.gethostname()}-{uuid.uuid4()}"
+        self._lease_duration = timedelta(seconds=lease_duration_seconds)
+
+    @property
+    def holder_id(self) -> str:
+        return self._holder_id
+
+    async def try_acquire(self) -> bool:
+        """尝试获取 Lease(CAS 操作)
+
+        返回 True 表示获取成功;False 表示已被其他副本持有(未过期)或冲突
+        """
+        try:
+            existing = await self._k8s.read_namespaced_lease(self._lease_name, self._namespace)
+            # 已存在且未过期 + holder 不是自己 → 已被其他副本持有
+            if existing.spec.holder_identity and not self._is_expired(existing):
+                if existing.spec.holder_identity != self._holder_id:
+                    return False
+            # CAS 更新(必须带 resourceVersion)
+            existing.spec.holder_identity = self._holder_id
+            existing.spec.acquire_time = datetime.now(timezone.utc).isoformat()
+            existing.spec.renew_time = datetime.now(timezone.utc).isoformat()
+            existing.spec.lease_duration_seconds = int(self._lease_duration.total_seconds())
+            await self._k8s.replace_namespaced_lease(
+                self._lease_name, self._namespace, existing
+            )
+            return True
+        except ApiException as e:
+            if e.status == 404:
+                # Lease 不存在 → 创建
+                await self._create_lease()
+                return True
+            if e.status == 409:
+                # Conflict → CAS 失败;返回 False 不重试(下一轮 acquire 再试)
+                return False
+            raise
+
+    async def renew(self) -> bool:
+        """续约 Lease(更新 renew_time + resourceVersion CAS)
+
+        返回 True 表示续约成功;False 表示失主(被其他副本抢占)
+        """
+        try:
+            lease = await self._k8s.read_namespaced_lease(self._lease_name, self._namespace)
+            if lease.spec.holder_identity != self._holder_id:
+                return False  # 已被其他副本抢占
+            lease.spec.renew_time = datetime.now(timezone.utc).isoformat()
+            await self._k8s.replace_namespaced_lease(
+                self._lease_name, self._namespace, lease
+            )
+            return True
+        except ApiException:
+            return False
+
+    async def release(self) -> None:
+        """主动让位(graceful shutdown;读到其他 holder 时 no-op)"""
+        try:
+            lease = await self._k8s.read_namespaced_lease(self._lease_name, self._namespace)
+            if lease.spec.holder_identity == self._holder_id:
+                lease.spec.holder_identity = None
+                await self._k8s.replace_namespaced_lease(
+                    self._lease_name, self._namespace, lease
+                )
+        except ApiException:
+            pass  # 已过期或不存在;no-op
+
+    def is_expired(self, lease, now: datetime | None = None) -> bool:
+        """判断 Lease 是否过期(now + lease_duration < renew_time → 过期)"""
+        check_time = now or datetime.now(timezone.utc)
+        renew_time = datetime.fromisoformat(lease.spec.renew_time)
+        return (check_time - renew_time) > self._lease_duration
+
+    async def _create_lease(self) -> None:
+        """创建 Lease(spec 含 holder + acquire_time + renew_time)"""
+        now = datetime.now(timezone.utc)
+        body = client.V1Lease(
+            metadata=client.V1ObjectMeta(name=self._lease_name, namespace=self._namespace),
+            spec=client.V1LeaseSpec(
+                holder_identity=self._holder_id,
+                acquire_time=now.isoformat(),
+                renew_time=now.isoformat(),
+                lease_duration_seconds=int(self._lease_duration.total_seconds()),
+            ),
+        )
+        await self._k8s.create_namespaced_lease(self._namespace, body)
+```
+
+**关键设计**(继承 L2-2 Spec §5.2 + Design §6.3):
+- ✅ **CAS 更新必须携带 `resourceVersion`**(由 `read_namespaced_lease` 返回的 body 自带)
+- ✅ **holder_id 稳定且唯一**:`<pod-name>-<uuid>` 在进程生命周期内不变,跨 Pod 唯一
+- ✅ **UTC RFC 3339 序列化**:禁止本地时区(L2-2 Spec §5.2 wire contract)
+- ✅ **404 → create;409 → no-retry**(继承 L2-2 Spec §5.2)
+
+**内部 helper**:`_is_expired(lease)`(纯函数,接受 `now` 参数便于 fake clock 测试)、`_create_lease()`
+
+**测试文件**:
+- `tests/unit/leader_election/test_lease_client.py`(UT-LE-02~06)
+  - UT-LE-02:try_acquire Lease 不存在(404)→ 自动 create + return True
+  - UT-LE-03:try_acquire Lease 存在 + holder=其他 + 未过期 → return False
+  - UT-LE-04:try_acquire create 遇到 409 → return False(不覆盖已有 holder)
+  - UT-LE-05:renew holder 被抢占 → return False
+  - UT-LE-06:release 时 holder=其他 → no-op
+- `tests/integration/leader_election/test_lease_client_k8s.py`(IT-LE-01)
+  - IT-LE-01:envtest + CoordinationV1Api 真集群:create + acquire + renew + release 全流程
+
+#### 5.2.3 `leader_election/election.py` —— Election 主类 + LeaderGate
+
+```python
+# packages/operator/src/superteam_a2a/operator/leader_election/election.py
+import asyncio
+from collections.abc import Callable
+from typing import Protocol
+
+from superteam_a2a.operator.observability.logging import get_logger
+from superteam_a2a.operator.observability.metrics import OperatorMetrics
+from .lease_client import AsyncLeaseClient
+
+
+class LeaderGate(Protocol):
+    """Controller 业务逻辑前置门禁(非 leader 时抛出 StandbyError)"""
+
+    @property
+    def is_leader(self) -> bool: ...
+
+    def require_leader(self) -> None:
+        """非 leader 时抛出 StandbyError(Controller 必须调用)"""
+        ...
+
+
+class Election:
+    """Leader Election 主类(独立 asyncio task · 不阻塞 event loop)
+
+    状态机(继承 L2-2 Spec §5.3):
+      Standby → Leader(acquire) → Standby(renew failed x3 / release / stop)
+    """
+
+    DEFAULT_RENEW_INTERVAL_SECONDS = 10
+    DEFAULT_ACQUIRE_INTERVAL_SECONDS = 5
+    DEFAULT_MAX_RENEW_FAILURES = 3
+
+    def __init__(
+        self,
+        lease: AsyncLeaseClient,
+        on_acquired: Callable[[], Awaitable[None]],
+        on_lost: Callable[[], Awaitable[None]],
+        renew_interval_seconds: int = DEFAULT_RENEW_INTERVAL_SECONDS,
+        acquire_interval_seconds: int = DEFAULT_ACQUIRE_INTERVAL_SECONDS,
+        max_renew_failures: int = DEFAULT_MAX_RENEW_FAILURES,
+        metrics: OperatorMetrics | None = None,
+    ) -> None:
+        self._lease = lease
+        self._on_acquired = on_acquired
+        self._on_lost = on_lost
+        self._renew_interval = renew_interval_seconds
+        self._acquire_interval = acquire_interval_seconds
+        self._max_renew_failures = max_renew_failures
+        self._metrics = metrics
+        self._is_leader = False
+        self._task: asyncio.Task | None = None
+        self._renew_failures = 0
+
+    @property
+    def is_leader(self) -> bool:
+        return self._is_leader
+
+    def require_leader(self) -> None:
+        """Controller 在 reconcile 前调用;非 leader 抛出 StandbyError"""
+        if not self._is_leader:
+            raise StandbyError("not leader")
+
+    async def start(self) -> None:
+        """启动 Leader Election loop(独立 asyncio task)"""
+        if self._task is not None:
+            return  # 幂等(重复调用不创建第二个 task)
+        self._task = asyncio.create_task(self._election_loop())
+
+    async def stop(self) -> None:
+        """停止 Leader Election + best-effort release(若当前为 leader)"""
+        if self._task is not None:
+            self._task.cancel()
+            try:
+                await self._task
+            except asyncio.CancelledError:
+                pass
+            self._task = None
+        if self._is_leader:
+            try:
+                await self._lease.release()
+                await self._on_lost()
+            except Exception as e:
+                get_logger().warning("leader_release_failed", error=str(e))
+
+    async def _election_loop(self) -> None:
+        """持续 acquire/renew;renew 失败 3 次触发 on_lost"""
+        while True:
+            try:
+                if not await self._lease.try_acquire():
+                    await asyncio.sleep(self._acquire_interval)
+                    continue
+                # 获取成功
+                self._is_leader = True
+                self._renew_failures = 0
+                if self._metrics:
+                    self._metrics.set_leader_state(namespace=self._lease._namespace, value=1)
+                await self._on_acquired()
+                # 续约循环
+                while await self._lease.renew():
+                    self._renew_failures = 0
+                    await asyncio.sleep(self._renew_interval)
+                # renew 返回 False(连续 1 次失败) → 计入失败计数
+                self._renew_failures += 1
+                if self._renew_failures >= self._max_renew_failures:
+                    # 连续失败达到阈值 → 失主
+                    self._is_leader = False
+                    if self._metrics:
+                        self._metrics.set_leader_state(namespace=self._lease._namespace, value=0)
+                    await self._on_lost()
+                    try:
+                        await self._lease.release()
+                    except Exception:
+                        pass
+            except asyncio.CancelledError:
+                raise
+            except Exception as e:
+                get_logger().error("leader_election_error", error=str(e))
+                await asyncio.sleep(self._acquire_interval)
+
+
+class StandbyError(Exception):
+    """非 leader 时 Controller 抛出,Kopf 标记为 TemporaryError 并延迟重试"""
+    pass
+```
+
+**关键设计**(继承 L2-2 Spec §5.3 + Design §6.4):
+- ✅ **独立 asyncio task**:Lease 续约不阻塞 Kopf handler 或 admission server
+- ✅ **`start()` 幂等**:重复调用不创建第二个 task(L2-2 Spec §5.3 契约 #1)
+- ✅ **续约失败 3 次触发让位**(默认配置):连续 3 次失败(3 × 10s = 30s)后 `is_leader=False` + 调 `on_lost`
+- ✅ **`on_lost` 先于任何新 reconcile**:`LeaderGate.require_leader()` 拒绝已排队但未开始的业务任务
+- ✅ **`stop()` best-effort release**:吸收 API 异常 + 记录日志(不抛出)
+
+**测试文件**:
+- `tests/unit/leader_election/test_election.py`(UT-LE-07~10)
+  - UT-LE-07:`start()` 重复调用不创建第二个 task
+  - UT-LE-08:连续 3 次 renew 失败 → `is_leader=False` + 调 `on_lost`
+  - UT-LE-09:`stop()` 当前 leader → best-effort release + 异常被吸收
+  - UT-LE-10:`LeaderGate.require_leader()` 非 leader 抛 `StandbyError`
+- `tests/integration/leader_election/test_election_e2e.py`(IT-LE-02)
+  - IT-LE-02:envtest + 3 个 Election 实例同时启动 → 仅 1 个 is_leader=true(其他进入 standby)
+
+### 5.3 Lease wire contract(继承 L2-2 Spec §5.2)
+
+```yaml
+apiVersion: coordination.k8s.io/v1
+kind: Lease
+metadata:
+  name: superteam-a2a-operator-leader  # 固定名称(v0.1 兼容性约束)
+  namespace: superteam-a2a-system       # 固定 namespace(v0.1 兼容性约束)
+spec:
+  holderIdentity: <pod-name>-<uuid>     # 在进程生命周期内稳定
+  acquireTime: <RFC3339 UTC>             # 必须 UTC RFC 3339
+  renewTime: <RFC3339 UTC>               # 必须 UTC RFC 3339
+  leaseDurationSeconds: 30               # 固定值
+  leaderTransitions: <non-negative int>  # 切换次数(Prometheus 指标 superteam_operator_leader_election_state)
+```
+
+**v0.1 兼容性约束**(永久不变):
+- Lease 名称 + namespace + leaseDurationSeconds(继承 L2-2 Spec §5.2)
+- 30s TTL + 10s renew interval + 3 次失败阈值(均与 Go baseline 一致)
+
+### 5.4 LeaderGate 与 Controller 集成
+
+```python
+# packages/operator/src/superteam_a2a/operator/controllers/agent.py
+# (示意;完整在 §3.1)
+@kopf.on.create('agent.superteam-a2a.io', id='agent-create')
+async def agent_create(spec: AgentSpec, name: str, namespace: str, body: Agent, **kwargs):
+    controller = AgentController.get_instance()
+    try:
+        controller._election.require_leader()  # ← LeaderGate 前置检查
+        # ... reconcile 业务逻辑
+    except StandbyError:
+        raise kopf.TemporaryError("standby; not leader", delay=10)
+```
+
+**admission webhook 不走 LeaderGate**(L2-2 Spec §5.4):3 replicas 中仅 leader 拒收 admission 会违反 SLO;admission 必须在所有副本可用。
+
+### 5.5 关键不变量与测试 ID 矩阵(10 项 + 2 IT)
+
+| 测试 ID | 维度 | 描述 | 文件 |
+|---|---|---|---|
+| **UT-LE-01** | A 功能 | 子包 `__init__.py` 导出 4 个公开符号 | `tests/unit/leader_election/test_leader_election___init__.py` |
+| **UT-LE-02** | A 功能 | `try_acquire` Lease 不存在(404)→ 自动 create + return True | `tests/unit/leader_election/test_lease_client.py` |
+| **UT-LE-03** | A 功能 | `try_acquire` holder=其他 + 未过期 → return False | 同上 |
+| **UT-LE-04** | A 功能 | `try_acquire` create 遇到 409 → return False(不覆盖) | 同上 |
+| **UT-LE-05** | A 功能 | `renew` holder 被抢占 → return False | 同上 |
+| **UT-LE-06** | A 功能 | `release` 时 holder=其他 → no-op | 同上 |
+| **UT-LE-07** | A 功能 | `start()` 重复调用不创建第二个 task | `tests/unit/leader_election/test_election.py` |
+| **UT-LE-08** | A 功能 | 连续 3 次 renew 失败 → `is_leader=False` + 调 `on_lost` | 同上 |
+| **UT-LE-09** | A 功能 | `stop()` 当前 leader → best-effort release + 异常被吸收 | 同上 |
+| **UT-LE-10** | C 接口契约 | `LeaderGate.require_leader()` 非 leader 抛 `StandbyError` | 同上 |
+| **IT-LE-01** | A 功能 | envtest + CoordinationV1Api 真集群全流程 | `tests/integration/leader_election/test_lease_client_k8s.py` |
+| **IT-LE-02** | A 功能 | envtest:3 个 Election 同时启动 → 仅 1 个 leader | `tests/integration/leader_election/test_election_e2e.py` |
+
+**测试 ID 分布**:10 UT + 2 IT = 12 ID(覆盖 §A-§G 5 维度:功能 9 / 接口契约 1 / 其他 2)
+
+**与 Go baseline 对应**:L2-2 Go baseline §7.3 Leader Election + ADR-0003 §6.5;wire contract(Lease 名称 + 30s leaseDurationSeconds)与 v0.1 业务语义**完全继续有效**
+
+---
+
+## 6. Memory 接口实现文件级 Spec（models/memory/ 8 文件 · MemoryReconciler 完整契约）
+
+> **本节把 L2-2 Spec v0.2.0 §3 + L2-4 Spec v0.2.0 §3 + L2-2 Design §4.4 + §6.5 的 Memory 选型落到 9 个 Python 文件(`models/memory/` 8 + `reconcilers/memory_reconciler.py` 1)的精确契约**。
+>
+> **双向同步声明**:L3-1 的 `models/memory/*.py` 与 L2-4 Spec v0.2.0 §3 的 Pydantic schema **字段逐一对应**(wire contract);业务语义(decay/reinforce/GC/promotion 算法)由 L2-4 负责;Operator 仅做 reconcile 驱动(ADR-0003 §6)。
+
+### 6.1 部署动机与边界(继承 L2-2 Design §4.4 + L2-4 Spec §7)
+
+**MemoryReconciler 不是 Controller**(继承 L2-2 Design §4.4):
+- ✅ **定时后台任务**:`@kopf.timer(interval=60.0)` 每 60s 触发(默认 Helm values 可配)
+- ✅ **Leader Election 单 leader 触发**:`Election.is_leader()` 判断,非 leader 立即退出
+- ✅ **批量 reconcile**:每 60s 全量列出所有 namespace 的 Memory CR;batch decay 用 `anyio.to_thread.run_sync` offload CPU 密集操作
+- ✅ **业务语义解耦**:decay/reinforce/GC/promotion 由 `models/memory/decay.py` 等纯函数负责(无 K8s 依赖,可单测)
+
+### 6.2 文件清单与契约(9 文件 · 全部在 `packages/operator/src/superteam_a2a/operator/`)
+
+#### 6.2.1 `models/memory/__init__.py` —— Memory CRD 顶层 + 12 enum
+
+```python
+# packages/operator/src/superteam_a2a/operator/models/memory/__init__.py
+from .spec import MemorySpec, AgentReference
+from .status import MemoryStatus
+from .conditions import MemoryConditionType, MemoryCondition
+from .enums import MemoryPhase, MemoryVisibility
+from .decay import compute_effective_confidence
+from .reinforce import apply_reinforce
+from .gc import should_garbage_collect
+from .promotion import is_eligible_for_promotion
+
+__all__ = [
+    "MemorySpec", "AgentReference", "MemoryStatus",
+    "MemoryConditionType", "MemoryCondition",
+    "MemoryPhase", "MemoryVisibility",
+    "compute_effective_confidence", "apply_reinforce",
+    "should_garbage_collect", "is_eligible_for_promotion",
+]
+```
+
+| 字段 | 值 |
+|---|---|
+| **职责** | Memory CRD 完整 Pydantic 模型 + 4 纯函数公开 |
+| **exported 符号** | 4 CRD 类(MemorySpec/Status/Condition/AgentReference) + 4 enum + 4 纯函数 |
+| **wire 对应** | 与 L2-4 Spec §3.4 Memory 完整 Pydantic schema **字段逐一对应** |
+| **测试文件** | `tests/unit/models/memory/test_memory___init__.py`(UT-MD-01~03) |
+
+#### 6.2.2 `models/memory/spec.py` —— MemorySpec + AgentReference
+
+```python
+# packages/operator/src/superteam_a2a/operator/models/memory/spec.py
+from datetime import datetime
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+
+from superteam_a2a.operator.models.shared import ScopeReference
+from .enums import MemoryVisibility
+
+
+class AgentReference(BaseModel):
+    """Agent(ServiceAccount)引用"""
+    model_config = ConfigDict(extra="forbid", frozen=True)
+    kind: str = Field(default="ServiceAccount", description="固定为 ServiceAccount")
+    name: str = Field(..., min_length=1, max_length=253)
+
+
+class MemorySpec(BaseModel):
+    """Memory CRD spec(12 字段 · 与 L2-4 Spec §3.4 MemorySpec 完全一致)"""
+    model_config = ConfigDict(extra="forbid", populate_by_name=True)
+
+    scope_ref: ScopeReference = Field(..., alias="scopeRef")
+    agent_ref: AgentReference = Field(..., alias="agentRef",
+        description="必须 ServiceAccount;与 KI.User/Group 互斥(L2-4 Spec §3.4)")
+    content: dict[str, str] = Field(..., min_length=1, max_length=20)
+    summary: str = Field(..., min_length=1, max_length=512)
+    confidence: float = Field(default=1.0, ge=0.0, le=1.0)
+    decay_days: int = Field(default=30, ge=1, le=3650)
+    reinforced_count: int = Field(default=0, ge=0, alias="reinforcedCount")
+    last_reinforced_at: AwareDatetime | None = Field(default=None, alias="lastReinforcedAt")
+    memory_key_pattern: str | None = Field(default=None, alias="memoryKeyPattern", max_length=128)
+    source_knowledge_ref: dict | None = Field(default=None, alias="sourceKnowledgeRef",
+        description="追溯的 KnowledgeItem(dict 形式,避免循环 import L2-4)")
+    tags: list[str] | None = Field(default=None, max_length=10)
+    visibility: MemoryVisibility = Field(default=MemoryVisibility.SCOPE_AND_CHILDREN)
+```
+
+**wire 对应**(L2-4 Spec §3.4 字段约束对照):
+- ✅ `scope_ref` / `agent_ref` / `content` / `summary` / `confidence` / `decay_days` / `reinforced_count` / `last_reinforced_at` / `memory_key_pattern` / `source_knowledge_ref` / `tags` / `visibility` 字段名 + 类型 + 约束**完全一致**
+- ✅ `extra="forbid"` + `populate_by_name=True` 行为一致
+
+**测试 ID**:`UT-MD-ME-01`
+
+#### 6.2.3 `models/memory/status.py` —— MemoryStatus
+
+```python
+# packages/operator/src/superteam_a2a/operator/models/memory/status.py
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+
+from .conditions import MemoryCondition
+from .enums import MemoryPhase
+
+
+class MemoryStatus(BaseModel):
+    """Memory CRD status(7 字段 · 与 L2-4 Spec §3.4 MemoryStatus 一致)"""
+    model_config = ConfigDict(extra="forbid")
+
+    phase: MemoryPhase | None = None
+    message: str | None = Field(default=None, max_length=512)
+    conditions: list[MemoryCondition] = Field(default_factory=list)
+    last_decayed_at: AwareDatetime | None = Field(default=None, alias="lastDecayedAt")
+    last_reinforced_at: AwareDatetime | None = Field(default=None, alias="lastReinforcedAt")
+    effective_confidence: float | None = Field(default=None, alias="effectiveConfidence", ge=0.0, le=1.0)
+    eligible_for_promotion: bool | None = Field(default=None, alias="eligibleForPromotion")
+    observed_generation: int | None = Field(default=None, alias="observedGeneration", ge=0)
+```
+
+**wire 对应**:与 L2-4 Spec §3.4 MemoryStatus **字段逐一对应**
+
+**测试 ID**:`UT-MD-ME-02`
+
+#### 6.2.4 `models/memory/conditions.py` —— MemoryConditionType + MemoryCondition
+
+```python
+# packages/operator/src/superteam_a2a/operator/models/memory/conditions.py
+from datetime import datetime
+from enum import StrEnum
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
+
+
+class MemoryConditionType(StrEnum):
+    """Memory status.conditions[].type 枚举(继承 L2-4 Spec §7)"""
+    DECAYED = "Decayed"
+    REINFORCED = "Reinforced"
+    PROMOTED = "Promoted"
+    ARCHIVED = "Archived"
+    GARBAGE_COLLECTED = "GarbageCollected"
+
+
+class MemoryCondition(BaseModel):
+    """K8s-style condition(L2-4 Spec §3.4 + K8s conventions)"""
+    model_config = ConfigDict(extra="forbid")
+    type: MemoryConditionType
+    status: str = Field(..., pattern="^(True|False|Unknown)$")
+    reason: str | None = Field(default=None, max_length=128)
+    message: str | None = Field(default=None, max_length=512)
+    last_transition_time: AwareDatetime = Field(..., alias="lastTransitionTime")
+```
+
+**wire 对应**:condition type 5 类(Decayed/Reinforced/Promoted/Archived/GarbageCollected)与 L2-4 Spec §7 一致
+
+**测试 ID**:`UT-MD-ME-03`
+
+#### 6.2.5 `models/memory/enums.py` —— MemoryPhase + MemoryVisibility
+
+```python
+# packages/operator/src/superteam_a2a/operator/models/memory/enums.py
+from enum import StrEnum
+
+
+class MemoryPhase(StrEnum):
+    """Memory status.phase 状态机(5 态 · 与 L2-4 Spec §3.4 一致)"""
+    ACTIVE = "Active"                # effective_confidence > 0.5
+    DECAYING = "Decaying"            # 0.01 ≤ effective_confidence ≤ 0.5
+    PROMOTABLE = "Promotable"        # eligible_for_promotion = true(v0.1 仅算不触发)
+    EXPIRED = "Expired"              # effective_confidence < 0.01
+    ERROR = "Error"                  # reconcile 失败
+
+
+class MemoryVisibility(StrEnum):
+    """Memory visibility 3 类(5 维矩阵 · agent-private 短路)"""
+    SCOPE_ONLY = "scope-only"
+    SCOPE_AND_CHILDREN = "scope-and-children"
+    AGENT_PRIVATE = "agent-private"
+```
+
+**wire 对应**:enum 值与 L2-4 Spec §3.4 **字符串值完全一致**
+
+**测试 ID**:`UT-MD-ME-04`
+
+#### 6.2.6 `models/memory/decay.py` —— 衰减算法纯函数
+
+```python
+# packages/operator/src/superteam_a2a/operator/models/memory/decay.py
+import math
+
+
+def compute_effective_confidence(
+    confidence: float,
+    decay_days: float,
+    elapsed_days: float,
+) -> float:
+    """Memory 衰减公式(ADR-0003 §4.1 · 数学公式 wire 不变)
+
+    effective_confidence = confidence × exp(-elapsed_days / decay_days)
+
+    Args:
+        confidence: 初始置信度 [0, 1]
+        decay_days: 半衰期(衰减时间常数)≥ 1
+        elapsed_days: 已过去天数(自 last_reinforced_at 或 createdAt)
+
+    Returns:
+        衰减后置信度 ∈ [0, 1]
+    """
+    if decay_days <= 0:
+        raise ValueError(f"decay_days must be > 0, got {decay_days}")
+    return confidence * math.exp(-elapsed_days / decay_days)
+```
+
+**关键不变量**:
+- ✅ **数学公式与 L2-4 Spec §7 完全一致**(`confidence × exp(-elapsed_days / decay_days)`,ADR-0003 §4.1 wire 不变)
+- ✅ **纯函数**:无 I/O / 无副作用;输入相同则输出相同
+- ✅ **边界保护**:`decay_days ≤ 0` 抛 ValueError
+
+**测试 ID**:`UT-MD-ME-05`
+- UT-MD-ME-05a:confidence=1.0 + decay_days=30 + elapsed_days=0 → 1.0
+- UT-MD-ME-05b:confidence=1.0 + decay_days=30 + elapsed_days=30 → ≈ 0.368(e^-1)
+- UT-MD-ME-05c:decay_days=0 → ValueError
+
+#### 6.2.7 `models/memory/reinforce.py` —— 强化算法纯函数
+
+```python
+# packages/operator/src/superteam_a2a/operator/models/memory/reinforce.py
+
+
+def apply_reinforce(
+    confidence: float,
+    amount: float = 0.05,
+    cap: float = 0.95,
+) -> float:
+    """Memory 强化算法(每次强化 += amount,封顶 cap)
+
+    继承 ADR-0003 §4.2 + L2-4 Spec §7
+
+    Args:
+        confidence: 当前置信度 [0, 1]
+        amount: 单次强化增量(默认 0.05)
+        cap: 强化上限(默认 0.95;超过 1.0 不允许)
+
+    Returns:
+        强化后置信度 ∈ [amount, cap]
+    """
+    return min(confidence + amount, cap)
+```
+
+**关键不变量**:
+- ✅ **公式与 L2-4 Spec §7 完全一致**(`min(confidence + 0.05, 0.95)`)
+- ✅ **封顶 cap=0.95**(避免长期强化到 1.0 后失去 decay 意义;ADR-0003 §4.2)
+
+**测试 ID**:`UT-MD-ME-06`
+
+#### 6.2.8 `models/memory/gc.py` —— GC 算法纯函数
+
+```python
+# packages/operator/src/superteam_a2a/operator/models/memory/gc.py
+
+
+def should_garbage_collect(
+    effective_confidence: float,
+    threshold: float = 0.1,
+) -> bool:
+    """Memory GC 判断(effective_confidence < threshold → 待 GC)
+
+    继承 ADR-0003 §4.3 + L2-4 Spec §7
+
+    Args:
+        effective_confidence: 当前 effective_confidence [0, 1]
+        threshold: GC 阈值(默认 0.1)
+
+    Returns:
+        True 表示待 GC(进入 EXPIRED phase)
+    """
+    return effective_confidence < threshold
+```
+
+**关键不变量**:
+- ✅ **阈值 threshold=0.1**(与 L2-4 Spec §7 一致)
+- ✅ **纯函数**:无副作用
+
+**测试 ID**:`UT-MD-ME-07`
+
+#### 6.2.9 `models/memory/promotion.py` —— 提升资格纯函数
+
+```python
+# packages/operator/src/superteam_a2a/operator/models/memory/promotion.py
+
+
+def is_eligible_for_promotion(
+    effective_confidence: float,
+    reinforced_count: int,
+    min_confidence: float = 0.9,
+    min_reinforced: int = 10,
+) -> bool:
+    """Memory 提升到 KnowledgeItem 资格判断
+
+    继承 ADR-0003 §4.4 + L2-4 Spec §7(v0.1 仅计算,不触发提升)
+
+    Args:
+        effective_confidence: 当前 effective_confidence [0, 1]
+        reinforced_count: 强化次数
+        min_confidence: 最低置信度(默认 0.9)
+        min_reinforced: 最低强化次数(默认 10)
+
+    Returns:
+        True 表示有资格提升(v0.1 仅设置 status.eligible_for_promotion = True)
+    """
+    return effective_confidence >= min_confidence and reinforced_count >= min_reinforced
+```
+
+**关键不变量**:
+- ✅ **公式与 L2-4 Spec §7 完全一致**(`effective_confidence >= 0.9 AND reinforced_count >= 10`)
+- ✅ **v0.1 仅计算**:设置 `eligible_for_promotion=true`,**不**触发实际提升(避免破坏 v0.1 scope)
+
+**测试 ID**:`UT-MD-ME-08`
+
+#### 6.2.10 `reconcilers/memory_reconciler.py` —— MemoryReconcilerService 完整契约
+
+```python
+# packages/operator/src/superteam_a2a/operator/reconcilers/memory_reconciler.py
+import kopf
+from anyio import to_thread
+
+from superteam_a2a.operator.leader_election import Election, StandbyError
+from superteam_a2a.operator.models.memory import (
+    Memory, MemorySpec, MemoryStatus, MemoryPhase,
+    compute_effective_confidence, should_garbage_collect,
+    is_eligible_for_promotion,
+)
+from superteam_a2a.operator.clients import AsyncK8sClient
+from superteam_a2a.operator.observability.metrics import OperatorMetrics
+
+
+class MemoryReconcilerService:
+    """MemoryReconciler 业务逻辑服务(与 Kopf 解耦 · 可独立单测)
+
+    关键不变量(继承 L2-2 Design §4.4):
+    - 单 leader 触发(避免重复 reconcile 导致状态竞争)
+    - 每 60s 全量 reconcile(增量优化留 v0.5+)
+    - decay 公式与 L2-4 完全一致(数学公式 wire 不变)
+    - batch reconcile CPU offload(anyio.to_thread.run_sync)
+    """
+
+    def __init__(
+        self,
+        k8s_client: AsyncK8sClient,
+        election: Election,
+        metrics: OperatorMetrics,
+        reconcile_interval_seconds: int = 60,
+    ) -> None:
+        self._k8s = k8s_client
+        self._election = election
+        self._metrics = metrics
+        self._interval = reconcile_interval_seconds
+
+    async def reconcile_all_memories(self, **kwargs) -> None:
+        """@kopf.timer 每 60s 触发(仅 leader)"""
+        try:
+            self._election.require_leader()
+        except StandbyError:
+            return  # 非 leader 立即退出,不参与 reconcile
+        # 1. 列出所有 namespace 的 Memory CR
+        memories = await self._k8s.list_memories(namespace='*')
+        # 2. CPU offload:batch decay 用 anyio.to_thread.run_sync
+        async def _batch_decay() -> list[tuple[Memory, float]]:
+            results = []
+            for memory in memories:
+                effective = compute_effective_confidence(
+                    confidence=memory.spec.confidence,
+                    decay_days=memory.spec.decay_days or 30.0,
+                    elapsed_days=self._compute_elapsed_days(memory),
+                )
+                results.append((memory, effective))
+            return results
+        results = await to_thread.run_sync(_batch_decay)
+        # 3. 应用 decay + GC + promotion + status patch
+        for memory, effective_confidence in results:
+            try:
+                new_status = memory.status.copy() if memory.status else MemoryStatus()
+                new_status.effective_confidence = effective_confidence
+                new_status.last_decayed_at = datetime.now(timezone.utc)
+                # GC 判断
+                if should_garbage_collect(effective_confidence):
+                    new_status.phase = MemoryPhase.EXPIRED
+                    new_status.conditions.append(MemoryCondition(
+                        type=MemoryConditionType.GARBAGE_COLLECTED,
+                        status="True",
+                        reason="effective_confidence < 0.1",
+                        last_transition_time=datetime.now(timezone.utc),
+                    ))
+                # Promotion 判断(v0.1 仅算不触发)
+                elif is_eligible_for_promotion(effective_confidence, memory.spec.reinforced_count):
+                    new_status.eligible_for_promotion = True
+                    new_status.phase = MemoryPhase.PROMOTABLE
+                await self._k8s.update_memory_status(
+                    name=memory.metadata.name,
+                    namespace=memory.metadata.namespace,
+                    status=new_status,
+                )
+                self._metrics.inc_memory_decay_total(
+                    namespace=memory.metadata.namespace, result="success",
+                )
+            except Exception as e:
+                self._metrics.inc_memory_decay_total(
+                    namespace=memory.metadata.namespace, result="error",
+                )
+                get_logger().error(
+                    "memory_reconcile_failed",
+                    memory_name=memory.metadata.name,
+                    namespace=memory.metadata.namespace,
+                    error=str(e),
+                )
+
+    def _compute_elapsed_days(self, memory: Memory) -> float:
+        """计算已过去天数(自 last_reinforced_at 或 created_at)"""
+        last_ref = memory.status.last_reinforced_at if memory.status else None
+        last_ref = last_ref or memory.spec.last_reinforced_at
+        if last_ref is None:
+            last_ref = memory.metadata.creation_timestamp
+        elapsed = datetime.now(timezone.utc) - last_ref
+        return max(elapsed.total_seconds() / 86400.0, 0.0)
+```
+
+**关键设计**(继承 L2-2 Spec §3 + L2-4 Spec §7 + L2-2 Design §4.4):
+- ✅ **CPU offload**:batch decay 在 `anyio.to_thread.run_sync` 中执行(避免阻塞 event loop,ADR-0005 §6.3)
+- ✅ **Status patch 通过 `kopf.adopt + status_patch`**:无直接 `kubectl patch`
+- ✅ **错误隔离**:单个 Memory 失败不影响其他 Memory reconcile(try/except 包围每个循环)
+- ✅ **Prometheus 指标**:`superteam_memory_decay_total{namespace,result}`(L2-4 Spec §10 共享)
+
+**测试文件**:
+- `tests/unit/reconcilers/test_memory_reconciler.py`(UT-R-23~25)
+  - UT-R-23:`reconcile_all_memories` 非 leader → 立即返回
+  - UT-R-24:`should_garbage_collect` 触发 → status.phase = EXPIRED
+  - UT-R-25:`is_eligible_for_promotion` 触发 → status.eligible_for_promotion = True
+- `tests/integration/reconcilers/test_memory_reconciler_e2e.py`(IT-R-04)
+  - IT-R-04:envtest + 3 Memory CR(effective_confidence 0.9/0.05/0.95) → reconcile 后 phase 分别为 PROMOTABLE / EXPIRED / Active
+
+### 6.3 wire sync matrix(L3-1 `models/memory/` ↔ L2-4 Spec §3.4)
+
+| 字段 | L2-4 Spec §3.4 wire | L3-1 `models/memory/spec.py` | L3-1 `models/memory/status.py` | 一致性 |
+|---|---|---|---|---|
+| `scope_ref` | MemorySpec(ScopeReference) | ✅ | n/a | ✅ |
+| `agent_ref` | MemorySpec(AgentReference) | ✅ | n/a | ✅ |
+| `content` | MemorySpec(dict, 1-20) | ✅ | n/a | ✅ |
+| `summary` | MemorySpec(str, 1-512) | ✅ | n/a | ✅ |
+| `confidence` | MemorySpec(float, 0-1) | ✅ | n/a | ✅ |
+| `decay_days` | MemorySpec(int, 1-3650) | ✅ | n/a | ✅ |
+| `reinforced_count` | MemorySpec(int, ≥0) | ✅ | n/a | ✅ |
+| `last_reinforced_at` | MemorySpec(AwareDatetime) | ✅ | MemoryStatus(last_reinforced_at) | ✅ |
+| `memory_key_pattern` | MemorySpec(str, ≤128) | ✅ | n/a | ✅ |
+| `source_knowledge_ref` | MemorySpec(ItemReference) | ✅(dict 形式避免循环 import) | n/a | ✅(类型 wire 等价) |
+| `tags` | MemorySpec(list, ≤10) | ✅ | n/a | ✅ |
+| `visibility` | MemorySpec(MemoryVisibility) | ✅ | n/a | ✅ |
+| `phase` | MemoryStatus(MemoryPhase) | n/a | ✅ | ✅ |
+| `message` | MemoryStatus(str, ≤512) | n/a | ✅ | ✅ |
+| `conditions` | MemoryStatus(list[Condition]) | n/a | ✅ | ✅ |
+| `last_decayed_at` | MemoryStatus(AwareDatetime) | n/a | ✅ | ✅ |
+| `effective_confidence` | MemoryStatus(float, 0-1) | n/a | ✅ | ✅ |
+| `eligible_for_promotion` | MemoryStatus(bool) | n/a | ✅ | ✅ |
+| `observed_generation` | MemoryStatus(int, ≥0) | n/a | ✅ | ✅ |
+
+**字段数约束**:12 spec 字段 + 7 status 字段 + 4 enum = **23 字段**,与 L2-4 Spec §3.6 距上限 3(临界)状态**完全一致**。
+
+### 6.4 关键不变量(继承 L2-2 Spec §3 + L2-4 Spec §7)
+
+- ✅ **数学公式 wire 不变**:decay 公式 `confidence × exp(-elapsed_days / decay_days)`(L3-1 §6.2.6 ↔ L2-4 Spec §7)
+- ✅ **状态机 5 态一致**:Active / Decaying / Promotable / Expired / Error(L3-1 §6.2.5 ↔ L2-4 Spec §3.4)
+- ✅ **强化封顶 cap=0.95**:避免长期强化到 1.0 后失去 decay 意义(ADR-0003 §4.2)
+- ✅ **v0.1 仅计算不触发提升**:`is_eligible_for_promotion` 仅设置 `status.eligible_for_promotion=true`,**不**触发实际 KnowledgeItem 创建
+- ✅ **Leader Election 单 leader 触发**:`Election.require_leader()` 前置检查
+- ✅ **batch reconcile CPU offload**:`anyio.to_thread.run_sync` 包装 batch decay 计算
+
+### 6.5 测试 ID 矩阵(8 UT-MD-ME + 3 UT-R · §A-§G 5 维度全 PASS)
+
+| 测试 ID | 维度 | 描述 | 文件 |
+|---|---|---|---|
+| **UT-MD-ME-01** | C 接口契约 | MemorySpec 字段约束(Pydantic min/max/enum) | `tests/unit/models/memory/test_memory_spec.py` |
+| **UT-MD-ME-02** | C 接口契约 | MemoryStatus 字段约束 | `tests/unit/models/memory/test_memory_status.py` |
+| **UT-MD-ME-03** | C 接口契约 | MemoryCondition 5 类型枚举 | `tests/unit/models/memory/test_memory_conditions.py` |
+| **UT-MD-ME-04** | C 接口契约 | MemoryPhase 5 态 + MemoryVisibility 3 类 | `tests/unit/models/memory/test_memory_enums.py` |
+| **UT-MD-ME-05** | A 功能 | `compute_effective_confidence` 数学公式正确(边界 + e^-1 验证) | `tests/unit/models/memory/test_memory_decay.py` |
+| **UT-MD-ME-06** | A 功能 | `apply_reinforce` 封顶 cap=0.95 + 增量 amount=0.05 | `tests/unit/models/memory/test_memory_reinforce.py` |
+| **UT-MD-ME-07** | A 功能 | `should_garbage_collect` threshold=0.1 | `tests/unit/models/memory/test_memory_gc.py` |
+| **UT-MD-ME-08** | A 功能 | `is_eligible_for_promotion` min_confidence=0.9 + min_reinforced=10 | `tests/unit/models/memory/test_memory_promotion.py` |
+| **UT-R-23** | A 功能 | `reconcile_all_memories` 非 leader 立即返回 | `tests/unit/reconcilers/test_memory_reconciler.py` |
+| **UT-R-24** | A 功能 | GC 触发 → status.phase = EXPIRED + GARBAGE_COLLECTED condition | 同上 |
+| **UT-R-25** | A 功能 | Promotion 触发 → status.eligible_for_promotion = True + PROMOTABLE phase | 同上 |
+| **IT-R-04** | A 功能 | envtest:3 Memory CR(effective_confidence 0.9/0.05/0.95)reconcile 后 phase 正确 | `tests/integration/reconcilers/test_memory_reconciler_e2e.py` |
+
+**测试 ID 分布**:8 UT-MD-ME + 3 UT-R + 1 IT-R = 12 ID(覆盖 §A-§G 5 维度:功能 10 / 接口契约 2)
+
+**与 L2-4 Spec 对应**:wire 完全一致(§6.3 矩阵 19 字段全 PASS);业务语义(4 纯函数)数学公式**逐字符一致**
+
+---
+
+## 附录 A：跨模块引用清单（v0.2-draft 骨架稿）
+
+> 本附录列出 L3-1 文件级 Spec 引用的所有外部文档与符号,确保 L4 实施者能正确 import。L3-1 不创造新概念;所有协议 / wire contract / 业务语义均来自 L1/L2 已评审文档。
+
+### A.1 L1 文档(架构基线)
+
+| L1 文档 | 关键章节 | L3-1 引用位置 |
+|---|---|---|
+| `docs/design/L1-architecture.md` v0.2.0 | §3.2 编排层 + §4.1 C-1 Operator + §11.5 Python 性能预算 | 全文依据 + §1.1 + §2.3 主入口 |
+| `docs/spec/L1-system-spec.md` v0.2.0 | §2 CRD Agent spec + §3 CRD AgentSet spec + §4 CRD Workflow spec + §7 状态机 + §16 Prometheus 指标 + §9/§10 资源/限流 | §1.3 文件清单 + §2.3.9 11 指标 + §3.1-§3.4 reconcile 流程 |
+
+### A.2 L2 模块文档(模块契约)
+
+| L2 文档 | 关键章节 | L3-1 引用位置 |
+|---|---|---|
+| `docs/design/L2-modules/L2-operator-core.md` v0.2.0 | §3 Python 包结构 + §4 4 Controllers + §5 admission + §6 Leader Election + §9 错误模型 + §10 可观测性 + §11 Helm values + §12 RBAC + §13 测试策略 | 全文依据 + §1.3 + §2.3 |
+| `docs/spec/L2-module-specs/L2-operator-core.md` v0.2.0 | §1.1-§1.4 使命边界 + §3 4 Controllers + §4 admission + §5 Helm values Pydantic schema + §8 Memory + §10 错误模型 + §11 可观测性 + §12 RBAC + §13 测试策略 + §14 验收清单 + §15 开放问题 | 全文依据 + §3.1-§3.5 + 后续 #45+ §4-§9 |
+| `docs/design/L2-modules/L2-a2a-protocol.md` v0.2.0 | §3 A2A method 协议 | §3 副调用 + 附录 B 待补 |
+| `docs/spec/L2-module-specs/L2-a2a-protocol.md` v0.2.0 | §2.5 (client) | 全文引用 + 附录 B 待补 |
+| `docs/design/L2-modules/L2-adapter.md` v0.2.0 | §3 Card 转换 + §6 框架矩阵 | §3.1 Agent Controller Adapter 注入 |
+| `docs/spec/L2-module-specs/L2-adapter.md` v0.2.0 | (与 Design 共享) | 同上 |
+| `docs/design/L2-modules/L2-knowledge-memory.md` v0.2.0 | §3 Knowledge + §4 Memory 5 维矩阵 | §3.4 MemoryReconciler + §2.3.12 models/memory/* |
+| `docs/spec/L2-module-specs/L2-knowledge-memory.md` v0.2.0 | §3-§11(60 测试 ID + 30 验收点 + 22 开放问题)| §2.3.12 models/memory/ + §3.4 |
+
+### A.3 ADR 引用(决策依据)
+
+| ADR | 关键决策 | L3-1 引用位置 |
+|---|---|---|
+| `docs/adr/0001-v1-scope-statement.md` | v1 范围声明(5 能力 + 6 CRD + 永久 out-of-scope)| §1.1 使命 |
+| `docs/adr/0002-knowledge-management-design.md` | Knowledge 4 级作用域 + 5 维可见性矩阵 | §3.4 MemoryReconciler + §2.3.12 models/memory |
+| `docs/adr/0003-memory-design.md` | Memory CRD + decay/reinforce 算法 + 5 维可见性矩阵 | §3.4 MemoryReconciler + §2.3.12 models/memory + §2.3.4 admission/mutual_exclusion |
+| `docs/adr/0004-v01-scope-extension-knowledge-and-memory.md` | v0.1 范围扩展(12 → 20 周)| §1.1 部署时间表(背景) |
+| `docs/adr/0005-python-first-technology-stack.md` | Python-first 全栈迁移(Operator 模块映射 + 单进程 + SDK + OTel + uv workspace)| 全文依据 + §1.1 + §2.1 + §2.2 边界规则 |
+
+### A.4 Constitution 引用(顶层约束)
+
+| Constitution 章节 | 内容 | L3-1 引用位置 |
+|---|---|---|
+| v0.5.0 §3.7 | Operator 不依赖 framework adapter | §2.2 边界规则 #1 |
+| v0.5.0 §3.8 | Python-first(ADR-0005 supersede ADR-0001~0004 实现栈)| 全文 |
+| v0.5.0 §5 | 文档层级(L1-L4)| §1 阅读指南 |
+| v0.5.0 §6 | mTLS + NetworkPolicy | §2.3.9 events.py + §2.3.13 networkpolicy.yaml |
+| v0.5.0 §7 | 可观测性无例外(11 Prometheus 指标 + OTel + structlog + K8s Events)| §2.3.9 observability/*(4 文件)|
+| v0.5.0 §9.4 | ruff + import-linter 静态检查 | §2.2 边界规则 #11 |
+| v0.5.0 §9.7 | pyright strict + interrogate docstring 100% | §1.4 文件清单 |
+| v0.5.0 §14.4 | 评审门禁:每个 L3 Spec 必须通过 §A-§G 10 维度评审 | 全文依据 + #45+ 评审计划 |
+| v0.5.0 §15.5 | 质量红线(测试覆盖率 ≥ 80%)| §2.3 测试文件 ID 矩阵 |
+| v0.5.0 §16 | 会话与上下文管理(1M 窗口 / 500K 红线 / §16.1.3 实际水位 / §16.1.4 参照表)| 本次 #44 骨架撰写依据 |
+
+### A.5 配套 L3 Spec 引用
+
+| L3 配套 | 状态 | L3-1 引用位置 |
+|---|---|---|
+| `docs/spec/L3-file-specs/L3-a2a-core.md` | **v0.1-draft Go baseline 已归档**(本次 #44 同步归档 62KB/1446 行);**Python 重写待 #47+ 启动** | §0 阅读指南 + 头部 frontmatter |
+| `docs/spec/L3-file-specs/L3-knowledge-service.md` | **待起草**(L3-5)| §3.4 + 后续 #45+ |
+| `docs/spec/L3-file-specs/L3-memory-backend.md` | **待起草**(L3-6)| §3.4 + 后续 #45+ |
+
+---
+
+## 附录 B：ADR / Constitution 引用矩阵(占位 · 后续 #46+ 补完)
+
+> 本附录在 L3-1 Spec §9 验收清单补完后一并整理(参照 L2-2 Spec v0.2.0 §16 附录 B 模式,5 子表:架构/接口/可见性/安全/测试)。
+
+---
+
+## v0.2-draft 骨架稿下次补完清单
+
+**已落地**(#44 + #45 累计):
+- ✅ 头部 frontmatter(模块 ID、层级、版本 v0.2-draft、状态、supersedes、依据)
+- ✅ §0 阅读指南
+- ✅ §1 模块使命与文件清单总览(70 文件清单 + 测试 ID 前缀分布)
+- ✅ §2 Python 包结构(13 子包 + 65 Python 文件 + 5 配置 + 9 Helm 模板)
+- ✅ §3 4 Controllers + MemoryReconciler 文件级契约概要(每个 controller 一段 + 关键不变量)
+- ✅ §4 admission webhook server 完整文件级 Spec(**9 文件**:子包入口 + ASGI server + TLS 热更新 + 5 validators + CRDValidator Protocol;含 DAG 校验纯函数算法 + Knowledge↔Memory 双向互斥 + Helm `webhookconfig.yaml` 契约 + **18 UT + 4 IT = 22 测试 ID 矩阵**)
+- ✅ §5 Leader Election 完整(**3 文件**:子包入口 + AsyncLeaseClient + Election + LeaderGate;含状态机 Standby↔Leader + grace period 30s + renew 失败 3 次让位 + wire contract 完整 + **10 UT + 2 IT = 12 测试 ID 矩阵**)
+- ✅ §6 Memory 接口实现完整(**9 文件**:`models/memory/` 8 + `reconcilers/memory_reconciler.py`;含 MemorySpec/Status/Condition/Phase 完整 Pydantic + 4 纯函数(decay/reinforce/gc/promotion)数学公式 + MemoryReconcilerService 完整伪代码 + 与 L2-4 Spec §3.4 **wire sync 矩阵 19 字段全 PASS** + **8 UT-MD-ME + 3 UT-R + 1 IT-R = 12 测试 ID 矩阵**)
+- ✅ 附录 A 跨模块引用清单(L1/L2/ADR/Constitution/配套)
+
+**待补完**(后续 #46+):
+- ⏳ §7 observability + RBAC + Helm values(4 observability 文件 + 9 Helm 模板完整契约 + RBAC manifest)
+- ⏳ §8 测试策略 + 工具链(70 测试文件镜像布局 + 122 UT + 11 IT + 6 E2E + 5 CF ID 矩阵 + pyright strict + ruff + interrogate)
+- ⏳ §9 验收清单(继承 L2-2 Spec §14 + 5 子表:功能/质量/安全/可观测/文档;每条对照本 L3-1)
+- ⏳ §10 开放问题(继承 L2-2 Spec §15 16 项 + L3-1 新发现 + v0.5+ 5 项演进路线)
+- ⏳ 附录 B ADR/Constitution 矩阵 5 子表
+
+**评审入口**:
+- 完整 v0.2-draft-full 后启动评审(参照 [L2-2 Spec 评审模板](../../reviews/l2-2-operator-core-spec-review.md) 15-25KB / §A-§G 10 维度 · 2026-07-25 #33 通过)
+- 升级 v0.2.0 + §F.1-§F.6 跨文档同步 6 步(L1 Arch/Spec + L2-3/L2-4 Spec 附录 A + ROADMAP + README + CONSTITUTION-CHANGELOG + archive/README.md)
+- 建议拆 Spec 补完 + Spec 评审两会话避免 §16.1 红线
+
+---
+
+> **签署**:本 L3-1 文件级 Spec Python v0.2-draft 补完稿(#44 骨架 + #45 §4-§6 补完)由起草人根据 [L2-2 Operator Core Spec v0.2.0](../../spec/L2-module-specs/L2-operator-core.md) + [L2-2 Design v0.2.0](../../design/L2-modules/L2-operator-core.md) + [L3-1 v0.1-draft Go baseline(已归档)](../../archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md) + [L2-4 Spec v0.2.0 §3.4 Memory CRD 完整 Pydantic schema](../../spec/L2-module-specs/L2-knowledge-memory.md) 编写,依据宪法 v0.5.0 §14.4 待评审。**评审通过后**进入 L4 实施阶段(开发者对照本文件逐文件实现 + uv workspace + pyright strict + ruff)。
