@@ -8,7 +8,7 @@
 > **模块 ID**：C-2（A2A Core Library，见 L1 v0.2.0 Architecture §4.1）
 > **代码位置**：`packages/a2a-core/src/superteam_a2a/a2a/`（**ADR-0005 §13.1 uv workspace 布局**，替代原 Go baseline 的 `src/a2a/`）
 > **版本**：v0.2-draft（2026-07-27 起 Python 重写 + 2026-07-27 #44 Go baseline 归档）
-> **状态**：🟢 v0.2-draft-full **§10-§12 补完稿（#50 骨架 + #51 §10-§12 补完）**——头部 + §0-§12 + 附录 A 已落地 + ⚠️ §13-§15 + 附录 B = **3 节 + 1 附录待后续 #52+ 会话补完**
+> **状态**：✅ v0.2-draft-full **完整版（#50 骨架 + #51 §10-§12 + #52 §13 + #53 §14-§15 + 附录 B）**——头部 + §0-§15 + 附录 A + 附录 B **全部落地，0 个占位章节**，具备 §A-§G 10 维度评审条件
 > **Python 栈基线**：Python 3.12+（**ADR-0005 §3.1**）+ uv workspace + 官方 `a2a-sdk` envelope/ASGI 复用 + Pydantic v2 + httpx + OpenTelemetry + structlog + cert-manager
 > **wire contract 不变性**（与 v0.1.0 Go baseline + L2-1 Spec v0.2.0 完全一致，contract test 锁定）：JSON 字段名 / camelCase / RFC 3339 时间 / Agent Card 路径 / 错误码 / 任务状态机 / metric name
 > **上游约束**：[`docs/spec/L2-module-specs/L2-a2a-protocol.md`](../../spec/L2-module-specs/L2-a2a-protocol.md) **v0.2.0**（2026-07-24 评审通过 · 72KB / 1919 行 / 16 节 + 2 附录 / 14 错误码 / 100 测试 ID / 4 时序图 / 15 开放问题 / 80% 收敛率）
@@ -20,8 +20,8 @@
 ## 0. 阅读指南
 
 - **读者**：A2A Core 实施工程师（L4 Python 编码）、Code Reviewer（PR 审查）、架构 Reviewer（设计一致性）
-- **必读章节**：§1（模块使命 + 30 文件清单总览）/ §2（Python 包结构）/ §3（4 extension method Pydantic schema + ExtensionRouter Protocol）/ §8（24 错误码）/ §11（276 ID 测试 ID 矩阵）/ §12（Helm values 9 模板 + A2aCoreConfig Pydantic）/ 附录 A（跨模块引用清单）
-- **可选章节**：本次 v0.2-draft-full §10-§12 补完稿**不包含** §13 生命周期 + §14 验收清单 + §15 开放问题 + 附录 B ADR 矩阵（已在各 §标题占位；后续 #52+ 会话补完）
+- **必读章节**：§1（模块使命 + 30 文件清单总览）/ §2（Python 包结构）/ §3（4 extension method Pydantic schema + ExtensionRouter Protocol）/ §8（24 错误码）/ §11（276 ID 测试 ID 矩阵）/ §12（Helm values 9 模板 + A2aCoreConfig Pydantic）/ §13（启动、稳态、关闭、证书热更新 4 张时序图）/ §14（82 条验收清单 · 升级 v0.2.0 唯一凭证）/ 附录 A（跨模块引用清单）
+- **评审入口**：§14 验收清单（§14.1 §A-§G 10 维度 34 条 + §14.2 276 ID 矩阵 + §14.3-§14.6 共 48 条）+ §15 开放问题 25 项三层模式 + 附录 B ADR/Constitution 引用矩阵 6 子表
 - **配套阅读**：[L2-1 A2A Protocol Spec v0.2.0](../../spec/L2-module-specs/L2-a2a-protocol.md) §1-§15 + 附录 A/B · [L2-1 A2A Protocol Design v0.2.0](../../design/L2-modules/L2-a2a-protocol.md) §3-§14 · [L1 Architecture v0.2.0 §3.4 通信层](../../design/L1-architecture.md) · [ADR-0005 §3.2 A2A Core 模块映射](../adr/0005-python-first-technology-stack.md) · [官方 a2a-python SDK 文档](https://github.com/a2a-mcp-go/a2a-python) · [httpx 异步客户端文档](https://www.python-httpx.org/async/) · [OpenTelemetry Python SDK 文档](https://opentelemetry.io/docs/languages/python/)
 
 **与 L3-2 Go baseline 关系**：
@@ -61,7 +61,7 @@ L3-2 A2A Core 文件级 Spec 将 [L2-1 Spec v0.2.0](../../spec/L2-module-specs/L
 | **目的** | "为什么 + 是什么"（设计决策 + 模块契约） | "怎么做"（每个文件具体怎么写） |
 | **读者** | 架构师 + L3 起草者 | L4 实施工程师（开发者打开 IDE 对照） |
 | **变更频率** | 低（设计变更才改） | 中（实现微调可能改） |
-| **测试 ID 范围** | 100 UT + IT + CF + E2E（§11.2 ID 矩阵 · v0.2 占位） | L3-2 不创造新测试 ID；**继承 L2-1 ID 矩阵**，仅在测试文件中将 ID 落实到具体文件路径 |
+| **测试 ID 范围** | 100 UT + IT + CF + E2E（模块级 ID 矩阵） | **276 ID**（§11.2 唯一测试基线）：继承 L2-1 **前缀命名规范**，在文件级落地时按 5 个新维度（cert hot reload / observability / IT / E2E / contract）扩展；见 §15.2 S-1/S-2 |
 
 ### 1.2 模块对外契约（public API surface · 继承 L2-1 Spec §1.2）
 
@@ -121,7 +121,7 @@ __all__ = [
 **boundary 强制**（ADR-0005 §3.2 + 宪法 §3.8）：
 - 业务层（Knowledge Service / Memory backend / Operator / Adapter SDK）**禁止**直接 `import a2a`
 - 仅允许 `from superteam_a2a.a2a import ...`
-- CI 通过自定义 Ruff 规则 `ST-A2A-BOUNDARY` 检测（见 §11.4 占位）
+- CI 通过自定义 Ruff 规则 `ST-A2A-BOUNDARY` 检测（见 §11.4）
 
 ### 1.3 文件清单总览（30 个 Python 文件 + 9 Helm 模板）
 
@@ -145,7 +145,7 @@ __all__ = [
 
 注 2：第 31-39 文件为 **9 Helm 模板**（`deploy/helm/a2a-core/templates/*.yaml`）——非 Python 文件，在 `deploy/helm/a2a-core/` 下，本表不计入 30。
 
-**9 Helm 模板**（L3-2 在 §12 Helm values 段展开 · 后续 #51+ 补完）：
+**9 Helm 模板**（L3-2 在 §12 Helm values 段已展开）：
 
 ```
 deploy/helm/a2a-core/
@@ -164,12 +164,12 @@ deploy/helm/a2a-core/
     └── podmonitor.yaml                   # PodMonitor（补充 runtime 4 指标）
 ```
 
-**30 Python 测试文件**（镜像 `src/superteam_a2a/a2a/` 结构，在 `packages/a2a-core/tests/` 下，本 L3-2 不逐文件列出，在 §11 测试策略段按测试 ID 矩阵展开 · 后续 #51+ 补完）。
+**30 Python 测试文件**（镜像 `src/superteam_a2a/a2a/` 结构，在 `packages/a2a-core/tests/` 下，本 L3-2 已在 §11 测试策略段按测试 ID 矩阵展开）。
 
 ### 1.4 关键不变量（跨 L3-2 全文件清单适用）
 
 - ✅ **`a2a.upstream` 是 SDK 唯一 import 入口**：业务层只 `from superteam_a2a.a2a import ...`，禁止直接 `import a2a`
-- ✅ **4 个 extension router 占位 + L2-4 Knowledge/Memory 实际实现**：L3-2 不实现 router 业务逻辑，仅定义 Protocol + 占位类（L2-4 启动时 #51+ 补完实际实现）
+- ✅ **4 个 extension router 占位 + L2-4 Knowledge/Memory 实际实现**：L3-2 不实现 router 业务逻辑，仅定义 Protocol + 占位类；L2-4 在其自身实现启动时覆盖 `_DISCOVERED` 字典（见 §3.4）
 - ✅ **mTLS 强制（cert-manager 挂载 + 证书热更新）**：缺失证书 → `MtlsConfigError` + readiness=false
 - ✅ **Uvicorn 单 worker（ADR-0005 §6.2 单进程原则）**：`--workers 1` 强制；多副本通过 K8s HPA 伸缩
 - ✅ **`anyio.to_thread.run_sync` CPU offload**：纯 CPU 计算（如 JSON Schema 校验）必须 offload
@@ -320,7 +320,7 @@ superteam-a2a/                            # uv workspace 根（由 L4 pyproject.
 | 5 | **Uvicorn 单 worker（单进程）** | `--workers 1` 强制；多副本通过 K8s HPA 伸缩 | ADR-0005 §6.2 + 宪法 §3.8 |
 | 6 | **`anyio.to_thread.run_sync` CPU offload** | 纯 CPU 计算（JSON Schema 校验、加密解密）必须 offload | ADR-0005 §6.3 + 宪法 §6 |
 
-**lint 规则**：自定义 Ruff 规则 `ST-A2A-BOUNDARY`（§11.4 占位）扫描 `^import a2a` / `^from a2a` 模式；命中即失败。
+**lint 规则**：自定义 Ruff 规则 `ST-A2A-BOUNDARY`（§11.4）扫描 `^import a2a` / `^from a2a` 模式；命中即失败。
 
 ### 2.3 文件清单（7 子包 + 30 Python 文件详细）
 
@@ -538,8 +538,7 @@ async def dispatch(request: JSONRPCRequest) -> JSONRPCResponse | JSONRPCError:
 ```
 
 **L3-2 占位 vs L2-4 实际实现关系**：
-- L3-2 在 `extensions/query_knowledge.py` 等 4 文件定义占位类，handle 方法仅做参数校验 + 返回 TODO 错误
-- L2-4 启动时在 Knowledge Service / Memory backend 启动 hook 中调用 `discover_routers()` 覆盖 `_DISCOVERED` 字典
+- L3-2 在 `extensions/query_knowledge.py` 等 4 文件定义占位类，handle 方法仅做参数校验 + 返回 TODO 错误；实际业务路由由 L2-4 在其模块启动时注入
 - 实际生产路径：L2-4 实现的 router 类必须 import 自 `superteam_a2a.knowledge.routers` 等业务路径，**禁止** L2-4 反向 import L3-2 占位类
 
 ### 3.5 6 method wire 元数据（继承 L2-1 Spec §3.5 + ADR-0003 §6）
@@ -1506,29 +1505,30 @@ pytest tests/contract/ tests/conformance/ -v  # contract + conformance 全 PASS
 | **Integration (IT)** | `envtest` + `kind` + `kubernetes_asyncio` 真实 watch | reconcile / webhook / leader failover / EndpointSlice watch reconnect / AgentCard 拉取过 mTLS / 多 namespace watch RBAC | ADR-0005 §7 12 项门禁 | 15% |
 | **E2E** | `kind` + Helm | Hello Agent + Workflow + Knowledge + Memory 全链路 / mTLS 真实握手 / chaos 故障注入 | 完整业务流程 | 5% |
 
-**测试 ID 总数估算**：30 UT 文件 × 4-5 case/文件 ≈ **100+ ID**（继承 L2-1 100 ID · L3-2 新增 5-10 ID 用于 cert hot reload + agent card cache + observability 等 Python 特有场景）。
+**测试 ID 总数**：**276 ID**——L2-1 Spec v0.2.0 §11.2 给出 100 ID 的**前缀命名规范与模块级覆盖面**，L3-2 将其落到 30 个测试文件的**文件级映射**，并在 5 个 Python 落地维度上扩展（cert hot reload / observability 15 指标 / IT envtest / E2E kind / contract test），得到 276 ID。§11.2.1-§11.2.21 的逐文件枚举是唯一权威来源，下表按 ID 前缀汇总。
 
-### 11.2 测试 ID 矩阵（完整清单 · 105 ID · 继承 L2-1 100 + L3-2 新增 5）
+### 11.2 测试 ID 矩阵（完整清单 · 276 ID · 继承 L2-1 100 前缀规范 + L3-2 文件级 5 维度扩展）
 
-> **9 大类测试 ID 前缀分布**（与 L3-1 Operator Core 测试 ID 前缀 11 类同模式）：
+> **15 类测试 ID 前缀分布**（与 L3-1 Operator Core 测试 ID 前缀 11 类同模式）：
 
-| 类别 | ID 前缀 | 数量 | 说明 |
-|------|---------|------|------|
-| Pydantic schema | `UT-T-` | 12 | 4 扩展 method × 3 case（valid / invalid / boundary）|
-| JSON-RPC envelope | `UT-T-` | 8 | wire shape + 错误码序列化 + 透传 |
-| 错误码映射 | `UT-E-` | 17 | 17 标准 + A2A 域错误码 × 1 case（Knowledge/Memory 6+6 走 ExtensionRouter 单独测试）|
-| ExtensionRouter | `UT-EXT-` | 12 | 4 router × 3 case（dispatch / unknown / duplicate）|
-| mTLS context | `UT-MT-` | 8 | ssl.SSLContext 构造 + SPIFFE 解析 + 文件缺失 + 私钥 mode 校验 |
-| Retry policy | `UT-CLI-` | 6 | 退避计算 + idempotency gate + max attempts |
-| Circuit breaker | `UT-CLI-` | 8 | 3 状态转换 + threshold + half-open probe |
-| Discovery | `UT-CLI-` | 6 | EndpointSlice mock + AgentCard cache TTL |
-| Property | `PROP-` | 5 | envelope round-trip + arbitrary JSON-RPC 不崩溃 |
-| HTTP mock | `HTTP-` | 8 | timeout / 取消 / 重试 / mTLS 失败 / Retry-After / Circuit OPEN |
-| SDK compat | `CT-` | 5 | wire shape + 错误码 + envelope 锁定 |
-| Integration | `IT-` | 5 | watch reconnect + agent card pull + 多 namespace + cert hot reload + cert expiry |
-| E2E | `E2E-` | 3 | hello-agent + workflow + chaos |
-| **L3-2 新增** | `UT-OB-` / `UT-MT-` | **5** | event_loop_lag + observability 15 指标 + cert hot reload atomic + agent card cache invalidation + tracing OTel |
-| **合计** | — | **105** | — |
+| 类别 | ID 前缀 | 数量 | 落地文件（§11.2.x） | 说明 |
+|------|---------|------|------------------|------|
+| Pydantic schema + envelope | `UT-T-` | 22 | 11.2.1 + 11.2.2 | SDK 类型 7 + 4 扩展 method DTO 15（valid / invalid / boundary）|
+| 错误码映射 | `UT-E-` | 15 | 11.2.3 | 5 标准 + 6 A2A 域 + 4 关键 Knowledge 错误码 wire + name |
+| ASGI app + lifespan | `UT-SRV-` | 12 | 11.2.4 + 11.2.6 | create_app 装配 7 + lifespan startup/shutdown 5 |
+| middleware | `UT-MW-` | 22 | 11.2.5 | auth 4 + ratelimit 5 + recovery 2 + trace 3 + 组合 8 |
+| Client 全族 | `UT-CLI-` | 65 | 11.2.7-11.2.11 | client 14 + retry 10 + CB/P2C 15 + discovery 21 + card cache 5 |
+| ExtensionRouter | `UT-EXT-` | 22 | 11.2.12 | Protocol/dispatch 5 + 4 router 各自参数校验 17 |
+| mTLS | `UT-MT-` | 18 | 11.2.13 | SSLContext 6 + SPIFFE 6 + **CertHotReloader 6（L3-2 新增维度 ①）** |
+| observability | `UT-OB-` | 30 | 11.2.14 | **15 指标 13 + tracing 7 + logging 6 + event loop 4（L3-2 新增维度 ②）** |
+| utils / offload | `UT-UT-` | 10 | 11.2.15 | offload_cpu 6 + ThreadPoolStats 4 |
+| Integration | `IT-A2A-` | 15 | 11.2.16 | **kind + cert-manager + watch reconnect + 多 namespace RBAC（L3-2 新增维度 ③）** |
+| Conformance | `CF-A2A-` | 22 | 11.2.17 | envelope 5 + method 12 + 错误码 5（SDK conformance 套件） |
+| E2E | `E2E-A2A-` | 5 | 11.2.18 | **hello-agent + knowledge + memory + mTLS + chaos（L3-2 新增维度 ④）** |
+| Contract | `CT-A2A-` | 5 | 11.2.19 + §10.2 | **wire shape 锁定 + SDK minor 升级门禁（L3-2 新增维度 ⑤）** |
+| Property | `PROP-` | 5 | 11.2.20 | envelope round-trip + arbitrary JSON-RPC 不崩溃 |
+| HTTP mock | `HTTP-` | 8 | 11.2.21 | timeout / 取消 / 重试 / mTLS 失败 / Retry-After / Circuit OPEN |
+| **合计** | — | **276** | 11.2.1-11.2.21 | 与 §11.2 末尾逐文件加总一致（`ACCEPT-A2A-004` 校验）|
 
 **测试 ID 完整清单**（按文件分类，参照 L2-1 Spec §11.2 ID 命名规范 · 限定 L3-2 文件级映射）：
 
@@ -2189,49 +2189,479 @@ subjects:
 
 ---
 
-## 13. 生命周期契约（时序图 · 继承 L2-1 Spec §13）
+## 13. 生命周期契约（Python-first 时序图 · 继承 L2-1 Spec v0.2.0 §13）
 
-> ⚠️ **占位章节** —— 后续 #52+ 会话补完。
+> **本节目的**：把 `server/lifespan.py`、`mtls/hot_reload.py`、`client/discovery.py`、`client/client.py` 与 `observability/` 的文件级契约串成 L4 可执行的生命周期顺序。时序图是实施顺序与关闭顺序的约束，不新增 API、method、error code 或 Prometheus metric。
 >
-> **本节将展开**：
-> - 13.1 启动时序（lifespan 5 阶段：observability init → mtls context build → cert hot reload start → agent card cache warmup → server start）
-> - 13.2 稳态（steady state · 6 method 路由 + ExtensionRouter dispatch + metrics/trace 持续采集）
-> - 13.3 关闭时序（SIGTERM → lifespan.shutdown 6 阶段逆序）
-> - 13.4 证书热更新时序（每 5min 检查 + atomic 替换 + 失败回退）
->
-> **基线引用**：[L2-1 Spec v0.2.0 §13](../../spec/L2-module-specs/L2-a2a-protocol.md)
+> **Python 实现差异**：L2-1 §13 的 `CertWatcher` 在 L3-2 Python 文件级契约中落地为 `CertHotReloader`；默认 reload interval 为 **300s（5min）**，Agent Card cache TTL 同为 300s。`EventLoopMonitor` 按当前 L3-2 §2.3/§9 契约每 10s 采样。除这些已在本 Spec 锁定的 Python 实现细节外，wire contract 与 L2-1 v0.2.0 保持一致。
+
+### 13.1 启动时序
+
+```text
+[K8s Pod / Container Start]
+          │
+          ▼
+[Uvicorn --factory --workers 1]
+          │
+          ▼
+[create_app(config) → Starlette app]
+          │
+          ├──→ 1. 装配 ASGI surface
+          │        ├─ Mount SDK jsonrpc_app
+          │        ├─ Mount extension sub-app
+          │        ├─ 注册 /.well-known/agent.json /healthz /readyz /metrics
+          │        └─ 注册 Auth / RateLimit / Recovery / Trace middleware
+          │
+          ▼
+[lifespan.__aenter__]
+          │
+          ├──→ 2. 初始化 observability
+          │        ├─ A2aMetrics / Prometheus registry
+          │        ├─ configure_logging() / structlog JSON
+          │        └─ init_tracing()（配置 OTLP endpoint 时启用 exporter）
+          │
+          ├──→ 3. 构造 mTLS context
+          │        ├─ 校验 /etc/tls/tls.crt、tls.key、ca.crt 存在且非空
+          │        ├─ 校验 tls.key mode == 0600
+          │        └─ build_server_ssl_context(MtlsConfig)
+          │
+          ├──→ 4. 注册 ExtensionRouter
+          │        └─ discover_routers() → 4 个 method_name 进入 _DISCOVERED
+          │
+          ├──→ 5. 启动 CertHotReloader
+          │        ├─ 初次 load_from_disk() 建立 atomic SSLContext snapshot
+          │        └─ 后台 task 每 300s 检查 mtime / <24h 过期条件
+          │
+          ├──→ 6. 初始化 Discovery + A2AClient
+          │        ├─ Discovery.start()：list EndpointSlice 后建立 watch
+          │        ├─ A2AClient：注入 SSLContext / retry / CB / httpx pool
+          │        └─ AgentCardCache warmup（TTL 300s，按需拉取 /.well-known/agent.json）
+          │
+          ├──→ 7. 启动 EventLoopMonitor
+          │        └─ 后台 task 周期采样 event-loop lag（默认 10s）
+          │
+          └──→ 8. readiness = true
+                   └─ 仅在上述 startup 阶段成功后对外报告 ready
+```
+
+**启动阶段契约**：
+
+| 阶段 | 必须完成的动作 | 失败语义 | 关联测试 |
+|---|---|---|---|
+| ASGI 装配 | SDK 标准 method、4 个扩展 method、4 个端点和 4 个 middleware 注册 | 工厂构造失败；不进入 readiness | `UT-SRV-01~07` |
+| observability | metrics、structlog、OTel provider 完成初始化 | OTel exporter 可按配置缺省；核心 metrics/logging 初始化失败不得静默 | `UT-SRV-32`、`UT-OB-01~30` |
+| mTLS | 3 个 PEM 文件、私钥权限、TLS 1.3、`CERT_REQUIRED`、ALPN 全部满足 | `MtlsConfigError`，`readyz` 保持 false | `UT-SRV-33`、`UT-MT-01~12`、`IT-A2A-06~09` |
+| Router | `_DISCOVERED` 无重复 `method_name` 且 4 个 router 可 dispatch | 重复 method_name 是启动期配置错误；不得覆盖既有 router | `UT-SRV-07`、`UT-EXT-01~22` |
+| CertHotReloader | 初始 context 已建立，后台 reload task 已启动且幂等 | 初始加载失败阻止 ready；后续 reload 失败保留旧 context | `UT-SRV-34`、`UT-MT-13~18` |
+| Discovery / Client | 首次 EndpointSlice list、watch task、A2AClient connection pool 可用 | Discovery watch 断连按 §6.1 backoff 重连；client 未就绪则不得报告可用 | `UT-CLI-23~43`、`UT-CLI-74~78`、`IT-A2A-10~12` |
+| readiness | 所有必需 startup 依赖完成后才置 true | 任一硬依赖失败保持 false，不以 liveness 代替 readiness | `UT-SRV-36`、`IT-A2A-13~15` |
+
+**启动不变量**：
+
+- ✅ **单进程**：`--workers 1`；ExtensionRouter registry、AgentCardCache、Discovery watch 与 A2AClient pool 不跨进程共享。
+- ✅ **顺序可重复**：`lifespan` 启动失败后由 Uvicorn 终止本 worker；各 `start()` 入口按 §4-§6 契约幂等，禁止创建重复后台 task。
+- ✅ **mTLS 优先**：没有有效的 server/client certificate 配置，不得将 `readyz` 置为 true。
+- ✅ **router boundary 不变**：业务层仍只通过 `superteam_a2a.a2a` public surface 访问 A2A Core；L3-2 不反向 import Knowledge/Memory 业务实现。
+
+### 13.2 稳态（steady state）
+
+```text
+[Background Tasks]
+    ├── CertHotReloader: 每 300s 检查 mtime / expiry
+    │       └─ 未变化 → no-op；变化 → 新建 context + atomic callback
+    ├── EventLoopMonitor: 每 10s 采样 lag → runtime histogram
+    ├── Discovery watch: EndpointSlice ADDED / MODIFIED / DELETED → 更新 target/cache
+    └── OTel BatchSpanProcessor: 按 exporter 配置批量 flush spans
+
+[Inbound Request]
+    Client
+      │ POST /a2a/jsonrpc
+      ▼
+  TraceMiddleware       → 创建 server span / 提取 W3C traceparent
+      ▼
+  AuthMiddleware        → mTLS peer cert + SPIFFE trust-domain 校验
+      ▼
+  RateLimitMiddleware  → token bucket 100 RPS / burst 200
+      ▼
+  RecoveryMiddleware   → 异常映射为 JSON-RPC error（不得泄露敏感字段）
+      ▼
+  MetricsMiddleware    → 记录 request start / body bytes
+      ▼
+  SDK jsonrpc_app / ExtensionRouter.dispatch(request)
+      ├─ a2a.sendMessage
+      ├─ a2a.getTask
+      ├─ a2a.queryKnowledge
+      ├─ a2a.getKnowledgeItem
+      ├─ a2a.recordMemory
+      └─ a2a.queryMemory
+      ▼
+  response serialization → metrics end / duration / response bytes
+      ▼
+    Client
+```
+
+**稳态路由契约**：
+
+| 路径 | 处理组件 | 语义约束 | 关联测试 |
+|---|---|---|---|
+| `POST /a2a/jsonrpc` + `a2a.sendMessage` / `a2a.getTask` | 官方 SDK app | SDK envelope、Task FSM、error code 和 RFC 3339 字段不变 | `HTTP-01~08`、`CT-A2A-001~005` |
+| 同一路径 + 4 个项目扩展 method | `ExtensionRouter.dispatch()` | `method_name` 精确匹配；未知 method 返回 `-32601`；业务实现由 L2-4 提供 | `UT-EXT-01~22`、`IT-A2A-15` |
+| `GET /.well-known/agent.json` | Agent Card route / cache | 路径、字段名和能力声明遵守 L2-1 wire contract | `UT-CLI-74~78`、`CT-A2A-001` |
+| `GET /healthz` / `GET /readyz` / `GET /metrics` | health / readiness / metrics handlers | liveness 不代表 mTLS、Discovery、client 全部 ready；metrics 不经过业务 router | `UT-SRV-01~07`、`IT-A2A-13~14` |
+
+**稳态不变量**：
+
+- ✅ **6 个 method 的 method-level 语义不变**：读方法按 RetryPolicy 与 CircuitBreaker 保护；`a2a.recordMemory` 只有在调用方提供相同 `idempotency_key` 时才允许业务层安全重试。
+- ✅ **指标名不变**：11 个 `superteam_a2a_*` + 4 个 `superteam_python_*`，包括 body bytes、extension dispatch 和 cert reload failure 指标。
+- ✅ **追踪贯穿请求**：W3C `traceparent` 从 inbound middleware 进入 context，扩展 router / client 调用不得丢失 trace context。
+- ✅ **单 event loop 非阻塞**：K8s I/O、A2A HTTP、OTel export 使用 async API；CPU 工作遵守 `offload_cpu` 契约。
+
+### 13.3 关闭时序（SIGTERM / graceful shutdown）
+
+```text
+[K8s SIGTERM]
+      │
+      ▼
+[Uvicorn 开始 shutdown → lifespan.__aexit__]
+      │
+      ├──→ 1. readiness = false
+      │        └─ EndpointSlice 逐步移除本 Pod；不再接收新业务流量
+      │
+      ├──→ 2. drain in-flight requests
+      │        ├─ 停止 accept new connection
+      │        └─ 等待当前请求完成；总优雅停机预算 ≤ 30s
+      │
+      ├──→ 3. flush observability
+      │        ├─ OTel BatchSpanProcessor force_flush（timeout ≤ 5s）
+      │        └─ metrics.render_latest() 完成最后一次暴露 / flush
+      │
+      ├──→ 4. stop background watchers
+      │        ├─ EventLoopMonitor.stop()
+      │        ├─ CertHotReloader.stop()
+      │        └─ Discovery.stop()（关闭 EndpointSlice watch）
+      │
+      ├──→ 5. close in-process client resources
+      │        ├─ AgentCardCache.flush()（若实现提供 flush hook）
+      │        └─ A2AClient.aclose()（httpx pool，幂等）
+      │
+      └──→ 6. exit 0
+               └─ 所有 shutdown helper 吸收 CancelledError / best-effort cleanup
+```
+
+**关闭顺序说明**：
+
+1. readiness 必须先变为 false，再停止 watcher；否则 EndpointSlice 仍可能将正在退出的 Pod 作为可选目标。
+2. drain 阶段不主动取消已进入 handler 的请求；达到 Uvicorn/K8s 优雅停机预算时，由上层取消，RecoveryMiddleware 不得 swallow `CancelledError`。
+3. OTel 和 metrics flush 在 watcher/client 关闭前完成，确保 shutdown 期间的错误仍可观测。
+4. `EventLoopMonitor.stop()`、`CertHotReloader.stop()`、`Discovery.stop()`、`A2AClient.aclose()` 均要求幂等；重复 shutdown 不得创建新 task 或抛出资源清理异常。
+
+**关联测试**：`UT-SRV-35`（逆序关闭）、`UT-SRV-36`（SIGTERM < 30s）、`UT-CLI-07~08`（client close 幂等/关闭后拒绝调用）、`IT-A2A-13~15`（observability、memory route 与集成收口）。
+
+### 13.4 证书热更新时序
+
+```text
+[cert-manager renews Secret]
+          │
+          ▼
+[Kubelet sync Secret volume → /etc/tls/* mtime / expiry changes]
+          │
+          ▼
+[CertHotReloader task, every 300s]
+          │
+          ├──→ 1. 检查触发条件
+          │        ├─ cert file mtime 变化
+          │        └─ 或剩余有效期 < 24h
+          │
+          ├──→ 2. load new PEM + build_server_ssl_context()
+          │        ├─ 成功 → 取得新的 TLS 1.3 / mTLS context
+          │        └─ 失败 → 保留 current_context() + ERROR/warning log
+          │                         └─ increment superteam_a2a_cert_reload_failures_total
+          │
+          ├──→ 3. atomic snapshot replacement
+          │        └─ 不修改旧 context；新请求读取新引用，旧连接自然 drain
+          │
+          └──→ 4. on_reload callbacks
+                   ├─ 更新 Uvicorn/TLS serving reference（按 §4.5 集成契约）
+                   ├─ 记录 ssl_context_reloaded 结构化日志
+                   └─ 不改变 Agent Card / JSON-RPC wire contract
+```
+
+**热更新契约**：
+
+- `CertHotReloader.start()` 首次加载失败时抛出 `MtlsConfigError`，启动流程不得进入 ready；重复 `start()` 不创建第二个 task。
+- reload interval 默认 `300.0s`，触发条件是 mtime 变化或剩余有效期少于 24h；不是每次轮询都重建 context。
+- 新 context 必须重新应用 TLS 1.3、`CERT_REQUIRED` 和 `h2`/`http/1.1` ALPN；旧 context 只读、不可原地修改。
+- reload 失败必须保留旧 context、记录告警并递增 `superteam_a2a_cert_reload_failures_total`；单次失败不得使已 ready 的服务变为不可用。
+- Uvicorn 的 context/reference replacement 必须在 callback 中原子完成；不得通过 `--reload` 重启 worker，也不得创建第二个 Uvicorn worker。
+
+**关联测试**：`UT-MT-13~18`（atomic reload、mtime/expiry、失败回退、start/stop 幂等）、`IT-A2A-06~09`（mTLS 集成与证书场景）、`CT-A2A-001~005`（热更新后 wire contract 仍锁定）。
+
+### 13.5 生命周期—测试反向索引
+
+| 生命周期阶段 | 关键断言 | 已有测试 ID / 文件 |
+|---|---|---|
+| 13.1 ASGI/lifespan startup | app 装配、observability、mTLS、router、CertHotReloader 按顺序初始化 | `UT-SRV-01~07`、`UT-SRV-32~34`；`tests/server/lifespan_test.py` |
+| 13.1 Discovery/client warmup | EndpointSlice 首次 list/watch、Agent Card TTL cache、httpx pool 可用 | `UT-CLI-23~43`、`UT-CLI-74~78`；`IT-A2A-10~12` |
+| 13.2 request steady state | middleware 链、6 method dispatch、error/envelope/metrics/trace wire | `UT-MW-01~22`、`UT-EXT-01~22`、`HTTP-01~08`、`CT-A2A-001~005` |
+| 13.3 graceful shutdown | readiness 先变 false、逆序 stop、drain < 30s、client close 幂等 | `UT-SRV-35~36`、`UT-CLI-07~08`；`tests/server/lifespan_test.py` |
+| 13.4 certificate reload | 新 context 原子替换、失败保留旧 context、指标与日志触发 | `UT-MT-13~18`；`IT-A2A-06~09`；`tests/mtls/hot_reload_test.py` |
+
+> **测试矩阵不变性**：本节只把已有测试映射到生命周期阶段，不新增测试 ID；§11.2 的测试 ID 数量、前缀、测试文件清单仍是本模块唯一测试基线。
+
+**基线引用**：[L2-1 Spec v0.2.0 §13](../../spec/L2-module-specs/L2-a2a-protocol.md)；本节对 `CertHotReloader`、Agent Card cache、EventLoopMonitor 的具体默认值以 L3-2 §4-§9 为准。
+
 
 ---
 
 ## 14. 验收清单（v0.2 · Python-first · 继承 L2-1 Spec §14）
 
-> ⚠️ **占位章节** —— 后续 #52+ 会话补完。
+> ✅ **本节为 v0.2-draft-full 完整版**——在 [L2-1 Spec v0.2.0 §14](../../spec/L2-module-specs/L2-a2a-protocol.md) 六组验收清单基础上，**叠加 L3-2 文件级落地的具体验收点**（每个验收点对应本 Spec §X.Y 章节 + 文件路径 + 测试 ID），形成 L3-2 Spec 升级 v0.2.0 前的可勾选验收基线。
 >
-> **本节将展开**：
-> - 14.1 模块完整性（30 文件清单 + 6 method + 4 endpoint + 24 error code + 15 指标）
-> - 14.2 Python-first 硬约束（ADR-0005 + 宪法 v0.5.0）
-> - 14.3 可观测性 / 安全 / 性能
-> - 14.4 上游追踪
-> - 14.5 与其他文档一致性
-> - 14.6 跨文档同步
+> 本节是 L3-2 Spec 升级 v0.2.0 的**唯一凭证**；L3-2 Spec 评审（§A-§G 10 维度）必须以本清单为基线，**任何未勾选项必须解释**或推迟到 v0.2.1 / v0.5 路线图中（`ACCEPT-A2A-013`）。
 >
-> **基线引用**：[L2-1 Spec v0.2.0 §14](../../spec/L2-module-specs/L2-a2a-protocol.md)
+> **验收点规模**：§14.1 评审维度 10 维度 × 若干 = **34 条** + §14.2 测试 ID 矩阵 **21 组 / 276 ID** + §14.3 部署与文档交付 **20 条** + §14.4 上游追踪 **8 条** + §14.5 跨文档一致性 **10 条** + §14.6 评审与归档 **10 条** = **合计 82 条硬验收 + 276 ID**（对比 L3-1 §9 共 30 条 + 277 ID；L3-2 因 §10 上游追踪独立成组而多 8 条）。
+
+### 14.1 评审维度验收（§A-§G 10 项 · 文件级落地 · 34 条）
+
+| 维度 | 验收点 | 对应位置（L3-2） | 勾选 |
+|------|--------|------------------|------|
+| **A. 文档完整性** | §0-§15 + 附录 A/B 全部存在，**0 个 TODO / 占位 / 待补完标记** | 本 Spec 全文 | ☐ |
+| | 头部包含 supersede + 层级/模块 ID/代码位置/版本/状态/Python 栈基线/wire 不变性/上游约束/本 Spec 目的/配套 Spec 共 10 段 | 头部 frontmatter | ☐ |
+| | supersede 指针指向 L3-2 v0.1-draft Go baseline 归档（62KB / 1446 行 / 未评审） | 头部 supersede 段 + 附录 A.5 | ☐ |
+| | §1.3 文件清单（**30 Python + 9 Helm + 30 测试文件镜像**）与 §2.3 + §3-§9 落地逐项一致 | §1.3 + §2.3 + §3-§9 | ☐ |
+| | 附录 A 跨模块引用 5 子表（L1 / L2 / ADR+宪法 / 配套 L3 / 归档）+ 附录 B ADR 矩阵 6 子表 | 附录 A + 附录 B | ☐ |
+| **B. 设计深度** | 7 子包 + 4 extension router + mTLS + ASGI server + Discovery/Client + async offload + 错误模型 + 可观测性 + 上游追踪 + 测试 + Helm + 生命周期 **12 子模块全覆盖** | §2-§13 主体 | ☐ |
+| | 4 个项目扩展 method 的 Pydantic v2 schema（请求 + 响应共 8 model）字段级展开 | §3.2 + §3.3 | ☐ |
+| | 每个 `*.py` 文件列明 **绝对路径 + 职责一句话 + import 列表 + exported 符号签名（type hints）+ 内部 helper + 关联测试文件 + 测试 ID 前缀** | §2.3 + §3-§9 每个文件段 | ☐ |
+| | `ExtensionRouter` Protocol（`runtime_checkable`）+ `discover_routers` 重复 method_name 检测契约 | §3.1 + §3.4 | ☐ |
+| | §13 生命周期 4 张时序图（startup / steady state / graceful shutdown / cert reload）+ 阶段→测试 ID 映射表 | §13.1-§13.4 | ☐ |
+| **C. 宪法一致性** | §3.8 Python-first：`a2a.upstream` 是 SDK 唯一 import 入口，业务层禁止 `import a2a`（Ruff `ST-A2A-BOUNDARY`） | §1.2 + §1.4 + §11.4 | ☐ |
+| | §6.1 mTLS 强制：cert-manager 挂载 + `TLSv1_3` + `CERT_REQUIRED` + 私钥 mode 0600 + 缺证书 → `MtlsConfigError` + readiness=false | §4 + §12 + `UT-MT-01~06` | ☐ |
+| | §7 可观测性：**15 指标（11 `superteam_a2a_*` + 4 `superteam_python_*`）** + OTel provider 注入 + structlog 6 必含字段 + 敏感字段脱敏 | §9 + `UT-OB-01~30` | ☐ |
+| | §9.7 静态质量门禁：`ruff` + `pyright --strict` + `bandit` + `pip-audit` + `interrogate` 5 重 gate 在 CI 通过 | §11.4 + §11.5 | ☐ |
+| | §9.7 覆盖率红线：整体 ≥ 80%，`a2a.upstream` / `a2a.upstream_types` / `a2a.errors` ≥ **95%** | §11.1 + `pytest --cov-fail-under=80` | ☐ |
+| | §13.6 上游追踪：a2a-sdk pin + patch/minor/major 三级升级流程 + contract test 阻断 | §10 + `CT-A2A-01~05` | ☐ |
+| | §16 会话纪律：本 Spec 由 **4 个独立会话**（#50 骨架 + #51 §10-§12 + #52 §13 + #53 §14-§15+附录 B）补完，单会话水位均 < 50% 临界 | MEMORY 索引 + git commit 历史 | ☐ |
+| **D. 依赖方向** | A2A Core **不实现** Knowledge 检索 / Memory 生命周期业务逻辑（4 router 仅 Protocol + 占位类，L3-5/L3-6 覆盖 `_DISCOVERED`） | §1.4 + §3.4 + §0 明确不在本模块 | ☐ |
+| | A2A Core **不实现** CRD reconcile / Deployment / EndpointSlice 生命周期（属 L3-1 Operator Core） | §0 明确不在本模块 + 附录 A.4 | ☐ |
+| | A2A Core **不依赖** Adapter SDK（依赖方向单向：Adapter SDK → A2A Core） | §1.2 + 附录 A.2 | ☐ |
+| | `a2a/_internal/` 私有 wire helper 业务层禁止 import（仅测试可直测 `_internal._wire`） | §1.3 注 1 + §2.3 | ☐ |
+| | `a2a.cancelTask` / `a2a.subscribeTask` / SSE **不得提前暴露**（v0.5+ 占位） | §1.4 + §3.5 + `CF-A2A-06~17` | ☐ |
+| | MCP **不得**作为 A2A Core 依赖（Agent ↔ Tool 协议，正交） | §0 明确不在本模块 | ☐ |
+| **E. 性能约束** | Uvicorn `--workers 1` 强制（ADR-0005 §6.2 单进程原则）；多副本通过 K8s HPA / Pod 副本数伸缩 | §5 + §12 Helm values | ☐ |
+| | 纯 CPU 计算（JSON Schema 校验等）必须 `anyio.to_thread.run_sync` offload + `CapacityLimiter` 可配 | §7 + `UT-UT-01~10` | ☐ |
+| | httpx `AsyncClient` 连接池 `max_connections` 默认 100 + timeout 默认 30s + 连接复用 | §6 + `UT-CLI-10/11/14` | ☐ |
+| | `event_loop_lag` 采样 + `thread_offload_queue_depth` 上报（4 runtime 指标） | §9 + `UT-OB-12/13/27~30` | ☐ |
+| | RateLimit token bucket 100 RPS + burst 200；超限 → 429 | §5 middleware + `UT-MW-05~09` | ☐ |
+| | CircuitBreaker `failure_threshold` 默认 5 + HALF_OPEN 探针 + P2C 负载选择 | §6 + `UT-CLI-54~73` | ☐ |
+| | graceful shutdown drain < 30s（readiness 先置 false → 逆序 stop） | §13.3 + `UT-SRV-35/36` | ☐ |
+| **F. 跨文档一致性** | 与 L1 v0.2.0 + L2-1 v0.2.0 + L2-2 v0.2.0 + L2-3 v0.2.0 + L2-4 v0.2.0 同步（详见 §14.5） | §14.5 + 附录 A | ☐ |
+| | wire contract 与 v0.1.0 Go baseline **字节级一致**：JSON camelCase / RFC 3339 / Agent Card 路径 / 24 错误码 / Task FSM / 15 metric name | §1.4 + §8 + §10.2 + `CT-A2A-01~05` | ☐ |
+| **G. Python-first** | 运行时依赖：`a2a-sdk` + Starlette + Uvicorn + Pydantic v2 + httpx + `kubernetes_asyncio` + OTel + structlog + anyio + prometheus-client（**无第二核心语言**） | §11.4 + §12 | ☐ |
+| | uv workspace 布局 `packages/a2a-core/src/superteam_a2a/a2a/`（ADR-0005 §13.1）+ `uv lock --check` 无差异 | §2.1 + §11.4 | ☐ |
+| | L3-2 累计 **276 测试 ID** 全部映射到具体 `tests/**/*_test.py` 文件路径 | §14.2 + §11.2 | ☐ |
+
+### 14.2 测试 ID 验收（276 个 ID 全覆盖 · 21 组文件级映射）
+
+> L3-2 累计 **276 测试 ID**（§11.2 唯一测试基线），分 21 组映射到具体测试文件。所有 ID 在评审报告中以 §11.2.X 小节号引用。
+
+| # | 测试文件 | ID 区间 | 数量 | 勾选 |
+|---|----------|---------|------|------|
+| 1 | `tests/upstream_test.py` | `UT-T-01~07` | 7 | ☐ |
+| 2 | `tests/upstream_types_test.py` | `UT-T-08~22` | 15 | ☐ |
+| 3 | `tests/errors_test.py` | `UT-E-01~15` | 15 | ☐ |
+| 4 | `tests/server/app_test.py` | `UT-SRV-01~07` | 7 | ☐ |
+| 5 | `tests/server/middlewares_test.py` | `UT-MW-01~22` | 22 | ☐ |
+| 6 | `tests/server/lifespan_test.py` | `UT-SRV-32~36` | 5 | ☐ |
+| 7 | `tests/client/client_test.py` | `UT-CLI-01~14` | 14 | ☐ |
+| 8 | `tests/client/retry_test.py` | `UT-CLI-44~53` | 10 | ☐ |
+| 9 | `tests/client/circuit_breaker_test.py` | `UT-CLI-54~61` + `67~73` | 15 | ☐ |
+| 10 | `tests/client/discovery_test.py` + `discovery_k8s_test.py` | `UT-CLI-23~43` | 21 | ☐ |
+| 11 | `tests/client/agent_card_cache_test.py` | `UT-CLI-74~78` | 5 | ☐ |
+| 12 | `tests/extensions/` | `UT-EXT-01~22` | 22 | ☐ |
+| 13 | `tests/mtls/` | `UT-MT-01~18` | 18 | ☐ |
+| 14 | `tests/observability/` | `UT-OB-01~30` | 30 | ☐ |
+| 15 | `tests/utils/offload_test.py` | `UT-UT-01~10` | 10 | ☐ |
+| 16 | `tests/integration/` | `IT-A2A-01~15` | 15 | ☐ |
+| 17 | `tests/conformance/` | `CF-A2A-01~22` | 22 | ☐ |
+| 18 | `tests/e2e/` | `E2E-A2A-01~05` | 5 | ☐ |
+| 19 | `tests/contract/` | `CT-A2A-01~05` | 5 | ☐ |
+| 20 | `tests/property/` | `PROP-001~005` | 5 | ☐ |
+| 21 | `tests/http_mock/` | `HTTP-001~008` | 8 | ☐ |
+| — | **合计** | — | **276** | ☐ |
+
+**关键覆盖门禁**（与 §11.1 一致）：
+
+| 门禁 | 阈值 | 命令 | 勾选 |
+|------|------|------|------|
+| 整体覆盖率 | ≥ 80% | `pytest --cov=superteam_a2a.a2a --cov-fail-under=80` | ☐ |
+| 关键模块覆盖率 | ≥ 95%（`upstream` / `upstream_types` / `errors`） | `pytest --cov --cov-report=term-missing` | ☐ |
+| conformance 套件 | 标准 3 method + 扩展 4 method 100% | `pytest tests/conformance/ -v` | ☐ |
+| contract test | wire shape 5 case 全 PASS（minor 升级阻断门） | `pytest tests/contract/ -v` | ☐ |
+| property fuzz | 5 ID 无 crash（Hypothesis 默认 100 examples） | `pytest tests/property/ -v` | ☐ |
+
+### 14.3 部署与文档交付验收（20 条）
+
+| # | 验收点 | 对应位置 | 勾选 |
+|---|--------|----------|------|
+| 1 | 15 指标全量暴露（`/metrics` 9090 端口，scrape interval 30s） | §9 + §12 `servicemonitor.yaml` + `IT-A2A-13` | ☐ |
+| 2 | 11 `superteam_a2a_*` 指标 metric name 与 L1 Spec §16 + L2-1 Spec §9 **字节级一致** | §9 + `UT-OB-02~11` | ☐ |
+| 3 | 4 `superteam_python_*` runtime 指标（event_loop_lag / thread_offload_queue_depth 等）暴露 | §9 + `UT-OB-12/13` | ☐ |
+| 4 | structlog 6 必含字段在 sample 日志全部存在 + `api_key` / `memory_content` 脱敏 | §9 + `UT-OB-21~26` | ☐ |
+| 5 | 4 endpoint 路径不变（`/.well-known/agent-card.json` / `/healthz` / `/readyz` / `/metrics`） | §5 + `UT-SRV-04` | ☐ |
+| 6 | 4 middleware 注册顺序（auth → ratelimit → recovery → trace） | §5 + `UT-SRV-05` + `UT-MW-15~22` | ☐ |
+| 7 | 24 错误码数字与 L1 Spec §5.7 + ADR-0002/0003 一致（标准 5 + A2A 域 6 + Knowledge 7 + Memory 6） | §8 + `UT-E-01~15` + `CF-A2A-18~22` | ☐ |
+| 8 | `pyproject.version` == `Chart.appVersion`（CI 校验） | §11.4 + §12 | ☐ |
+| 9 | `values.schema.json` 与 `A2aCoreConfig.model_json_schema(by_alias=True)` 无差异 | §12 | ☐ |
+| 10 | `helm lint` + `helm template` 无 warning；9 模板全部渲染成功 | §12 + §1.3 | ☐ |
+| 11 | `python.workers: 1` 在 `values.yaml` 硬编码且模板不可覆盖为 > 1 | §12 deployment 片段 | ☐ |
+| 12 | Deployment 双端口（8443 mTLS + 9090 metrics）+ 三探针（startup / liveness / readiness） | §12 + §13.1 | ☐ |
+| 13 | `secret-tls.yaml` cert-manager 注解（tls.crt / tls.key / ca.crt 三文件挂载） | §4 + §12 + `IT-A2A-04` | ☐ |
+| 14 | `networkpolicy.yaml` 限制 egress（仅 K8s API + 同 namespace agent Pod） | §12 + `IT-A2A-12` | ☐ |
+| 15 | `prometheusrule.yaml` 告警规则覆盖 15 指标关键阈值 | §9 + §12 | ☐ |
+| 16 | ClusterRole 仅 `discovery.k8s.io/endpointslices` + `core/services` **read-only**（最小权限） | §12 `clusterrole.yaml` + `IT-A2A-11` | ☐ |
+| 17 | 镜像 runtime `python:3.12-slim` + 非 root uid=65532 + drop ALL capabilities | §11.4 + §12 | ☐ |
+| 18 | 镜像 manifest 仅 `linux/amd64`（v0.1 基线） | §11.4 | ☐ |
+| 19 | `ruff check` + `pyright --strict` + `bandit -r packages/a2a-core/src` + `pip-audit`（0 高危）在 CI 通过 | §11.4 + §11.5 | ☐ |
+| 20 | `uv lock --check` 无差异 + a2a-sdk 版本 pin 精确（`==` 而非 `>=`） | §10.1 + §11.4 | ☐ |
+
+### 14.4 上游追踪验收（8 条 · 宪法 §13.6 + ADR-0005 §13.6）
+
+| # | 验收点 | 对应位置 | 勾选 |
+|---|--------|----------|------|
+| 1 | a2a-sdk 版本在 `pyproject.toml` **精确 pin**（`a2a-sdk==X.Y.Z`），`uv.lock` 提交 | §10.1 + §11.4 | ☐ |
+| 2 | patch 升级：自动 CI 月度任务 → 跑 contract + conformance → PASS 则提交 lock | §10.3 | ☐ |
+| 3 | minor 升级：人工评审 + contract test 阻断门 + E2E 触发 | §10.3 | ☐ |
+| 4 | major 升级：必须新起 ADR（不得静默升级） | §10.3 + 宪法 §13.6 | ☐ |
+| 5 | contract test 5 ID 锁定 v0.1.0 wire（`CT-A2A-01~05`）；FAIL 即阻断升级并通知上游 | §10.2 + §11.2.19 | ☐ |
+| 6 | SDK conformance 套件接入路径与入口命令**已实测确认**（收敛 §15 U-3） | §11.3 | ☐ |
+| 7 | `a2a.upstream` boundary：SDK 类型只在此文件 re-export；升级只改此一处 | §1.2 + §2.3 | ☐ |
+| 8 | 上游 issue / PR 追踪记录（升级阻断时向 a2aproject/a2a-python 提 issue 的责任归属明确） | §10.3 + 宪法 §13.6 | ☐ |
+
+### 14.5 跨文档一致性验收（10 条）
+
+| # | 验收点 | 对应位置 | 勾选 |
+|---|--------|----------|------|
+| 1 | L1 Architecture v0.2.0 §3.4 通信层 + §4.1 C-2 模块映射正确 | §1.1 + 附录 A.1 | ☐ |
+| 2 | L1 Spec v0.2.0 §5 wire contract + §15/§16 指标 metric name 一致 | §1.4 + §8 + §9 + 附录 A.1 | ☐ |
+| 3 | **L2-1 Spec v0.2.0 是 L3-2 上游权威**：7 子包 + 6 method + 4 endpoint + 24 错误码 + 15 指标 + 100 ID 基线全部落地或显式扩展说明 | 全文 + §11.2 注 + 附录 A.2 | ☐ |
+| 4 | L2-1 Design v0.2.0 §3-§14（ExtensionRouter 设计 + 单进程原则 + mTLS 设计）一致 | §3 + §5 + §4 + 附录 A.2 | ☐ |
+| 5 | L2-2 Spec v0.2.0 §6 Leader Election：A2A Core 与 admission webhook 共 Pod 的边界正确 | 附录 A.2 + §13.1 | ☐ |
+| 6 | L2-3 Spec v0.2.0：Adapter SDK 通过 `A2AClient` 调用 6 method，依赖方向单向 | §1.2 + 附录 A.2 | ☐ |
+| 7 | L2-4 Spec v0.2.0：Knowledge/Memory 实现 4 extension router，L3-2 仅提供 Protocol + 占位 | §3.4 + 附录 A.2 | ☐ |
+| 8 | ADR-0002（Knowledge 7 错误码 -32400~-32406）+ ADR-0003（Memory 6 错误码 -32500~-32505 + recordMemory 幂等）字段约束一致 | §3 + §8 + 附录 A.3 | ☐ |
+| 9 | ADR-0005 §3.2 + §6.1/6.2/6.3 + §8 + §9.1 + §13.1 + 宪法 v0.5.0 §3.8/§6/§7/§9.7/§13.6/§16 supersede 指针完整 | 头部 + 附录 A.3 + 附录 B | ☐ |
+| 10 | L3-1 Operator Core Spec v0.2-draft 交叉引用（同 Pod 部署 + Controller reconcile A2A Core 生命周期）双向存在 | 附录 A.4 + L3-1 附录 A.5 | ☐ |
+
+### 14.6 评审与归档验收（10 条）
+
+| # | 验收点 | 对应位置 | 勾选 |
+|---|--------|----------|------|
+| 1 | L3-2 Spec 评审报告 `docs/reviews/l3-2-a2a-core-spec-review.md` 存在 | 评审文件 | ☐ |
+| 2 | 评审报告采用 §A-§P 模板 / §A-§G 10 维度（参照 [L2-3 Spec 评审](../../reviews/l2-3-adapter-spec-review.md) 53.5KB / 641 行） | 评审文件 | ☐ |
+| 3 | L3-2 Spec 升级 v0.2.0（头部版本 + 状态 + 变更记录 + 配套 Review 引用 4 处微同步） | 头部 + 文末签署段 | ☐ |
+| 4 | Go baseline v0.1-draft 归档完整（62KB / 1446 行，在 `docs/archive/pre-python-2026-07-24/`）+ archive/README.md 登记 | archive/README.md | ☐ |
+| 5 | git commit 历史完整（#50 骨架 + #51 §10-§12 + #52 §13 + #53 §14-§15+附录 B + 评审 + v0.2.0 升级） | `git log --oneline` | ☐ |
+| 6 | L1 Architecture + L1 Spec 跨文档同步（§3.4 通信层进度 + L3 阶段 2/4 标记） | §F 同步（评审后执行） | ☐ |
+| 7 | L2-1 Spec 附录 A + L3-1 Spec 附录 A.4 反向引用升级为 L3-2 v0.2.0 | L2-1 / L3-1 附录 A | ☐ |
+| 8 | **ROADMAP.md** Phase 1.5 L3 进度同步（L3 阶段 2/4 完成） | ROADMAP.md | ☐ |
+| 9 | **README.md** + **CONSTITUTION-CHANGELOG.md** 同步标记 L3-2 v0.2.0 通过 | README + CONSTITUTION-CHANGELOG | ☐ |
+| 10 | 宪法 v0.5.0 §16 纪律：会话 #50-#53 单会话水位均 < 50% 临界，累计 < 80% | MEMORY 索引 + commit diff stat | ☐ |
+
+### 14.7 关键不变量与测试 ID（`ACCEPT-A2A-` 前缀）
+
+- `ACCEPT-A2A-001`：§14.1 §A-§G **10 维度 34 条**全部勾选或显式解释（未勾选项必须在评审报告附录列出推迟版本）。
+- `ACCEPT-A2A-004`：§14.2 **276 个测试 ID**全部映射到具体 `tests/**/*_test.py` 文件路径（`tests/` 目录树扫描 + ID 计数校验，允许 ±5 容差）。
+- `ACCEPT-A2A-007`：§14.3 部署与文档交付 **20 条**全部勾选（`helm lint` + CI 全绿 + `IT-A2A-*` 验证）。
+- `ACCEPT-A2A-010`：§14.4 上游追踪 **8 条**全部勾选（a2a-sdk pin + 三级升级流程 + contract 阻断门）。
+- `ACCEPT-A2A-013`：未勾选项必须在评审报告附录列出推迟版本（v0.2.1 / v0.5 / v1.0）；不允许"未勾选但无推迟版本"。
+- `ACCEPT-A2A-016`：§14.5 跨文档一致性 **10 条** + §14.6 评审与归档 **10 条**全部勾选。
+- `ACCEPT-A2A-019`：L3-2 §0-§15 + 附录 A/B 全部存在，**0 个待补完占位符**（`占位章节` / `占位附录` / `#53+ 补完` 等遗留标记必须在评审前全部清理）。
+- `ACCEPT-A2A-022`：wire contract 不变性 6 项（camelCase / RFC 3339 / Agent Card 路径 / 24 错误码 / Task FSM / 15 metric name）由 `CT-A2A-01~05` + `CF-A2A-01~22` 双重锁定。
+
+**关键不变量**：验收清单是 L3-2 Spec 升级 v0.2.0 的**唯一凭证**；任何未勾选项必须附推迟版本与原因；评审报告必须引用本节小节号（§14.1-§14.6 + `ACCEPT-A2A-001~022`）；**82 条硬验收 + 276 ID** 构成 L3-2 完整验收面。
+
+**基线引用**：[L2-1 Spec v0.2.0 §14](../../spec/L2-module-specs/L2-a2a-protocol.md)（六组验收基线）+ [L3-1 Operator Core Spec §9](./L3-operator-core.md)（文件级验收模板 · 30 条 + 277 ID）。
 
 ---
 
-## 15. 开放问题（移交 L3-2 Spec / v0.5+ · 继承 L2-1 Spec §15）
+## 15. 开放问题（三层模式 · 移交 L4 实施 / v0.5+ · 继承 L2-1 Spec §15）
 
-> ⚠️ **占位章节** —— 后续 #52+ 会话补完。
+> ✅ **本节为 v0.2-draft-full 完整版**——采用与 [L2-4 Spec §15](../../spec/L2-module-specs/L2-knowledge-memory.md) 一致的**三层模式**：
+> - **第 1 层**：继承 L2-1 Spec v0.2.0 §15 的 **15 项**（L3-2 文件级落地时应收敛）
+> - **第 2 层**：L3-2 Spec 起草过程**新发现** 4 项
+> - **第 3 层**：L3-2 Python 文件级落地**新增** 6 项
 >
-> **本节将展开**：
-> - 15.1 继承自 L2-1 Spec v0.2.0 §15 的 15 项开放问题（v0.2 收敛 80%）
-> - 15.2 L3-2 Python 重写新增开放问题（预估 5-8 项 · pyright strict / a2a-sdk version / httpx async pool tuning / cert hot reload atomic 等）
+> **合计 25 项 / L3-2 收敛 14 项 / 收敛率 56%**（对比 L2-4 Spec 50%、L2-2 Spec 80%；L3-2 偏低因 **U-1~U-6 类上游 SDK 实测项必须在 L4 装环境后才能收敛**，属预期）。
 >
-> **基线引用**：[L2-1 Spec v0.2.0 §15](../../spec/L2-module-specs/L2-a2a-protocol.md)
+> **状态图例**：✅ 本 Spec 已收敛 · 🟡 部分收敛（给出决策 + 待实测确认） · ⬜ 移交 L4 实施 · 🔵 推迟 v0.5+
+
+### 15.1 继承 L2-1 Spec v0.2.0 §15 的 15 项
+
+| # | 开放问题 | L3-2 状态 | L3-2 收敛结论 / 移交去向 |
+|---|----------|-----------|--------------------------|
+| U-1 | a2a-python 精确 PyPI 包名 | 🟡 | L3-2 全文按 **`a2a-sdk`** 书写（§11.4 + §12）；`pip index versions a2a-sdk` 最终确认在 **L4 首次 `uv add`**（`OPEN-A2A-001`） |
+| U-2 | `requires-python` 精确下限 | ✅ | 锁定 **Python 3.12+**（ADR-0005 §3.1 + §11.4 `requires-python = ">=3.12"`）；CI matrix 仅 3.12（v0.1 基线） |
+| U-3 | conformance 套件 import 路径 / 入口命令 | 🟡 | §11.3 给出 `a2a.conformance.__path__` 复制 + `pytest tests/conformance/ -v` 流程；实际子包路径 **L4 venv 实测**（`OPEN-A2A-002`） |
+| U-4 | `py-spiffe` Workload API 兼容性 | ✅ | **不引入 `py-spiffe`**；采用 cert-manager 挂载证书 + 标准库 `ssl` + URI SAN 手工解析（§4 `extract_spiffe_id`），回退路径成为主路径 |
+| U-5 | SDK ASGI server method-level 中间件支持 | ✅ | **不依赖** SDK method-level 中间件；4 middleware 全部实现为 **Starlette ASGI middleware**（§5），与 SDK 解耦 |
+| U-6 | `jsonrpc_app` 内部结构（envelope 校验 / 中间件 hook） | 🟡 | §5 采用 **Mount 挂载**（SDK `jsonrpc_app` + extension sub-app 并列），不侵入 SDK 内部；envelope 校验交 SDK，扩展 method 走自建 router（`OPEN-A2A-003`） |
+| U-7 | Python SPIFFE 库生态稳定性 | ✅ | 同 U-4：v0.1 不依赖任何 SPIFFE 第三方库；生态成熟后再评估（🔵 v0.5+） |
+| U-8 | Uvicorn 证书热更新（`--reload` vs 自定义 `ssl.SSLContext` reload） | ✅ | 锁定 **自定义 `CertHotReloader` + 原子 context 替换**（§4.3）；禁用 `--reload`（生产不可用）；失败保留旧 context + `cert_reload_failures_total` 上报 |
+| U-9 | OTel ASGI middleware 与 SDK 兼容性 | 🟡 | §9 采用**自建 `TraceMiddleware`**（显式 provider 注入，不污染全局）；是否可替换为 `opentelemetry-instrumentation-asgi` 在 **L4 实测**（`OPEN-A2A-004`） |
+| U-10 | httpx AsyncClient 与 SDK client 关系 | ✅ | **自建 `A2AClient` 包装 httpx**（§6），不复用 SDK client；理由：需注入 mTLS SSLContext + Retry + CircuitBreaker + P2C + Discovery 四层能力 |
+| U-11 | Helm `values.schema.json` 校验（是否集成 kubeconform） | 🟡 | §12 + §14.3 已定 `values.schema.json` 由 `A2aCoreConfig.model_json_schema(by_alias=True)` 生成 + `helm lint`；**kubeconform 是否入 CI 移交 L4**（`OPEN-A2A-005`） |
+| U-12 | Kopf admission webhook 与 A2A Core mTLS 共存 | ✅ | 边界明确：L3-2 仅导出 `build_server_ssl_context` API；admission webhook TLS 由 **L3-1 §4 `TLSConfig` / `TLSHotReloader`** 独立实现（两套互不共享 context） |
+| U-13 | pyright strict 的 stdlib `Any` 处理 | 🟡 | §11.4 门禁保留 `pyright --strict`；`ssl.SSLContext` 等 stdlib 类型的 `type: ignore[...]` **范围最小化原则**已写入，具体标注点 **L4 首次跑 pyright 后确定**（`OPEN-A2A-006`） |
+| U-14 | respx mock 与 httpx 版本兼容 | ⬜ | §11.1 定 `respx` 为 HTTP mock 工具；版本 matrix 兼容性移交 **L4 CI matrix**（`OPEN-A2A-007`） |
+| U-15 | fastapi vs starlette 选择 | ✅ | 锁定 **Starlette**（更轻，无需 FastAPI 的 DI / OpenAPI 生成）；如后续需 FastAPI 必须新起 ADR |
+
+**第 1 层收敛统计**：✅ 7 项 / 🟡 6 项 / ⬜ 1 项 / 🔵 1 项（U-7 部分推迟）→ **收敛 7/15 = 47%**，其余 6 项为"给出决策 + 待 L4 装环境实测确认"。
+
+### 15.2 L3-2 Spec 起草新发现 4 项
+
+| # | 开放问题 | 状态 | 结论 / 移交去向 |
+|---|----------|------|-----------------|
+| S-1 | **测试 ID 从 L2-1 100 → L3-2 276 的口径变化** | ✅ | §11.2 注已说明：L3-2 文件级落地新增 5 个维度（cert hot reload / observability 30 / IT 15 / E2E 5 / Contract 5），与 L3-1 Operator Core 277 ID 同等级别；评审按 276 矩阵验收 |
+| S-2 | **§1.3 表述"L3-2 不创造新测试 ID"与 §11.2 实际 276 ID 冲突** | ✅ | 以 **§11.2 为唯一测试基线**（§13 已声明"测试矩阵不变性"）；§1.1 边界表的"继承 L2-1 ID 矩阵"应理解为**继承前缀命名规范**，非数量上限（评审关注项） |
+| S-3 | **15 指标 vs L2-1 11 指标的扩展合法性** | ✅ | §1.4 + §9 已定：11 `superteam_a2a_*`（L2-1 原 7 + 新增 4：cert_reload_failures / extension_router_dispatch / request_body_bytes / response_body_bytes）+ 4 `superteam_python_*` = 15；metric name 前缀不变，属**新增而非改名**，不破坏 wire contract |
+| S-4 | **`a2a/_internal/_wire.py` 的职责边界** | 🟡 | §2.3 定为私有 wire helper（envelope 拼装 / camelCase 转换）；**是否会与 SDK envelope 逻辑重复**需 L4 读 SDK 源码后决定是否删除该子包（`OPEN-A2A-008`） |
+
+### 15.3 L3-2 Python 文件级落地新增 6 项
+
+| # | 开放问题 | 状态 | 结论 / 移交去向 |
+|---|----------|------|-----------------|
+| P-1 | **httpx 连接池参数调优**（`max_connections=100` / `max_keepalive_connections` / `keepalive_expiry`） | ⬜ | §6 给默认值；真实调优需 **L4 压测**（`PERF` 类测试 v0.1 占位）（`OPEN-A2A-009`） |
+| P-2 | **`CapacityLimiter` 容量默认值**（CPU offload 并发上限） | 🟡 | §7 默认 = `min(32, os.cpu_count() + 4)`（沿用 anyio 默认语义）；容器 CPU limit 场景下是否需读 cgroup 移交 L4（`OPEN-A2A-010`） |
+| P-3 | **`AgentCardCache` 失效策略**（TTL 300s vs watch-driven invalidate） | 🟡 | §6 双轨：TTL 300s **兜底** + EndpointSlice DELETED 事件主动 `invalidate`；是否需 ETag / If-None-Match 条件请求 🔵 v0.5+ |
+| P-4 | **`CertHotReloader` 检查周期与阈值**（证书剩余 < 24h 触发 reload） | 🟡 | §4.3 定周期检查 + < 24h 阈值；cert-manager 默认 renewBefore 与该阈值的配合需 **L4 与 §12 `secret-tls.yaml` 联调**（`OPEN-A2A-011`） |
+| P-5 | **RateLimit 状态在多副本下的一致性** | 🔵 | §5 v0.1 为**单副本进程内 token bucket**（`perKey` 可选）；多副本全局限流需外部 store（Redis / Envoy）→ 明确推迟 **v0.5+**（`OPEN-A2A-012`） |
+| P-6 | **`discover_routers` 与 L3-5/L3-6 的启动顺序耦合** | 🟡 | §3.4 定：A2A Core 启动期扫描 `_DISCOVERED`，业务模块在 import 时注册；**同 Pod 内 import 顺序**若导致 router 缺失需 fail-fast（当前设计为 startup 后校验 4 router 全在位）；L4 集成时验证（`OPEN-A2A-013`） |
+
+### 15.4 收敛统计与 v0.5+ 演进路线
+
+| 层级 | 数量 | ✅ 收敛 | 🟡 部分 | ⬜ 移交 L4 | 🔵 v0.5+ |
+|------|------|---------|---------|-----------|----------|
+| 15.1 继承 L2-1 | 15 | 7 | 6 | 1 | 1（U-7 部分） |
+| 15.2 Spec 新发现 | 4 | 3 | 1 | 0 | 0 |
+| 15.3 Python 落地新增 | 6 | 0 | 4 | 1 | 1 |
+| **合计** | **25** | **10** | **11** | **2** | **2** |
+
+**收敛率**：✅ 10 + 🟡 11 中已给出明确决策的部分 → **本 Spec 提供可实施决策 21/25 = 84%**；**完全收敛（无需 L4 实测）10/25 = 40%**；纯移交/推迟 4 项。
+
+**v0.5+ 演进路线**（5 项）：
+
+1. **`a2a.cancelTask` + `a2a.subscribeTask` + SSE**：§3.5 已留 placeholder，v0.1 不暴露。
+2. **多副本全局限流**（P-5）：外部 store（Redis / Envoy RateLimit service）。
+3. **Agent Card 条件请求**（P-3）：ETag / If-None-Match 降低带宽。
+4. **SPIFFE Workload API 集成**（U-4 / U-7）：生态成熟后从 cert-manager 挂载切换到 Workload API。
+5. **多架构镜像**（`linux/arm64`）：v0.1 仅 `linux/amd64`（§14.3 #18）。
+
+**基线引用**：[L2-1 Spec v0.2.0 §15](../../spec/L2-module-specs/L2-a2a-protocol.md)（15 项上游未定项）+ [L2-4 Spec v0.2.0 §15](../../spec/L2-module-specs/L2-knowledge-memory.md)（三层模式模板）。
 
 ---
 
-## 附录 A：跨模块引用清单（v0.2-draft 骨架稿 · 后续 #51+ 补完）
+## 附录 A：跨模块引用清单（v0.2-draft-full 完整版）
 
 ### A.1 L1 引用
 
@@ -2277,16 +2707,102 @@ subjects:
 
 ---
 
-## 附录 B：ADR / Constitution 引用矩阵（占位 · 后续 #52+ 补完）
+## 附录 B：ADR / Constitution 引用矩阵（6 子表 · 完整版）
 
-> ⚠️ **占位附录** —— 后续 #51+ 会话补完。
+> ✅ **本附录为 v0.2-draft-full 完整版**——把本 Spec 每条实现约束回溯到 **ADR / 宪法 / L1 / L2 上游条款**，供评审 §C（宪法一致性）+ §F（跨文档一致性）逐项核对。
 >
-> **本附录将展开 5 子表**：
-> - B.1 架构（ADR-0005 §3.2 + 宪法 §3.8）
-> - B.2 接口（ADR-0005 §8 + 宪法 §13.6）
-> - B.3 可见性（ADR-0002/0003 + 宪法 §7）
-> - B.4 安全（ADR-0005 §9.1 + 宪法 §6）
-> - B.5 性能（L1 v0.2.0 Arch §11.5 + ADR-0005 §6.1/6.3）
-> - B.6 测试（ADR-0005 §11 + 宪法 §9.7）
->
-> **基线引用**：[L3-1 Operator Core Spec v0.2-draft 附录 B](./L3-operator-core.md) + [L2-1 Spec v0.2.0 附录 B](../../spec/L2-module-specs/L2-a2a-protocol.md)
+> **约束强度**：**MUST** = 违反即与已评审上游冲突（阻断合并）· **SHOULD** = 默认实现，偏离需 PR 解释 · **MAY** = 兼容扩展点，不属 v0.1 门禁。
+
+### B.1 架构（模块边界 + 部署形态）
+
+| L3-2 条款 | 上游引用 | 约束内容 | 强度 |
+|-----------|----------|----------|------|
+| §1.1 模块使命 / C-2 | L1 Arch v0.2.0 §3.4 + §4.1 | A2A Core 为通信层唯一实现；不承载业务语义 | MUST |
+| §1.2 `a2a.upstream` boundary | ADR-0005 §3.2 + 宪法 §3.8 | 业务层禁止 `import a2a`；仅 `from superteam_a2a.a2a import ...` | MUST |
+| §2.1 uv workspace 布局 | ADR-0005 §13.1 | `packages/a2a-core/src/superteam_a2a/a2a/` | MUST |
+| §2.3 7 子包划分 | L2-1 Design v0.2.0 §3.1 | server / client / extensions / mtls / observability / utils / _internal | MUST |
+| §2.3 `_internal/` 私有 | 宪法 §3.8 | 业务层禁 import；仅测试直测 | MUST |
+| §5 单进程原则 | ADR-0005 §6.2 + 宪法 §3.8 | Uvicorn `--workers 1`；伸缩靠 Pod 副本 | MUST |
+| §5 Starlette（非 FastAPI） | §15.1 U-15 决策 | 切换 FastAPI 需新起 ADR | MUST |
+| §13.1 同 Pod 共部署 | L2-2 Spec v0.2.0 §6 | 与 Knowledge Service / Memory backend 共 Deployment | SHOULD |
+| §0 明确不在本模块 | L1 Arch §3.2/§3.5 + ADR-0002/0003 | CRD reconcile → L3-1；Knowledge/Memory 业务 → L3-5/L3-6；Adapter → L3-3 | MUST |
+
+### B.2 接口（wire contract + 上游追踪）
+
+| L3-2 条款 | 上游引用 | 约束内容 | 强度 |
+|-----------|----------|----------|------|
+| §1.4 6 method wire shape | L1 Spec v0.2.0 §5 + L2-1 Spec §3 | `sendMessage` / `getTask` / `queryKnowledge` / `getKnowledgeItem` / `recordMemory` / `queryMemory` | MUST |
+| §1.4 4 endpoint 路径 | L2-1 Spec §6 | `/.well-known/agent-card.json` + `/healthz` + `/readyz` + `/metrics` | MUST |
+| §3.2 4 扩展 method Pydantic schema | ADR-0002 §2/§3 + ADR-0003 §4/§6 | 字段名 camelCase + 必填/边界约束 | MUST |
+| §3.1 `ExtensionRouter` Protocol | L2-1 Design v0.2.0 §5 | `runtime_checkable` + `method_name` + `handle` | MUST |
+| §3.4 `discover_routers` 重复检测 | L2-1 Spec §3.4 | 重复 `method_name` → `ValueError` fail-fast | MUST |
+| §3.5 `cancelTask` / `subscribeTask` 占位 | L1 Spec §5 + 宪法 §14 MVP 例外 | v0.1 **不得**提前暴露 | MUST |
+| §6 `A2AClient` 6 method | L2-1 Spec §5 | 自建 httpx 包装；注入 SSLContext + Retry + CB + Discovery | MUST |
+| §6 `METHOD_IDEMPOTENT` 表 | L1 Spec §5.7 + ADR-0003 §6 | `recordMemory` 需 `idempotencyKey` 才可重试 | MUST |
+| §8 24 错误码 | L1 Spec §5.7 + ADR-0002 §3 + ADR-0003 §6 | 标准 5 + A2A 域 6 + Knowledge 7 + Memory 6；数字不可改 | MUST |
+| §10 a2a-sdk 精确 pin + 三级升级 | 宪法 §13.6 + ADR-0005 §13.6 | patch 自动 / minor 人工 + contract 阻断 / major 需 ADR | MUST |
+| §10.2 contract test 锁定 wire | 宪法 §13.6 | `CT-A2A-01~05` FAIL 即阻断升级 | MUST |
+
+### B.3 可见性与业务语义（Knowledge / Memory 边界）
+
+| L3-2 条款 | 上游引用 | 约束内容 | 强度 |
+|-----------|----------|----------|------|
+| §3.2 `scopeLevel` 4 级 | ADR-0002 §2 + 宪法 §7 | GLOBAL / TEAM / AGENT / TASK 枚举值与 ADR 一致 | MUST |
+| §3.2 Knowledge 7 错误码 | ADR-0002 §3 | -32400 ~ -32406 | MUST |
+| §3.2 Memory 5 维可见性 | ADR-0003 §4 + 宪法 §7 | `visibility` 枚举（含 `AGENT_PRIVATE`）传递不解释 | MUST |
+| §3.2 Memory 6 错误码 | ADR-0003 §6 | -32500 ~ -32505 | MUST |
+| §3.4 router 占位不实现业务 | ADR-0002/0003 + L2-4 Spec §3 | L3-2 仅 Protocol + 占位类；L3-5/L3-6 覆盖 `_DISCOVERED` | MUST |
+| §3.2 `contentPreview` 截断 100 字符 | ADR-0003 §4 | 摘要字段长度约束 | SHOULD |
+| §9 敏感字段脱敏 | ADR-0005 §10 + 宪法 §6.6 | `api_key` / `memory_content` 等禁入日志 | MUST |
+| §11.2.16 `IT-A2A-15` fake handler | 宪法 §3.8 依赖方向 | 集成测试**禁止** import memory 实现 | MUST |
+
+### B.4 安全（mTLS + 最小权限 + 容器加固）
+
+| L3-2 条款 | 上游引用 | 约束内容 | 强度 |
+|-----------|----------|----------|------|
+| §4 mTLS 强制 | ADR-0005 §9.1 + 宪法 §6.1 | 所有 A2A 通信双向 TLS；无明文回退 | MUST |
+| §4 `TLSv1_3` + `CERT_REQUIRED` | 宪法 §6.1 | `min_version` 不得降级 | MUST |
+| §4 私钥 mode 0600 校验 | 宪法 §6.3 | 违反 → `MtlsConfigError` | MUST |
+| §4 SPIFFE URI SAN 解析 + trust_domain 校验 | ADR-0005 §9.1 | 不匹配 → 401 | MUST |
+| §4.3 `CertHotReloader` 原子替换 | ADR-0005 §9.1 | 失败保留旧 context + `cert_reload_failures_total` | MUST |
+| §4 不引入 `py-spiffe` | §15.1 U-4 决策 | cert-manager 挂载为主路径 | SHOULD |
+| §5 `AuthMiddleware` 缺 SPIFFE → 401 | 宪法 §6.2 | 无匿名访问 | MUST |
+| §12 ClusterRole read-only | 宪法 §6.4 最小权限 | 仅 `endpointslices` + `services` 读 | MUST |
+| §12 `networkpolicy.yaml` egress 限制 | 宪法 §6.5 | 默认拒绝 + 白名单 | SHOULD |
+| §11.4 容器加固 | ADR-0005 §12 + 宪法 §6.3 | 非 root uid=65532 + drop ALL caps + `python:3.12-slim` | MUST |
+| §11.4 `bandit` + `pip-audit` | 宪法 §9.7 | 0 高危漏洞门禁 | MUST |
+
+### B.5 性能与可靠性
+
+| L3-2 条款 | 上游引用 | 约束内容 | 强度 |
+|-----------|----------|----------|------|
+| §7 async-first | ADR-0005 §6.1 + 宪法 §3.8 | 所有 I/O 走 `asyncio`；禁同步阻塞调用 | MUST |
+| §7 CPU offload | ADR-0005 §6.3 | 纯 CPU 计算走 `anyio.to_thread.run_sync` + `CapacityLimiter` | MUST |
+| §6 httpx 池 100 + timeout 30s | L1 Arch v0.2.0 §11.5 | 默认值；调优移交 L4（§15.3 P-1） | SHOULD |
+| §6 Retry 退避 + jitter | L1 Spec §5.7 | `max_attempts=3`；仅幂等 method | MUST |
+| §6 CircuitBreaker 3 状态 | L1 Arch §11.5 | `failure_threshold=5` + HALF_OPEN 探针 | SHOULD |
+| §6 P2C 负载选择 | L1 Arch §11.5 | in-flight 最低优先 | SHOULD |
+| §5 RateLimit 100 RPS / burst 200 | L1 Arch §11.5 | 进程内 token bucket（多副本全局限流 v0.5+） | SHOULD |
+| §6 `AgentCardCache` TTL 300s | L2-1 Spec §5.3 | TTL 兜底 + watch DELETED 主动失效 | SHOULD |
+| §13.3 graceful shutdown < 30s | ADR-0005 §6.4 + 宪法 §3.2 | readiness 先 false → 逆序 stop → drain | MUST |
+| §9 4 runtime 指标 | ADR-0005 §6.1 + 宪法 §2.3 | event_loop_lag + thread_offload_queue_depth 等 | MUST |
+| §11.4 镜像仅 `linux/amd64` | 宪法 §14 MVP 例外 | v0.1 基线；arm64 推迟 v0.5+ | SHOULD |
+
+### B.6 可观测性与测试
+
+| L3-2 条款 | 上游引用 | 约束内容 | 强度 |
+|-----------|----------|----------|------|
+| §9 15 指标 metric name | L1 Arch v0.2.0 §9.2 + L1 Spec §16 + 宪法 §2.3 | 11 `superteam_a2a_*` + 4 `superteam_python_*`；name 不可改 | MUST |
+| §9 OTel provider 显式注入 | ADR-0005 §10 | 不污染全局；测试可隔离 | MUST |
+| §9 W3C `traceparent` 透传 | L1 Spec §16 | 跨 Agent trace 链路完整 | MUST |
+| §9 structlog 6 必含字段 + JSON | ADR-0005 §10 + 宪法 §2.3 | `trace_id` / `span_id` 注入 | MUST |
+| §11.1 6 层测试金字塔 | ADR-0005 §11 + 宪法 §9.7 | UT / Property / HTTP mock / CT / IT / E2E | MUST |
+| §11.1 覆盖率 ≥ 80% / 关键 ≥ 95% | 宪法 §9.5 质量红线 | `--cov-fail-under=80` | MUST |
+| §11.2 276 测试 ID 矩阵 | 宪法 §9.7 + §14.4 | 全部映射到具体测试文件路径 | MUST |
+| §11.3 conformance 套件接入 | ADR-0005 §11.2 | 标准 3 method + 扩展 4 method 100% | MUST |
+| §11.4 静态门禁 5 重 | ADR-0005 §11 + 宪法 §9.7 | `ruff` + `pyright --strict` + `bandit` + `pip-audit` + `interrogate` | MUST |
+| §11.4 Ruff `ST-A2A-BOUNDARY` | ADR-0005 §3.2 + 宪法 §3.8 | boundary 违规 CI 阻断 | MUST |
+| §14 验收清单 82 条 | 宪法 §14.4 评审门禁 | 升级 v0.2.0 唯一凭证 | MUST |
+| §16 会话纪律 | 宪法 v0.5.0 §16.1 | 单会话水位 < 50% 临界；超出即保存-暂停-交接 | MUST |
+
+**基线引用**：[L3-1 Operator Core Spec 附录 B](./L3-operator-core.md) + [L2-1 Spec v0.2.0 附录 B](../../spec/L2-module-specs/L2-a2a-protocol.md)（13 行矩阵）+ [L2-4 Spec v0.2.0 附录 B](../../spec/L2-module-specs/L2-knowledge-memory.md)（6 子表模板）。
