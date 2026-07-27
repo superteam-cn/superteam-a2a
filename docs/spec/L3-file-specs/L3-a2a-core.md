@@ -8,7 +8,7 @@
 > **模块 ID**：C-2（A2A Core Library，见 L1 v0.2.0 Architecture §4.1）
 > **代码位置**：`packages/a2a-core/src/superteam_a2a/a2a/`（**ADR-0005 §13.1 uv workspace 布局**，替代原 Go baseline 的 `src/a2a/`）
 > **版本**：v0.2-draft（2026-07-27 起 Python 重写 + 2026-07-27 #44 Go baseline 归档）
-> **状态**：🟡 v0.2-draft **骨架稿（#50）**——头部 + §0-§9 + 附录 A 已落地 + ⚠️ §10-§15 + 附录 B = **6 节 + 1 附录待后续 #51+ 会话补完**
+> **状态**：🟢 v0.2-draft-full **§10-§12 补完稿（#50 骨架 + #51 §10-§12 补完）**——头部 + §0-§12 + 附录 A 已落地 + ⚠️ §13-§15 + 附录 B = **3 节 + 1 附录待后续 #52+ 会话补完**
 > **Python 栈基线**：Python 3.12+（**ADR-0005 §3.1**）+ uv workspace + 官方 `a2a-sdk` envelope/ASGI 复用 + Pydantic v2 + httpx + OpenTelemetry + structlog + cert-manager
 > **wire contract 不变性**（与 v0.1.0 Go baseline + L2-1 Spec v0.2.0 完全一致，contract test 锁定）：JSON 字段名 / camelCase / RFC 3339 时间 / Agent Card 路径 / 错误码 / 任务状态机 / metric name
 > **上游约束**：[`docs/spec/L2-module-specs/L2-a2a-protocol.md`](../../spec/L2-module-specs/L2-a2a-protocol.md) **v0.2.0**（2026-07-24 评审通过 · 72KB / 1919 行 / 16 节 + 2 附录 / 14 错误码 / 100 测试 ID / 4 时序图 / 15 开放问题 / 80% 收敛率）
@@ -20,8 +20,8 @@
 ## 0. 阅读指南
 
 - **读者**：A2A Core 实施工程师（L4 Python 编码）、Code Reviewer（PR 审查）、架构 Reviewer（设计一致性）
-- **必读章节**：§1（模块使命 + 30 文件清单总览）/ §2（Python 包结构）/ §3（4 extension method Pydantic schema + ExtensionRouter Protocol）/ §8（24 错误码）/ 附录 A（跨模块引用清单）
-- **可选章节**：本次 v0.2-draft 骨架稿**不包含** §10 上游追踪 + §11 测试策略 + §12 Helm values + §13 生命周期 + §14 验收清单 + §15 开放问题 + 附录 B ADR 矩阵（已在各 §标题占位；后续 #51+ 会话补完）
+- **必读章节**：§1（模块使命 + 30 文件清单总览）/ §2（Python 包结构）/ §3（4 extension method Pydantic schema + ExtensionRouter Protocol）/ §8（24 错误码）/ §11（276 ID 测试 ID 矩阵）/ §12（Helm values 9 模板 + A2aCoreConfig Pydantic）/ 附录 A（跨模块引用清单）
+- **可选章节**：本次 v0.2-draft-full §10-§12 补完稿**不包含** §13 生命周期 + §14 验收清单 + §15 开放问题 + 附录 B ADR 矩阵（已在各 §标题占位；后续 #52+ 会话补完）
 - **配套阅读**：[L2-1 A2A Protocol Spec v0.2.0](../../spec/L2-module-specs/L2-a2a-protocol.md) §1-§15 + 附录 A/B · [L2-1 A2A Protocol Design v0.2.0](../../design/L2-modules/L2-a2a-protocol.md) §3-§14 · [L1 Architecture v0.2.0 §3.4 通信层](../../design/L1-architecture.md) · [ADR-0005 §3.2 A2A Core 模块映射](../adr/0005-python-first-technology-stack.md) · [官方 a2a-python SDK 文档](https://github.com/a2a-mcp-go/a2a-python) · [httpx 异步客户端文档](https://www.python-httpx.org/async/) · [OpenTelemetry Python SDK 文档](https://opentelemetry.io/docs/languages/python/)
 
 **与 L3-2 Go baseline 关系**：
@@ -1376,48 +1376,822 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
 
 ## 10. 上游追踪责任（宪法 §13.6 + ADR-0005 §13.6 · 继承 L2-1 Spec §10）
 
-> ⚠️ **占位章节** —— 后续 #51+ 会话补完。
->
-> **本节将展开**：
-> - 10.1 维护责任（官方 a2a-python SDK upstream 追踪 + PR 贡献）
-> - 10.2 contract test 套件（wire shape + envelope 锁定）
-> - 10.3 upgrade 决策（ADR-0005 §11）
->
-> **基线引用**：[L2-1 Spec v0.2.0 §10](../../spec/L2-module-specs/L2-a2a-protocol.md)
+### 10.1 维护责任（继承 L2-1 Spec §10.1）
+
+L3-2 实施者 + 维护者必须：
+
+- ✅ **每 minor release** 检查 [`a2aproject/a2a-python`](https://github.com/a2aproject/a2a-python) 仓库 changelog；评估 API 兼容性 + wire shape 影响
+- ✅ **每次 SDK 升级** 跑完整 conformance suite（§11.3）+ 项目 contract test（§10.2）+ L3-2 全部 30 测试文件
+- ✅ **每次 SDK 升级** 评估 `protocolVersion` 变化与 L1 协议版本基线（v0.3）的兼容；若 SDK 升至 0.4+ 需走 §10.3 major upgrade 流程
+- ✅ **跟踪 a2aproject/A2A 主仓库** 规范变化（每周 review 1 次 issue + PR 列表）
+- ✅ **依赖与版本锁定**：`pyproject.toml` 中 `a2a-sdk>=0.3,<0.4` 约束 minor + patch 范围；lockfile 提交仓库
+- ✅ **L4 PR 反向上游**：发现的 SDK bug 提交 PR 至 `a2aproject/a2a-python`（L4 → SDK 闭环）
+- ✅ **公网 RFC 跟踪**：参与 [a2aproject/A2A discussions](https://github.com/a2aproject/A2A/discussions)；评估新 spec 章节影响
+
+**L3-2 与 L2-1 / L3-1 / L3-3 的上游追踪责任划分**：
+
+| 模块 | SDK 责任 | Helm/K8s 责任 | Test 责任 |
+|------|----------|---------------|-----------|
+| **L3-2 A2A Core** | a2a-sdk 全部 | Uvicorn / Starlette / cert-manager | contract test + conformance |
+| L3-1 Operator Core | 无（不依赖 a2a-sdk） | Kopf / kubernetes_asyncio | envtest + leader failover |
+| L3-3 Adapter SDK | a2a-sdk client 部分 + Agent 框架 SDK 6 类 | 无（in-process plugin 或 sidecar） | framework mock + 6 framework matrix |
+| L2-1 A2A Protocol | a2a-sdk 全部（与 L3-2 重叠 · L3-2 落地） | 无（仅 spec） | wire shape contract test |
+
+### 10.2 contract test 套件（wire shape + envelope 锁定 · 继承 L2-1 Spec §10.2）
+
+**目标**：保证 L3-2 与 v0.1.0 Go baseline + L2-1 Python v0.2.0 的 wire contract 100% 一致；SDK 升级时如发现差异则立即阻断。
+
+```python
+# packages/a2a-core/tests/contract/test_a2a_python_compat.py
+import pytest
+from pydantic import TypeAdapter
+from superteam_a2a.a2a.upstream import AgentCard, Message, Task
+from superteam_a2a.a2a.errors import StandardRpcError
+from a2a.types import AgentCard as SdkAgentCard  # upstream 验证
+from tests.testdata import LOAD_FIXTURE  # fixture 加载器
+
+
+class TestWireShapeContract:
+    """wire shape 必须与 v0.1.0 Go baseline 完全一致。"""
+
+    def test_agent_card_wire_shape(self):
+        """AgentCard JSON dump 与 v0.1.0 fixture 完全一致。"""
+        card = AgentCard(name="hello-agent", version="0.2.0", ...)
+        dumped = card.model_dump(by_alias=True, mode="json")
+        assert dumped == LOAD_FIXTURE("agent_card_v0_1_0.json")
+
+    def test_jsonrpc_envelope_compat(self):
+        """JSON-RPC envelope 字段与 v0.1.0 一致。"""
+        req = JSONRPCRequest(jsonrpc="2.0", id="req-1", method="a2a.sendMessage", params={...})
+        dumped = req.model_dump(by_alias=True, mode="json")
+        assert dumped == LOAD_FIXTURE("jsonrpc_request_v0_1_0.json")
+
+    def test_error_codes_match(self):
+        """错误码数字与 L1 Spec §5.7 一致（24 码）。"""
+        assert StandardRpcError.PARSE_ERROR == -32700
+        assert StandardRpcError.KNOWLEDGE_SCOPE_NOT_FOUND == -32400
+        assert StandardRpcError.MEMORY_SCOPE_NOT_FOUND == -32500
+
+    def test_time_format_rfc3339(self):
+        """所有 datetime 字段 RFC 3339 + UTC。"""
+        ...
+
+
+class TestSdkUpgradeSmoke:
+    """SDK minor upgrade 不破坏 wire contract。"""
+
+    def test_sdk_agent_card_compat(self):
+        """本项目 AgentCard 与上游 SDK AgentCard 兼容（同一 wire）。"""
+        local = AgentCard(name="hello", version="0.2.0", ...)
+        sdk = SdkAgentCard.model_validate(local.model_dump(by_alias=True))
+        assert local.model_dump(by_alias=True) == sdk.model_dump(by_alias=True)
+```
+
+**测试 ID 前缀**：`CT-A2A-`（Contract Test A2A）共 5 ID（CT-A2A-001~005）
+- CT-A2A-001 AgentCard wire shape 一致
+- CT-A2A-002 JSON-RPC envelope wire shape 一致
+- CT-A2A-003 24 错误码数值一致
+- CT-A2A-004 时间格式 RFC 3339
+- CT-A2A-005 SDK AgentCard 互转 round-trip
+
+**CI 必跑**：`pytest tests/contract/ -v --tb=short`；如失败则阻断 SDK 升级 + 立即回归 L2-1 Python 评审。
+
+### 10.3 upgrade 决策（ADR-0005 §11 + 继承 L2-1 Spec §10.3）
+
+**semver 升级矩阵**：
+
+| 升级类型 | 版本变化 | 决策流程 | 风险评估 |
+|----------|----------|----------|----------|
+| **patch** | 0.3.x → 0.3.x+1 | 自动（contract test pass → 升级） | 低（bug fix only） |
+| **minor** | 0.3.x → 0.4.0 | 跑完整 conformance + E2E + 评估 API 变更；不破坏 wire 时直接升级 | 中（API 新增/弃用） |
+| **major** | 0.x → 1.0 | **走 ADR**（评估 protocolVersion 升级 + wire 不变性）| 高（breaking change） |
+
+**patch 升级自动流程**（`pyproject.toml` + `uv.lock`）：
+```bash
+# 自动 patch 升级（CI 月度任务）
+uv lock --upgrade-package a2a-sdk
+uv sync --frozen
+pytest tests/contract/ tests/conformance/ -v  # contract + conformance 全 PASS
+# PASS → 提交 uv.lock + 触发 E2E
+# FAIL → 阻断升级 + 通知 a2a-sdk 上游 + 评估是否走 minor 流程
+```
+
+**minor 升级半自动流程**：
+1. Review SDK changelog（`a2aproject/a2a-python/CHANGELOG.md`）
+2. 跑完整 30 测试文件（UT/IT/CF/E2E）= 100+ ID
+3. 评估 API 弃用/新增（grep `from a2a.types import` + `isinstance`）
+4. 评估 wire shape 变化（contract test 全 PASS 即无变化）
+5. 升级 `pyproject.toml` 的 `a2a-sdk>=0.4,<0.5` + 更新 lockfile
+6. 提交 PR + 走 L2-1 评审（参照 #22 L2-1 Python 评审 31KB / 488 行 / 10 维度）
+
+**major 升级走 ADR 流程**：
+1. **新 ADR**：`docs/adr/0006-a2a-sdk-1.0-upgrade.md`（或新版本号）
+2. **新协议版本**：`protocolVersion` 升级评估（v0.3 → v1.0 wire 不变 vs 变）
+3. **wire 不变性评估**：是否破坏 `agent_card_v0_1_0.json` / `jsonrpc_request_v0_1_0.json` / 错误码数字 / Task FSM
+4. **宪法升级**：若 wire 变 → 走宪法 v0.6.0+ 升级流程
+5. **新 L1/L2/L3 评审**：3 层评审 + 跨文档同步
 
 ---
 
 ## 11. 测试策略（ADR-0005 §11 + 宪法 §9.7 · 继承 L2-1 Spec §11）
 
-> ⚠️ **占位章节** —— 后续 #51+ 会话补完。
->
-> **本节将展开**：
-> - 11.1 测试层级（UT/IT/CF/E2E/Fuzz）
-> - 11.2 测试 ID 矩阵（完整清单 · 100+ ID · 继承 L2-1 100 ID + L3-2 新增 5-10 ID）
-> - 11.3 conformance 套件接入（ADR-0005 §11.2）
-> - 11.4 静态门禁（pyright strict + ruff + import-linter + interrogate）
-> - 11.5 性能预算（L1 v0.2.0 Arch §11.5）
->
-> **基线引用**：[L2-1 Spec v0.2.0 §11](../../spec/L2-module-specs/L2-a2a-protocol.md) §11.2 测试 ID 矩阵 100 ID
+### 11.1 测试层级金字塔（继承 L2-1 Spec §11.1 · 6 层级）
+
+| 层级 | 工具 | 覆盖率目标 | 关键场景 | 占比 |
+|------|------|------------|----------|------|
+| **Unit (UT)** | `pytest` + `pytest-asyncio` | ≥ 90%（`a2a.upstream` / `a2a.upstream_types` / `a2a.errors` ≥ 95%） | Pydantic 校验 / JSON-RPC envelope / 错误码映射 / mTLS context / 路由分发 / Retry 计算 / CircuitBreaker 状态机 / AgentCardCache TTL | 60% |
+| **Property** | `Hypothesis` + `hypothesis-jsonschema` | N/A（fuzz-based）| 任意 JSON-RPC request 不崩溃；wire 序列化反序列化 round-trip | 5% |
+| **HTTP mock (HTTP)** | `respx` / ASGI test client | timeout / 取消 / 重试 / mTLS 失败 / 5xx / Retry-After | httpx mock + 各种失败路径 | 10% |
+| **SDK compat (CT)** | 自研 contract test + SDK 自带 conformance | wire shape + 错误码 + envelope 100% | 锁定 v0.1.0 wire；minor 升级跑过 | 5% |
+| **Integration (IT)** | `envtest` + `kind` + `kubernetes_asyncio` 真实 watch | reconcile / webhook / leader failover / EndpointSlice watch reconnect / AgentCard 拉取过 mTLS / 多 namespace watch RBAC | ADR-0005 §7 12 项门禁 | 15% |
+| **E2E** | `kind` + Helm | Hello Agent + Workflow + Knowledge + Memory 全链路 / mTLS 真实握手 / chaos 故障注入 | 完整业务流程 | 5% |
+
+**测试 ID 总数估算**：30 UT 文件 × 4-5 case/文件 ≈ **100+ ID**（继承 L2-1 100 ID · L3-2 新增 5-10 ID 用于 cert hot reload + agent card cache + observability 等 Python 特有场景）。
+
+### 11.2 测试 ID 矩阵（完整清单 · 105 ID · 继承 L2-1 100 + L3-2 新增 5）
+
+> **9 大类测试 ID 前缀分布**（与 L3-1 Operator Core 测试 ID 前缀 11 类同模式）：
+
+| 类别 | ID 前缀 | 数量 | 说明 |
+|------|---------|------|------|
+| Pydantic schema | `UT-T-` | 12 | 4 扩展 method × 3 case（valid / invalid / boundary）|
+| JSON-RPC envelope | `UT-T-` | 8 | wire shape + 错误码序列化 + 透传 |
+| 错误码映射 | `UT-E-` | 17 | 17 标准 + A2A 域错误码 × 1 case（Knowledge/Memory 6+6 走 ExtensionRouter 单独测试）|
+| ExtensionRouter | `UT-EXT-` | 12 | 4 router × 3 case（dispatch / unknown / duplicate）|
+| mTLS context | `UT-MT-` | 8 | ssl.SSLContext 构造 + SPIFFE 解析 + 文件缺失 + 私钥 mode 校验 |
+| Retry policy | `UT-CLI-` | 6 | 退避计算 + idempotency gate + max attempts |
+| Circuit breaker | `UT-CLI-` | 8 | 3 状态转换 + threshold + half-open probe |
+| Discovery | `UT-CLI-` | 6 | EndpointSlice mock + AgentCard cache TTL |
+| Property | `PROP-` | 5 | envelope round-trip + arbitrary JSON-RPC 不崩溃 |
+| HTTP mock | `HTTP-` | 8 | timeout / 取消 / 重试 / mTLS 失败 / Retry-After / Circuit OPEN |
+| SDK compat | `CT-` | 5 | wire shape + 错误码 + envelope 锁定 |
+| Integration | `IT-` | 5 | watch reconnect + agent card pull + 多 namespace + cert hot reload + cert expiry |
+| E2E | `E2E-` | 3 | hello-agent + workflow + chaos |
+| **L3-2 新增** | `UT-OB-` / `UT-MT-` | **5** | event_loop_lag + observability 15 指标 + cert hot reload atomic + agent card cache invalidation + tracing OTel |
+| **合计** | — | **105** | — |
+
+**测试 ID 完整清单**（按文件分类，参照 L2-1 Spec §11.2 ID 命名规范 · 限定 L3-2 文件级映射）：
+
+#### 11.2.1 `tests/upstream_test.py` (UT-T-01~07 · 7 ID)
+
+```
+UT-T-01: AgentCard Pydantic v2 strict mode 拒绝 extra field
+UT-T-02: Message MessageID UUIDv7 合法
+UT-T-03: Part.type=text 时 text 必填
+UT-T-04: Part.type=file 时 fileUri 必填 + 绝对 URL
+UT-T-05: TaskStatus 转换合法性（同状态幂等 / 跨状态合法）
+UT-T-06: JSONRPCRequest id string/整数/null 三种类型兼容
+UT-T-07: JSONRPCError code/message/data 序列化
+```
+
+#### 11.2.2 `tests/upstream_types_test.py` (UT-T-08~22 · 15 ID)
+
+```
+UT-T-08: QueryKnowledgeRequest 合法 + top_k=10
+UT-T-09: QueryKnowledgeRequest query="" → ValidationError
+UT-T-10: QueryKnowledgeRequest scope_level 非法 → ValidationError
+UT-T-11: GetKnowledgeItemRequest 合法
+UT-T-12: GetKnowledgeItemRequest item_id="" → ValidationError
+UT-T-13: GetKnowledgeItemRequest version=0 → ValidationError
+UT-T-14: RecordMemoryRequest 合法 + idempotency_key="abc-123"
+UT-T-15: RecordMemoryRequest 缺 idempotency_key → ValidationError
+UT-T-16: RecordMemoryRequest idempotency_key 含特殊字符 → ValidationError
+UT-T-17: QueryMemoryRequest 合法 + visibility=AGENT_PRIVATE
+UT-T-18: QueryMemoryRequest scope_level + scope_id 不一致 → ValidationError
+UT-T-19: QueryMemoryRequest min_confidence > 1.0 → ValidationError
+UT-T-20: KnowledgeItemSummary score 范围校验
+UT-T-21: MemorySummary content_preview 截断 100 字符
+UT-T-22: MemoryContentType 枚举值唯一
+```
+
+#### 11.2.3 `tests/errors_test.py` (UT-E-01~15 · 15 ID)
+
+```
+UT-E-01 ~ UT-E-05:   5 标准 JSON-RPC 码 wire + name
+UT-E-06 ~ UT-E-11:   6 A2A 域错误码 wire + name
+UT-E-12 ~ UT-E-15:   4 关键 Knowledge 错误码 wire (KNOWLEDGE_SCOPE_NOT_FOUND / KNOWLEDGE_ITEM_NOT_FOUND / KNOWLEDGE_VERSION_NOT_FOUND / KNOWLEDGE_FORBIDDEN)
+```
+
+#### 11.2.4 `tests/server/app_test.py` (UT-SRV-01~07 · 7 ID)
+
+```
+UT-SRV-01: create_app 返回 Starlette 实例
+UT-SRV-02: create_app Mount SDK jsonrpc_app
+UT-SRV-03: create_app Mount extension sub-app
+UT-SRV-04: create_app 4 routes (agent_card / healthz / readyz / metrics) 注册
+UT-SRV-05: create_app 4 middlewares (auth + ratelimit + recovery + trace) 注册
+UT-SRV-06: lifespan contextmanager 装配正确
+UT-SRV-07: discover_routers 启动期调用
+```
+
+#### 11.2.5 `tests/server/middlewares_test.py` (UT-MW-01~22 · 22 ID)
+
+```
+UT-MW-01: AuthMiddleware 从 peer cert 提取 SPIFFE ID
+UT-MW-02: AuthMiddleware 注入 contextvar
+UT-MW-03: AuthMiddleware 缺 SPIFFE → 401
+UT-MW-04: AuthMiddleware trust_domain 不匹配 → 401
+UT-MW-05: RateLimitMiddleware token bucket 100 RPS
+UT-MW-06: RateLimitMiddleware burst 200
+UT-MW-07: RateLimitMiddleware 超限 → 429
+UT-MW-08: RateLimitMiddleware PerKey=false 时全局桶
+UT-MW-09: RateLimitMiddleware PerKey=true 时按 SPIFFE ID 分桶
+UT-MW-10: RecoveryMiddleware panic → -32603
+UT-MW-11: RecoveryMiddleware 不 swallow CancelledError
+UT-MW-12: TraceMiddleware W3C traceparent 注入
+UT-MW-13: TraceMiddleware server span 开启
+UT-MW-14: TraceMiddleware OTel context 注入
+UT-MW-15 ~ UT-MW-22: 8 组合场景（auth+ratelimit / auth+trace / recovery+trace 等）
+```
+
+#### 11.2.6 `tests/server/lifespan_test.py` (UT-SRV-32~36 · 5 ID)
+
+```
+UT-SRV-32: lifespan.startup 阶段 observability init
+UT-SRV-33: lifespan.startup 阶段 mtls context build
+UT-SRV-34: lifespan.startup 阶段 cert hot reload start
+UT-SRV-35: lifespan.shutdown 阶段逆序
+UT-SRV-36: lifespan SIGTERM 优雅停机 < 30s
+```
+
+#### 11.2.7 `tests/client/client_test.py` (UT-CLI-01~14 · 14 ID)
+
+```
+UT-CLI-01: A2AClient send_message 成功
+UT-CLI-02: A2AClient get_task 成功
+UT-CLI-03: A2AClient query_knowledge 成功
+UT-CLI-04: A2AClient get_knowledge_item 成功
+UT-CLI-05: A2AClient record_memory 成功
+UT-CLI-06: A2AClient query_memory 成功
+UT-CLI-07: A2AClient aclose 幂等
+UT-CLI-08: A2AClient aclose 后调用 → ClientError
+UT-CLI-09: A2AClient ssl_context 必填
+UT-CLI-10: A2AClient timeout 默认 30s
+UT-CLI-11: A2AClient max_connections 默认 100
+UT-CLI-12: A2AClient discovery=None 时不启用 K8s watch
+UT-CLI-13: A2AClient metrics=None 时不记录 metric
+UT-CLI-14: A2AClient httpx 连接池复用
+```
+
+#### 11.2.8 `tests/client/retry_test.py` (UT-CLI-44~53 · 10 ID)
+
+```
+UT-CLI-44: RetryPolicy 默认 max_attempts=3
+UT-CLI-45: compute_delay(0) = 0.5 ± jitter
+UT-CLI-46: compute_delay(3) 接近 max_delay
+UT-CLI-47: should_retry sendMessage 失败 + idempotency_key → DO_RETRY
+UT-CLI-48: should_retry recordMemory 无 idempotency_key → METHOD_NOT_IDEMPOTENT
+UT-CLI-49: should_retry recordMemory + idempotency_key → DO_RETRY
+UT-CLI-50: should_retry getTask + INVALID_PARAMS → DO_NOT_RETRY
+UT-CLI-51: should_retry attempt >= max → DO_NOT_RETRY
+UT-CLI-52: should_retry method not in METHOD_IDEMPOTENT → METHOD_NOT_IDEMPOTENT
+UT-CLI-53: should_retry 错误码在 retryable 集合 → DO_RETRY
+```
+
+#### 11.2.9 `tests/client/circuit_breaker_test.py` (UT-CLI-54~61 + 67~73 · 15 ID)
+
+```
+UT-CLI-54: CircuitBreaker CLOSED 失败 < threshold → 保持 CLOSED
+UT-CLI-55: CircuitBreaker CLOSED 失败 >= threshold → OPEN
+UT-CLI-56: CircuitBreaker OPEN 超时 → HALF_OPEN
+UT-CLI-57: CircuitBreaker HALF_OPEN 成功 → CLOSED
+UT-CLI-58: CircuitBreaker HALF_OPEN 失败 → OPEN
+UT-CLI-59: CircuitBreaker can_request 状态机
+UT-CLI-60: CircuitBreaker state metric 上报
+UT-CLI-61: CircuitBreaker failure_threshold 默认 5
+UT-CLI-67: P2C select endpoints=[] → ValueError
+UT-CLI-68: P2C select endpoints=1 → random choice
+UT-CLI-69: P2C select endpoints=10 → 选 2 个 pick 最低
+UT-CLI-70: P2C select in-flight count 跟踪
+UT-CLI-71: P2C select 并发安全
+UT-CLI-72: P2C select 同 in-flight 时 random
+UT-CLI-73: P2C select metric 上报
+```
+
+#### 11.2.10 `tests/client/discovery_test.py` + `discovery_k8s_test.py` (UT-CLI-23~43 · 21 ID)
+
+```
+UT-CLI-23: Discovery start 触发首次 list
+UT-CLI-24: Discovery start 触发后续 watch
+UT-CLI-25: Discovery list_targets namespace=None 时全 namespace
+UT-CLI-26: Discovery list_targets namespace="x" 时过滤
+UT-CLI-27: Discovery watch_targets ADDED 事件
+UT-CLI-28: Discovery watch_targets MODIFIED 事件
+UT-CLI-29: Discovery watch_targets DELETED 事件
+UT-CLI-30: Discovery watch reconnect backoff 1s → 30s
+UT-CLI-31: Discovery get_agent_card TTL 内复用
+UT-CLI-32: Discovery get_agent_card TTL 外重新拉取
+UT-CLI-33: Discovery get_agent_card 404 → 标记不可达
+UT-CLI-34: Discovery LABEL_SELECTOR = "superteam-a2a.io/component=agent"
+UT-CLI-35 ~ UT-CLI-43: 9 K8s 集成场景（EndpointSlice mock / RBAC / watch resourceVersion 续传 / 多 namespace 并发 / 故障转移等）
+```
+
+#### 11.2.11 `tests/client/agent_card_cache_test.py` (UT-CLI-74~78 · 5 ID)
+
+```
+UT-CLI-74: AgentCardCache TTL 默认 300s
+UT-CLI-75: AgentCardCache hit 返回缓存
+UT-CLI-76: AgentCardCache miss 触发 fetch
+UT-CLI-77: AgentCardCache invalidate 立即失效
+UT-CLI-78: AgentCardCache 并发安全（asyncio.Lock）
+```
+
+#### 11.2.12 `tests/extensions/` (UT-EXT-01~22 · 22 ID)
+
+```
+UT-EXT-01: ExtensionRouter Protocol runtime_checkable
+UT-EXT-02: QueryKnowledgeRouter.method_name == "a2a.queryKnowledge"
+UT-EXT-03: discover_routers 检测重复 method_name → ValueError
+UT-EXT-04: dispatch 已知 method → router.handle
+UT-EXT-05: dispatch 未知 method → -32601 METHOD_NOT_FOUND
+UT-EXT-06: QueryKnowledgeRouter 参数校验
+UT-EXT-07: QueryKnowledgeRouter scope_level 非法
+UT-EXT-08: QueryKnowledgeRouter top_k > 100
+UT-EXT-09: QueryKnowledgeRouter top_k < 1
+UT-EXT-10: QueryKnowledgeRouter include_body 截断 > 10KB
+UT-EXT-11: GetKnowledgeItemRouter 参数校验
+UT-EXT-12: GetKnowledgeItemRouter item_id 为空
+UT-EXT-13: GetKnowledgeItemRouter version=None → latest
+UT-EXT-14: GetKnowledgeItemRouter version=0
+UT-EXT-15: GetKnowledgeItemRouter 404 → KNOWLEDGE_ITEM_NOT_FOUND
+UT-EXT-16: RecordMemoryRouter idempotency_key 校验
+UT-EXT-17: RecordMemoryRouter content > 8192
+UT-EXT-18: RecordMemoryRouter 重复 idempotency_key → 返回原 memory_id
+UT-EXT-19: QueryMemoryRouter 参数校验
+UT-EXT-20: QueryMemoryRouter visibility=AGENT_PRIVATE
+UT-EXT-21: QueryMemoryRouter include_expired=True
+UT-EXT-22: QueryMemoryRouter min_confidence > 1.0
+```
+
+#### 11.2.13 `tests/mtls/` (UT-MT-01~18 · 18 ID)
+
+```
+UT-MT-01: build_server_ssl_context 成功（临时 cert fixture）
+UT-MT-02: tls.crt 缺失 → MtlsConfigError
+UT-MT-03: tls.key 缺失 → MtlsConfigError
+UT-MT-04: tls.key mode != 0600 → MtlsConfigError
+UT-MT-05: SSLContext min_version = TLSv1_3
+UT-MT-06: SSLContext verify_mode = CERT_REQUIRED
+UT-MT-07: extract_spiffe_id URI SAN 解析成功
+UT-MT-08: extract_spiffe_id 无 SPIFFE SAN → None
+UT-MT-09: validate_spiffe_id trust_domain 匹配
+UT-MT-10: validate_spiffe_id trust_domain 不匹配 → SpiffeIdFormatError
+UT-MT-11: SpiffeIdFormatError URI 不是 spiffe:// 前缀
+UT-MT-12: SpiffeIdFormatError path 为空
+UT-MT-13: CertHotReloader start 启动后台 task
+UT-MT-14: CertHotReloader stop 幂等
+UT-MT-15: CertHotReloader _reload_if_expired 证书 < 24h
+UT-MT-16: CertHotReloader atomic_replace 新旧 context 切换
+UT-MT-17: CertHotReloader 失败回退旧 context
+UT-MT-18: CertHotReloader metric cert_reload_failures_total 上报
+```
+
+#### 11.2.14 `tests/observability/` (UT-OB-01~30 · 30 ID)
+
+```
+UT-OB-01: A2aMetrics 15 指标注册
+UT-OB-02: superteam_a2a_rpc_total Counter
+UT-OB-03: superteam_a2a_rpc_duration_seconds Histogram
+UT-OB-04: superteam_a2a_circuit_breaker_state Gauge
+UT-OB-05: superteam_a2a_retry_total Counter
+UT-OB-06: superteam_a2a_discovery_watch_reconnects_total
+UT-OB-07: superteam_a2a_agent_card_cache_hits_total
+UT-OB-08: superteam_a2a_cert_reload_failures_total
+UT-OB-09: superteam_a2a_extension_router_dispatch_total
+UT-OB-10: superteam_a2a_request_body_bytes Histogram
+UT-OB-11: superteam_a2a_response_body_bytes Histogram
+UT-OB-12: superteam_python_event_loop_lag_seconds Histogram
+UT-OB-13: superteam_python_thread_offload_queue_depth Gauge
+UT-OB-14: init_tracing 显式 provider 注入
+UT-OB-15: init_tracing 不污染全局
+UT-OB-16: tracer(name) 返回 OTel Tracer
+UT-OB-17: OTel BatchSpanProcessor 启动
+UT-OB-18: OTel Resource service.name 设置
+UT-OB-19: OTel sample_ratio 应用
+UT-OB-20: OTel traceparent 透传
+UT-OB-21: configure_logging structlog setup
+UT-OB-22: configure_logging json_format=True
+UT-OB-23: configure_logging 6 必含字段
+UT-OB-24: 敏感字段 api_key 过滤
+UT-OB-25: 敏感字段 memory_content 过滤
+UT-OB-26: trace_id 注入 log
+UT-OB-27: EventLoopMonitor start 启动 task
+UT-OB-28: EventLoopMonitor stop 幂等
+UT-OB-29: EventLoopMonitor 采样 lag
+UT-OB-30: EventLoopMonitor metric 上报
+```
+
+#### 11.2.15 `tests/utils/offload_test.py` (UT-UT-01~10 · 10 ID)
+
+```
+UT-UT-01: offload_cpu 简单函数
+UT-UT-02: offload_cpu 阻塞函数
+UT-UT-03: offload_cpu 异常传播
+UT-UT-04: offload_cpu 取消传播
+UT-UT-05: offload_cpu 限制器 capacity
+UT-UT-06: offload_cpu 并发安全
+UT-UT-07: ThreadPoolStats current_threads
+UT-UT-08: ThreadPoolStats idle_threads
+UT-UT-09: ThreadPoolStats total_tasks_processed
+UT-UT-10: ThreadPoolStats metric 上报
+```
+
+#### 11.2.16 `tests/integration/` (IT-A2A-01~15 · 15 ID)
+
+```
+IT-A2A-01: kind 集群启动 A2A Core
+IT-A2A-02: A2AClient 真实调用 A2A Core
+IT-A2A-03: mTLS 真实握手
+IT-A2A-04: cert-manager 颁发证书
+IT-A2A-05: AgentCard 拉取过 mTLS
+IT-A2A-06: build_server_ssl_context 集成
+IT-A2A-07: 证书过期自动 reload
+IT-A2A-08: 证书 reload 失败不中断
+IT-A2A-09: 证书 hot reload 期间请求不失败
+IT-A2A-10: EndpointSlice watch reconnect 后继续接收事件
+IT-A2A-11: 多 namespace watch RBAC 正确
+IT-A2A-12: NetworkPolicy 限制 egress
+IT-A2A-13: Prometheus 15 指标抓取
+IT-A2A-14: OTel trace 导出到 collector
+IT-A2A-15: memory_route 集成（fake handler，不 import memory）
+```
+
+#### 11.2.17 `tests/conformance/` (CF-A2A-01~22 · 22 ID · 继承 L2-1)
+
+```
+CF-A2A-01 ~ CF-A2A-05: envelope 5 case（camelCase / id 三类型 / params 三类型 / 序列化 round-trip / 时间字段）
+CF-A2A-06 ~ CF-A2A-17: 12 method 各自 case（标准 3 method + 项目扩展 4 method + cancelTask 1 placeholder + 错误路径 4）
+CF-A2A-18 ~ CF-A2A-22: 5 错误码 case（标准 + A2A 域 + Knowledge + Memory + project 范围）
+```
+
+#### 11.2.18 `tests/e2e/` (E2E-A2A-01~05 · 5 ID)
+
+```
+E2E-A2A-01: hello-agent 启动 → sendMessage → 收到 Task
+E2E-A2A-02: knowledge_service 启动 → queryKnowledge → 返回结果
+E2E-A2A-03: memory_backend 启动 → recordMemory → queryMemory → 找到记录
+E2E-A2A-04: mTLS 真实握手 + SPIFFE ID 提取
+E2E-A2A-05: chaos 故障注入（EndpointSlice 消失 → 重新发现）
+```
+
+#### 11.2.19 `tests/contract/` (CT-A2A-01~05 · 5 ID · 见 §10.2)
+
+#### 11.2.20 `tests/property/` (PROP-001~005 · 5 ID)
+
+```
+PROP-001: 任意 JSON-RPC request 序列化反序列化 round-trip
+PROP-002: 任意 QueryKnowledgeRequest 不崩溃
+PROP-003: 任意 RecordMemoryRequest 不崩溃
+PROP-004: 任意 AgentCard JSON Schema 2020-12 valid
+PROP-005: 任意错误码枚举值唯一
+```
+
+#### 11.2.21 `tests/http_mock/` (HTTP-001~008 · 8 ID)
+
+```
+HTTP-001: A2AClient.send_message timeout → A2ATimeoutError
+HTTP-002: A2AClient.send_message cancel → A2ACancelledError
+HTTP-003: A2AClient.send_message 5xx → retry
+HTTP-004: A2AClient.send_message mTLS cert invalid → A2AAuthError
+HTTP-005: A2AClient.query_knowledge 404 → KNOWLEDGE_SCOPE_NOT_FOUND
+HTTP-006: A2AClient.record_memory 重复 idempotency_key → 返回原 memory_id
+HTTP-007: Retry-After 头 → 退避时间尊重
+HTTP-008: Circuit OPEN → CircuitOpenError 不发起请求
+```
+
+**测试 ID 总数**：7 + 15 + 15 + 7 + 22 + 5 + 14 + 10 + 15 + 21 + 5 + 22 + 18 + 30 + 10 + 15 + 22 + 5 + 5 + 5 + 8 = **276 ID**（包含 L3-2 在 L2-1 100 ID 基础上扩展为 276 ID 矩阵；含 UT 5 类扩展 ID + observability 30 ID + IT 15 ID + E2E 5 ID + Contract 5 ID 等 L3-2 Python 重写新增项）
+
+**注意**：上述 276 ID 是 L3-2 在 L2-1 100 ID 基础上扩展后的完整 ID 矩阵（突破原 100+ 目标因 L3-2 Python 落地增加 cert hot reload / observability / IT / E2E / Contract 5 个新维度），与 L3-1 Operator Core 218 ID + 4 验收清单 95 ID 同等级别。L3-2 评审时按此矩阵逐项验收。
+
+### 11.3 conformance 套件接入（ADR-0005 §11.2 + 继承 L2-1 Spec §11.3）
+
+- SDK 提供 `a2a.conformance` 子包（具体路径 L3-2 实测，参考 [a2aproject/a2a-python conformance](https://github.com/a2aproject/a2a-python/tree/main/tests/conformance)）
+- **CI 必跑**：`pytest tests/conformance/ -v --tb=short`
+- **标准 method 100% 覆盖**（sendMessage / getTask / Agent Card）
+- **项目扩展 method 100% 覆盖**（4 extension router）
+- **CF-A2A 测试 ID 22 个**（见 §11.2.17）
+
+**conformance 套件启动流程**：
+```bash
+# 安装 SDK
+uv add a2a-sdk --dev
+# 复制 SDK conformance 套件到 tests/conformance/
+cp -r $(python -c "import a2a.conformance; print(a2a.conformance.__path__[0])") tests/conformance/sdk/
+# 跑 conformance
+pytest tests/conformance/ -v
+```
+
+### 11.4 静态门禁（CI 必跑 · 继承 L2-1 Spec §11.4）
+
+```bash
+# L4 CI 必跑（顺序敏感：先 format → check → type → security）
+uv sync --frozen
+ruff format --check .
+ruff check .
+ruff check --select ST-A2A-BOUNDARY .  # 自定义规则：禁止业务层 import a2a
+pyright packages/a2a-core
+bandit -r packages/a2a-core/src
+pip-audit --strict
+import-linter --contracts packages/a2a-core/contracts  # 自研 boundary 锁
+vulture packages/a2a-core/src  # 死代码检测
+interrogate packages/a2a-core/src  # docstring 覆盖率 ≥ 80%
+```
+
+**Ruff 自定义规则 `ST-A2A-BOUNDARY` 检测**：
+- `^import a2a` → 报错（业务层必须经 `superteam_a2a.a2a`）
+- `^from a2a import` → 报错
+- **例外**：`packages/a2a-core/src/superteam_a2a/a2a/upstream.py`（boundary 模块）
+- **例外**：`packages/a2a-core/src/superteam_a2a/a2a/upstream_types.py`（项目私有 DTO）
+
+**import-linter contracts**：
+- `a2a.upstream` 不得 import 业务层任何符号
+- `a2a.*`（除 upstream）不得 import 业务层任何符号
+- 业务层只允许 `from superteam_a2a.a2a import ...`
+
+**interrogate 配置**：
+- `fail-under = 80`（docstring 覆盖率 ≥ 80%）
+- `exclude = tests,docs`
+- `ignore-magic = true`
+
+### 11.5 性能预算（L1 v0.2.0 Arch §11.5 · L2-1 Spec §11.5）
+
+| 指标 | 目标值 | 测量工具 | 备注 |
+|------|--------|----------|------|
+| 1 KiB A2A loopback p50/p95/p99 | < 5ms / < 20ms / < 50ms | `pytest-benchmark` | 包含 mTLS 握手 |
+| Pydantic validation overhead | < 1ms | `pytest-benchmark` | 4 method request + 4 method response |
+| Agent Card cache hit | < 0.5ms | `pytest-benchmark` | TTL 内命中 |
+| EndpointSlice watch invalidation | < 100ms | kind E2E | watch 事件触发 → 缓存失效 |
+| event-loop lag p99 | < 50ms | Prometheus histogram | 后台 task 调度延迟 |
+| cert hot reload atomic switch | < 50ms | `pytest-benchmark` | atomic 替换 + httpx 池重建 |
+| A2AClient first-byte | < 100ms | `pytest-benchmark` | 冷启动 + mTLS 握手 |
+| Retry 3 attempts total | < 5s | `pytest-benchmark` | 含退避 |
+
+**性能测试文件**：`tests/performance/test_a2a_bench.py`（用 `pytest-benchmark` 自动跑）
+
+---
 
 ---
 
 ## 12. Helm values 完整 schema（继承 L2-1 Spec §12）
 
-> ⚠️ **占位章节** —— 后续 #51+ 会话补完。
->
-> **本节将展开**：
-> - 12.1 a2aCore 段（A2aCoreConfig Pydantic model + values.yaml 默认值 + values.schema.json 自动生成）
-> - 12.2 Pod Security（K8s 1.28+ restricted profile）
-> - 12.3 RBAC（ServiceAccount + ClusterRole for K8s Service / EndpointSlice watch）
->
-> **基线引用**：[L2-1 Spec v0.2.0 §12](../../spec/L2-module-specs/L2-a2a-protocol.md)
+### 12.1 a2aCore 段（A2aCoreConfig Pydantic model · 继承 L2-1 Spec §12.1）
+
+```yaml
+# deploy/helm/a2a-core/values.yaml
+a2aCore:
+  replicaCount: 1                       # v0.1 强制 1（多实例评估 v0.5+）
+  image:
+    repository: superteam-a2a/a2a-core
+    tag: v0.2.0
+    pullPolicy: IfNotPresent
+  python:
+    workers: 1                          # const：强制单进程
+    eventLoop: uvloop                   # const
+    httpParser: httptools               # const
+    cpuOffloadWorkers: 8                # anyio CapacityLimiter
+    eventLoopLagThresholdMs: 50         # 超阈值触发 warning event
+  resources:
+    requests:
+      cpu: 500m
+      memory: 512Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+  mtls:
+    enabled: true                       # v0.1 强制 true
+    certDir: /etc/tls
+    minVersion: "1.3"                   # const
+    spiffeRequired: true
+    trustDomain: superteam-a2a.local
+    hotReload:
+      enabled: true
+      intervalSeconds: 30               # CertWatcher 检查间隔
+      timeoutSeconds: 5
+  service:
+    port: 8080                          # const（Helm release + ServiceMonitor）
+    targetPort: 8080
+  observability:
+    metrics:
+      enabled: true
+      path: /metrics
+    tracing:
+      enabled: true
+      otlpEndpoint: null                # 默认空 → 由 OTEL_EXPORTER_OTLP_ENDPOINT 注入
+      sampleRatio: 1.0
+    logging:
+      level: INFO
+      format: json                      # const
+  certWatcher:
+    intervalSeconds: 30
+    timeoutSeconds: 5
+  terminationGracePeriodSeconds: 60     # 给足优雅停机时间
+```
+
+**A2aCoreConfig Pydantic model**（与 L3-1 `HelmValues` 同模式 · 在 `a2a_core/config.py`）：
+
+```python
+# packages/a2a-core/src/superteam_a2a/a2a/config.py
+from pydantic import BaseModel, Field, ConfigDict
+from pydantic_settings import BaseSettings, SettingsConfigDict
+from pathlib import Path
+
+
+class ImageConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    repository: str = "superteam-a2a/a2a-core"
+    tag: str = "v0.2.0"
+    pullPolicy: str = Field(default="IfNotPresent", pattern="^(Always|IfNotPresent|Never)$")
+
+
+class PythonConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    workers: int = Field(default=1, ge=1, le=1)  # const
+    eventLoop: str = Field(default="uvloop", pattern="^(uvloop|asyncio)$")
+    httpParser: str = Field(default="httptools", pattern="^(httptools|h11)$")
+    cpuOffloadWorkers: int = Field(default=8, ge=1, le=64)
+    eventLoopLagThresholdMs: int = Field(default=50, ge=10, le=1000)
+
+
+class ResourcesConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    requests: dict[str, str]  # {"cpu": "500m", "memory": "512Mi"}
+    limits: dict[str, str]    # {"cpu": "2000m", "memory": "2Gi"}
+
+
+class MtlsHotReloadConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool = True
+    intervalSeconds: int = Field(default=30, ge=10, le=3600)
+    timeoutSeconds: int = Field(default=5, ge=1, le=60)
+
+
+class MtlsConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool = True
+    certDir: Path = Path("/etc/tls")
+    minVersion: str = Field(default="1.3", pattern="^(1\\.[23])$")
+    spiffeRequired: bool = True
+    trustDomain: str = "superteam-a2a.local"
+    hotReload: MtlsHotReloadConfig = MtlsHotReloadConfig()
+
+
+class ServiceConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    port: int = Field(default=8080, ge=1, le=65535)
+    targetPort: int = Field(default=8080, ge=1, le=65535)
+
+
+class MetricsConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool = True
+    path: str = "/metrics"
+
+
+class TracingConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    enabled: bool = True
+    otlpEndpoint: str | None = None
+    sampleRatio: float = Field(default=1.0, ge=0.0, le=1.0)
+
+
+class LoggingConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    level: str = Field(default="INFO", pattern="^(DEBUG|INFO|WARNING|ERROR|CRITICAL)$")
+    format: str = Field(default="json", pattern="^(json|text)$")
+
+
+class ObservabilityConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    metrics: MetricsConfig = MetricsConfig()
+    tracing: TracingConfig = TracingConfig()
+    logging: LoggingConfig = LoggingConfig()
+
+
+class CertWatcherConfig(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    intervalSeconds: int = Field(default=30, ge=10, le=3600)
+    timeoutSeconds: int = Field(default=5, ge=1, le=60)
+
+
+class A2aCoreConfig(BaseSettings):
+    """A2A Core Helm values 完整 schema（继承 L2-1 Spec §12.1）。"""
+    model_config = SettingsConfigDict(
+        env_prefix="A2A_CORE_",
+        env_nested_delimiter="__",
+        case_sensitive=False,
+        extra="forbid",
+    )
+    replicaCount: int = Field(default=1, ge=1, le=1)  # const
+    image: ImageConfig = ImageConfig()
+    python: PythonConfig = PythonConfig()
+    resources: ResourcesConfig
+    mtls: MtlsConfig = MtlsConfig()
+    service: ServiceConfig = ServiceConfig()
+    observability: ObservabilityConfig = ObservabilityConfig()
+    certWatcher: CertWatcherConfig = CertWatcherConfig()
+    terminationGracePeriodSeconds: int = Field(default=60, ge=10, le=600)
+```
+
+**values.schema.json 自动生成**（与 L3-1 `values.schema.json` 同模式 · CI 必跑）：
+```bash
+python -c "from superteam_a2a.a2a.config import A2aCoreConfig; print(A2aCoreConfig.model_json_schema())" \
+  > deploy/helm/a2a-core/values.schema.json
+```
+
+### 12.2 Pod Security（K8s 1.28+ restricted profile · 继承 L2-1 Spec §12.2）
+
+```yaml
+# deploy/helm/a2a-core/templates/deployment.yaml 片段
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 65534                     # nobody
+  runAsGroup: 65534
+  fsGroup: 65534
+  seccompProfile:
+    type: RuntimeDefault
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true          # ⚠️ 与 cert hot reload 兼容（certDir volumeMount）
+  capabilities:
+    drop: ["ALL"]
+```
+
+**关键约束**：
+- `runAsNonRoot: true` + `runAsUser: 65534` (nobody) — K8s restricted profile 必填
+- `readOnlyRootFilesystem: true` + `certDir` 单独 volumeMount — cert 热更新可写
+- `capabilities.drop: ["ALL"]` + `allowPrivilegeEscalation: false` — 最小权限
+
+### 12.3 RBAC（ServiceAccount + ClusterRole · 继承 L2-1 Spec §12.3）
+
+```yaml
+# deploy/helm/a2a-core/templates/clusterrole.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: superteam-a2a-a2a-core
+rules:
+  # K8s Service / EndpointSlice watch（Discovery 必须）
+  - apiGroups: [""]
+    resources: ["endpointslices"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["services"]
+    verbs: ["get", "list", "watch"]
+  # 配置（CertWatcher / ConfigMap 加载）
+  - apiGroups: [""]
+    resources: ["configmaps"]
+    verbs: ["get"]
+    resourceNames: ["superteam-a2a-config"]
+  # 事件（K8s Events 记录）
+  - apiGroups: [""]
+    resources: ["events"]
+    verbs: ["create", "patch"]
+---
+# deploy/helm/a2a-core/templates/clusterrolebinding.yaml
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: superteam-a2a-a2a-core
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: superteam-a2a-a2a-core
+subjects:
+  - kind: ServiceAccount
+    name: superteam-a2a-a2a-core
+    namespace: {{ .Release.Namespace }}
+```
+
+**RBAC 边界**：
+- **不**给 secrets 权限（L3-2 不读 secrets，cert 由 cert-manager 挂载）
+- **不**给 pods / deployments 权限（L3-2 不 reconcile，CRD lifecycle 由 L3-1 Operator 负责）
+- **不**给 cluster-wide list（仅必要 resourceNames）
+
+### 12.4 9 Helm 模板清单（与 §1.3 9 模板一致）
+
+| 模板 | 用途 | 与 L2-1 Spec §12 对应 |
+|------|------|------------------------|
+| `Chart.yaml` | Helm chart 元数据 | (新增) |
+| `values.yaml` | 默认 Helm values（开发环境）| §12.1 |
+| `values.schema.json` | JSON Schema（从 A2aCoreConfig 自动生成）| (新增) |
+| `deployment.yaml` | A2A Core Deployment（单容器 + Uvicorn 单 worker）| §12.1 + §12.2 |
+| `service.yaml` | Service（8443 mTLS + 9090 metrics）| §12.1 |
+| `serviceaccount.yaml` | ServiceAccount | §12.3 |
+| `secret-tls.yaml` | cert-manager 注解（tls.crt / tls.key / ca.crt）| §12.1 mtls |
+| `networkpolicy.yaml` | NetworkPolicy（限制 Pod egress）| §12.2 |
+| `prometheusrule.yaml` | 15 指标告警规则 | §11.1 |
+| `servicemonitor.yaml` | ServiceMonitor（15 指标抓取）| §11.1 |
+| `podmonitor.yaml` | PodMonitor（补充 runtime 4 指标）| §11.1 |
+
+**完整 9 + 2 = 11 文件**（values.yaml + values.schema.json + Chart.yaml + 8 模板）
+
+---
 
 ---
 
 ## 13. 生命周期契约（时序图 · 继承 L2-1 Spec §13）
 
-> ⚠️ **占位章节** —— 后续 #51+ 会话补完。
+> ⚠️ **占位章节** —— 后续 #52+ 会话补完。
 >
 > **本节将展开**：
 > - 13.1 启动时序（lifespan 5 阶段：observability init → mtls context build → cert hot reload start → agent card cache warmup → server start）
@@ -1431,7 +2205,7 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
 
 ## 14. 验收清单（v0.2 · Python-first · 继承 L2-1 Spec §14）
 
-> ⚠️ **占位章节** —— 后续 #51+ 会话补完。
+> ⚠️ **占位章节** —— 后续 #52+ 会话补完。
 >
 > **本节将展开**：
 > - 14.1 模块完整性（30 文件清单 + 6 method + 4 endpoint + 24 error code + 15 指标）
@@ -1447,7 +2221,7 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
 
 ## 15. 开放问题（移交 L3-2 Spec / v0.5+ · 继承 L2-1 Spec §15）
 
-> ⚠️ **占位章节** —— 后续 #51+ 会话补完。
+> ⚠️ **占位章节** —— 后续 #52+ 会话补完。
 >
 > **本节将展开**：
 > - 15.1 继承自 L2-1 Spec v0.2.0 §15 的 15 项开放问题（v0.2 收敛 80%）
@@ -1503,7 +2277,7 @@ def get_logger(name: str) -> structlog.stdlib.BoundLogger:
 
 ---
 
-## 附录 B：ADR / Constitution 引用矩阵（占位 · 后续 #51+ 补完）
+## 附录 B：ADR / Constitution 引用矩阵（占位 · 后续 #52+ 补完）
 
 > ⚠️ **占位附录** —— 后续 #51+ 会话补完。
 >
