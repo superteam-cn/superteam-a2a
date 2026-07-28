@@ -1,16 +1,17 @@
 # L3 文件级 Spec：Adapter SDK（编排层 Adapter 框架 SDK · Python-first）
 
-> **⚠️ ADR-0005 supersede + 归档标记（2026-07-28）**：本 v0.2-draft Spec 文档**仅 supersede Go framework adapter / sigs.k8s.io/cli-runtime 实现条款**；wire contract（Adapter Protocol + FrameworkAdapter Protocol + AgentCardConverter + 6 framework matrix + 4 配置优先级 + 错误码 7 项）与 v0.2.0 Spec 业务语义**完全继续有效**。L2-3 v0.1.0 Go baseline 已归档至 [`docs/archive/pre-python-2026-07-24/L2-adapter-spec-v0.1.0-go-baseline.md`](../../archive/pre-python-2026-07-24/L2-adapter-spec-v0.1.0-go-baseline.md)（2026-07-24 归档 / 2026-07-26 #37 评审前未独立评审 / L2-3 v0.2.0 Python 重写已被 L2-3 v0.2.0 Spec 完全覆盖）。
+> **⚠️ ADR-0005 supersede + 归档标记（2026-07-28）**：本 v0.2.0 Spec 文档**仅 supersede Go framework adapter / sigs.k8s.io/cli-runtime 实现条款**；wire contract（Adapter Protocol + FrameworkAdapter Protocol + AgentCardConverter + 6 framework matrix + 4 配置优先级 + 错误码 7 项）与 v0.2.0 Spec 业务语义**完全继续有效**。L2-3 v0.1.0 Go baseline 已归档至 [`docs/archive/pre-python-2026-07-24/L2-adapter-spec-v0.1.0-go-baseline.md`](../../archive/pre-python-2026-07-24/L2-adapter-spec-v0.1.0-go-baseline.md)（2026-07-24 归档 / 2026-07-26 #37 评审前未独立评审 / L2-3 v0.2.0 Python 重写已被 L2-3 v0.2.0 Spec 完全覆盖）。
 >
-> **Python 重写入口**：依据 L1 v0.2.0 Architecture §3.5 + §4.3 C-3 + ADR-0005 §3.3 + §13.1 + L2-3 v0.2.0 Spec §3-§6 落地，11 文件 SDK + 6 framework adapter 子包 → uv workspace `packages/adapter-sdk/src/superteam_a2a/adapter/`；6 framework 集成（LangChain / AutoGen / CrewAI / Semantic Kernel / Strands / Smolagents）→ 6 framework subpackage 独立仓库 + FrameworkAdapter Protocol（typing.Protocol + `@runtime_checkable`）；AgentCard 转换 → Pydantic v2 + A2AClient（L3-2 §6 复用）；4 层配置优先级（CRD spec > env > sidecar file > defaults）→ Pydantic v2 BaseSettings + 显式 merge 顺序 + 单元测试覆盖。
+> **Python 重写入口**：依据 L1 v0.2.0 Architecture §3.5 + §4.3 C-3 + ADR-0005 §3.3 + §13.1 + L2-3 v0.2.0 Spec §3-§6 落地，12 文件 SDK（11 继承 + `lifecycle.py`）+ 6 framework adapter 子包 → uv workspace `packages/adapter-sdk/src/superteam_a2a/adapter/`；6 framework 集成（LangChain / AutoGen / CrewAI / Semantic Kernel / Strands / Smolagents）→ 6 framework subpackage 独立仓库 + FrameworkAdapter Protocol（typing.Protocol + `@runtime_checkable`）；AgentCard 转换 → Pydantic v2 + A2AClient（L3-2 §6 复用）；4 层配置优先级（CRD spec > env > sidecar file > defaults）→ Pydantic v2 BaseSettings + 显式 merge 顺序 + 单元测试覆盖。
 >
 > **层级**：L3 — 文件级 Spec
 > **模块 ID**：C-3（Adapter SDK，见 L1 Architecture §4.3）
 > **代码位置**：`packages/adapter-sdk/src/superteam_a2a/adapter/`（**ADR-0005 §13.1 uv workspace 布局**，替代原 baseline 的 `src/adapter-sdk/`）
-> **版本**：**v0.2-draft-full**（2026-07-28 起 Python 重写 + L3-1 v0.2.0 #56 + L3-2 v0.2.0 #54 L3 阶段 1/4 ~ 2/4 已通过；2026-07-28 #57 §3-§6 补完；**本次会话 §7-§10 + 完整附录 A/B 补完**）
-> **状态**：✅ **v0.2-draft-full §0-§10 + 附录 A/B 完整版**（#56 骨架 + #57 §3-§6 补完 + 本次会话 §7-§10 + 附录 A/B 完整版）——头部 + §0-§10 + 附录 A（30 行 6 子表）+ 附录 B（49 行 5 子表）全部落地；**待独立评审后升级 v0.2.0**
+> **版本**：**v0.2.0**（2026-07-29 #58 评审通过并升级；#56 骨架 + #57 §3-§6 + #57 §7-§10/附录 A/B 完整版 + **#58 评审 §M 关注项 4-9 PR 同步修正**）
+> **状态**：✅ **v0.2.0 已通过独立评审**（[评审报告](../../reviews/l3-3-adapter-sdk-spec-review.md) · §A-§P 16 节 / 10 维度全 PASS / 0 阻塞项 / 9 关注项 / 4 建议项）——头部 + §0-§10 + 附录 A（30 行 6 子表）+ 附录 B（49 行 5 子表）全部落地；累计 **12 文件 SDK + 22 framework 文件 = 42 文件级契约 / 200 测试 ID（+ §9.6 42 HELM-* 部署面 ID）/ 45 文件镜像清单**；**已可作为 L4 实施输入**
+> **本次升级修正范围（#58 · 评审 §N 强制项）**：关注项 4（附录 B.2 row 12 Protocol 方法名）/ 关注项 5（B.2 row 13 方法数）/ 关注项 6（新增 §3.7 Lifecycle 11 步启动序列 + `lifecycle.py`）/ 关注项 7（`AdapterError.to_jsonrpc_error()` 契约）/ 关注项 8（§9.4 image tag 对齐 §3.5 VERSION_MATRIX）/ 关注项 9（public API 补齐 `Adapter` / `AdapterErrorCode` / `create_retry_policy` / `Lifecycle` 4 项）。**关注项 1-3（命名/枚举漂移 + ST-ADAPTER-BOUNDARY Ruff 规则落地 + 测试 ID 交叉引用）与 4 项建议项移交 v0.2.1 / L4 实施第一周微同步**，见 §M.2 台账。
 > **上游约束**：[`docs/design/L2-modules/L2-adapter.md`](../../design/L2-modules/L2-adapter.md) **v0.2.0**（2026-07-26 #35 评审通过 · 1267 行 / 66KB / 14 主章节）+ [`docs/spec/L2-module-specs/L2-adapter.md`](../../spec/L2-module-specs/L2-adapter.md) **v0.2.0**（2026-07-26 #37 评审通过 · 114KB / 2705 行 / 14 节 + 2 附录 / 81-159 测试 ID / 15 开放问题 / 9 Python Protocol/Class + 5 生命周期时序图 + Helm values 11.1-11.6 + 6 framework 完整 schema + 6 层测试策略）
-> **本 Spec 目的**：将 L2-3 Adapter Spec v0.2.0 中的 **11 文件 SDK + 6 framework adapter 子包 + FrameworkAdapter Protocol + AgentCardConverter + A2AClient 复用 + Helm values + 测试策略** 落地为 **文件级 Python 代码契约**——每个文件列明**绝对路径（基于 uv workspace 布局）**、**职责一句话**、**完整 import 列表**、**exported 符号签名（type hints + docstring 一行）**、**内部 helper 列表**、**关联测试文件路径 + 测试 ID 前缀**。是 L4 实施阶段（开发者打开 IDE 即可对照写代码）的直接输入。
+> **本 Spec 目的**：将 L2-3 Adapter Spec v0.2.0 中的 **11 文件 SDK（L3-3 落地为 12 文件，新增 `lifecycle.py`）+ 6 framework adapter 子包 + Adapter / FrameworkAdapter Protocol + AgentCardConverter + A2AClient 复用 + Helm values + 测试策略** 落地为 **文件级 Python 代码契约**——每个文件列明**绝对路径（基于 uv workspace 布局）**、**职责一句话**、**完整 import 列表**、**exported 符号签名（type hints + docstring 一行）**、**内部 helper 列表**、**关联测试文件路径 + 测试 ID 前缀**。是 L4 实施阶段（开发者打开 IDE 即可对照写代码）的直接输入。
 > **配套 Spec**：[L3-1 Operator Core 文件级 Spec v0.2.0](./L3-operator-core.md)（2026-07-28 #56 评审通过）/ [L3-2 A2A Core Library 文件级 Spec v0.2.0](./L3-a2a-core.md)（2026-07-28 #54 评审通过 · [评审报告](../../reviews/l3-2-a2a-core-spec-review.md)） — L3-3 复用 L3-2 §6 `A2AClient` 与 §9 15 指标 + L3-2 §10 24 错误码 enum，不重复定义 A2A wire contract / [L3-4 Hello Agent 文件级 Spec](./L3-hello-agent.md)（待起草）/ [L3-5 Knowledge Service 文件级 Spec](./L3-knowledge-service.md)（待起草）/ [L3-6 Memory backend 文件级 Spec](./L3-memory-backend.md)（待起草）
 
 ---
@@ -18,8 +19,8 @@
 ## 0. 阅读指南
 
 - **读者**：Adapter SDK 实施工程师（L4 Python 编码）、Framework Adapter 集成者（6 framework 各自 owner）、Code Reviewer（PR 审查）、架构 Reviewer（Adapter 边界一致性）
-- **必读章节**：§1（模块使命 + 11 → 39 文件清单总览）/ §2（Python 包结构 11 文件 SDK + 6 framework 子包）/ 附录 A（跨模块引用清单）/ 附录 B（ADR / Constitution 5 子表追溯矩阵）
-- **评审入口**：附录 A 6 子表（30 行） + 附录 B 5 子表（49 行）+ 11 文件 SDK 全部 exported 符号与测试 ID 映射 — 三处必须互相回链且数量一致
+- **必读章节**：§1（模块使命 + 12 → 42 文件清单总览）/ §2（Python 包结构 12 文件 SDK + 6 framework 子包）/ 附录 A（跨模块引用清单）/ 附录 B（ADR / Constitution 5 子表追溯矩阵）
+- **评审入口**：附录 A 6 子表（30 行） + 附录 B 5 子表（49 行）+ 12 文件 SDK 全部 exported 符号与测试 ID 映射 — 三处必须互相回链且数量一致
 - **配套阅读**：[L2-3 Adapter Spec v0.2.0 §3-§15](../../spec/L2-module-specs/L2-adapter.md) · [L2-3 Adapter Design v0.2.0 §3-§14](../../design/L2-modules/L2-adapter.md) · [L1 Architecture v0.2.0 §3.5 适配层](../../design/L1-architecture.md) · [ADR-0005 §3.3 Adapter SDK 模块映射](../../adr/0005-python-first-technology-stack.md) · [L3-2 A2A Core v0.2.0 §6 A2AClient + §9 指标 + §10 错误码](../../spec/L3-file-specs/L3-a2a-core.md) · [L3-1 Operator Core v0.2.0 §7.1.2 指标 + §7.3 RBAC + §7.2 Helm](../../spec/L3-file-specs/L3-operator-core.md) · [a2a-sdk 官方文档](https://github.com/google/a2a-python) · [Kopf 官方文档](https://kopf.readthedocs.io/)
 
 **与 L3-2 复用边界**：
@@ -38,7 +39,7 @@
 
 ### 1.1 使命
 
-L3-3 Adapter SDK 文件级 Spec 将 [L2-3 Spec v0.2.0](../../spec/L2-module-specs/L2-adapter.md) 中描述的 **11 文件 SDK + 6 framework adapter 子包 + FrameworkAdapter Protocol + AgentCardConverter + 4 层配置优先级 + 7 错误码 + 6 框架集成的细节** 落地为 **可直接对照编码的 Python 文件级契约**。
+L3-3 Adapter SDK 文件级 Spec 将 [L2-3 Spec v0.2.0](../../spec/L2-module-specs/L2-adapter.md) 中描述的 **11 文件 SDK（本 Spec 落地为 12 文件，新增 §3.7 `lifecycle.py`）+ 6 framework adapter 子包 + Adapter / FrameworkAdapter Protocol + AgentCardConverter + 4 层配置优先级 + 7 错误码 + 6 框架集成的细节** 落地为 **可直接对照编码的 Python 文件级契约**。
 
 **单 SDK 形态**：Adapter SDK 作为 uv workspace 单独 package（`packages/adapter-sdk/`），6 framework adapters 作为独立仓库（每个 framework 单独 PyPI 包，但通过本 SDK 的 `FrameworkAdapter` Protocol 接入）；adapter-sdk 与 L3-1 Operator Core + L3-2 A2A Core + L3-5 Knowledge Service 之间通过固定的 Python Protocol + Pydantic v2 边界（无 K8s API 依赖）。
 
@@ -46,11 +47,11 @@ L3-3 Adapter SDK 文件级 Spec 将 [L2-3 Spec v0.2.0](../../spec/L2-module-spec
 
 | 维度 | L2-3 模块 Spec | L3-3 文件级 Spec |
 |---|---|---|
-| **粒度** | 模块级（11 文件 SDK + 6 framework 概要） | 文件级（11 SDK + 6 framework 子包共 39 文件级契约 + 每个文件的 import/exported/helper/测试文件） |
+| **粒度** | 模块级（11 文件 SDK + 6 framework 概要） | 文件级（12 SDK + 6 framework 子包共 42 文件级契约 + 每个文件的 import/exported/helper/测试文件） |
 | **目的** | "为什么 + 是什么"（设计决策 + 4 协议 + 6 framework matrix + 4 层配置 + 7 错误码） | "怎么做"（每个文件具体怎么写） |
 | **读者** | 架构师 + L3 起草者 | L4 实施工程师（开发者打开 IDE 对照） |
 | **变更频率** | 低（设计变更才改） | 中（实现微调可能改） |
-| **测试 ID 范围** | L2-3 81-159 测试 ID（≥ 81 v0.2 / ≥ 159 v1.0） | 继承 L2-3 前缀与语义，并按文件级路径细化为 §9 的**约 159 个可执行测试 ID**；§10 的 `OPEN-A-*` 仅作决策追踪，不计入 159 |
+| **测试 ID 范围** | L2-3 81-159 测试 ID（≥ 81 v0.2 / ≥ 159 v1.0） | 继承 L2-3 前缀与语义，并按文件级路径细化为 §10.1 的 **200 个可执行测试 ID**（另有 §9.6 42 个 HELM-* 部署面 ID 独立计数）；`OPEN-A-*` 仅作决策追踪，不计入 200 |
 
 ### 1.2 模块对外契约（public API surface · 继承 L2-3 Spec §1.2）
 
@@ -59,11 +60,15 @@ L3-3 Adapter SDK 文件级 Spec 将 [L2-3 Spec v0.2.0](../../spec/L2-module-spec
 ```python
 # packages/adapter-sdk/src/superteam_a2a/adapter/__init__.py
 from .protocol import (
+    Adapter,
     FrameworkAdapter,
     AgentCardConverter,
     AgentSpec,
     AgentCard,
     AdapterConfig,
+)
+from .errors import (
+    AdapterErrorCode,
     AdapterError,
     AdapterPermanentError,
     AdapterRetryableError,
@@ -74,13 +79,20 @@ from .protocol import (
     AdapterFrameworkError,
     AdapterVersionError,
 )
+from .retry import create_retry_policy
+from .lifecycle import Lifecycle
 
 __all__ = [
+    # Protocol（§3.2）
+    "Adapter",
     "FrameworkAdapter",
     "AgentCardConverter",
+    # 模型（§4.1）
     "AgentSpec",
     "AgentCard",
     "AdapterConfig",
+    # 错误（§8.3）
+    "AdapterErrorCode",
     "AdapterError",
     "AdapterPermanentError",
     "AdapterRetryableError",
@@ -90,8 +102,23 @@ __all__ = [
     "AdapterTimeoutError",
     "AdapterFrameworkError",
     "AdapterVersionError",
+    # 重试（§8.2）
+    "create_retry_policy",
+    # 生命周期（§3.7）
+    "Lifecycle",
 ]
 ```
+
+**v0.2.0 #58 补齐说明（评审 §M 关注项 9）**：v0.2-draft-full 的 `__all__` 为 14 项（§1.3.1 曾误记为 13），与 [L2-3 Spec v0.2.0 §1.3](../../spec/L2-module-specs/L2-adapter.md) 列出的 public API surface 相比缺 `Adapter` / `AdapterErrorCode` / `create_retry_policy` / `Lifecycle` 4 项。本版按**选项 A** 补齐为 **18 项**，4 项落地位置如下（业务层 import 路径与 L2-3 完全一致）：
+
+| 缺失符号 | L2-3 上游 | L3-3 v0.2.0 落地位置 | 测试 ID |
+|---|---|---|---|
+| `Adapter`（Protocol · 3 方法） | L2-3 Spec §3.1 | §3.2 `protocol.py`（与 FrameworkAdapter 分工见该节 docstring） | SDK-PROT-013 |
+| `AdapterErrorCode`（枚举） | L2-3 Spec §6.1 | `errors.py`（§1.3.1 row 8 已列 exported 符号；本版纳入 `__all__`） | SDK-ERR-001 |
+| `create_retry_policy`（工厂） | L2-3 Spec §6.4 | §8.2 `retry.py`（错误码 → `AsyncRetrying` 策略） | SDK-RTY-007 / 008 |
+| `Lifecycle`（生命周期类） | L2-3 Spec §10.2 | §3.7 `lifecycle.py`（SDK 第 12 文件） | SDK-LC-001~008 |
+
+**注**：L2-3 §1.3 中的 7 项 observability 符号（`REQUESTS_TOTAL` 等）与 `create_tracer` / `configure_logging` 在 L3-3 中按 §7.1 拆分为 `observability/` 子包并从 `superteam_a2a.adapter.observability` 导出，不进入本 `__all__`（§2.3 边界规则 11：`__init__.py` 仅导出核心契约面）。
 
 **L3-3 新增 internal API**（仅 adapter-sdk 包内部 + 6 framework 各自 repository 内部使用,不对外暴露）：
 
@@ -107,36 +134,37 @@ __all__ = [
 - **structlog**：`import structlog`（8 必含字段）
 - **Prometheus client**：`from prometheus_client import Counter, Histogram, Gauge`
 - **opentelemetry**：`from opentelemetry import trace, propagate`
-- **禁止**：`import aiohttp` / `import requests` / `import flask` / `import django` / `import kubernetes` / `import kopf` / `import anyio`（任何 framework adapter 不得直接导入；如使用必须通过 SDK 提供的 Protocol）
+- **禁止**：`import aiohttp` / `import requests` / `import flask` / `import django` / `import kubernetes` / `import kopf` / `import anyio`（任何 framework adapter 不得直接导入；如使用必须通过 SDK 提供的 Protocol）。**例外**：SDK 内部 §3.7 `lifecycle.py` 允许 `import anyio`（仅用于 30s grace period 计时与 in-flight 等待，继承 L2-3 Spec §10.2），framework adapter 子包仍全面禁止。
 
-### 1.3 文件清单总览（11 + 6 + 24 = 41 文件级契约）
+### 1.3 文件清单总览（12 + 6 + 24 = 42 文件级契约）
 
-#### 1.3.1 11 文件 SDK 主清单（与 L2-3 Spec §3.1 一致）
+#### 1.3.1 12 文件 SDK 主清单（11 项与 L2-3 Spec §3.1 一致 + v0.2.0 #58 新增 `lifecycle.py`）
 
 | # | 路径 | 职责 | exported 符号 | 测试 ID 前缀 |
 |---|------|------|----------------|---------------|
-| 1 | `packages/adapter-sdk/src/superteam_a2a/adapter/__init__.py` | public API 入口 | 13 符号（见 §1.2） | SDK-EXPORT-001 |
+| 1 | `packages/adapter-sdk/src/superteam_a2a/adapter/__init__.py` | public API 入口 | 18 符号（14 原有 + 4 补齐；见 §1.2） | SDK-EXPORT-001 |
 | 2 | `packages/adapter-sdk/src/superteam_a2a/adapter/_internals.py` | 内部 helper + 测试夹具 | `_load_framework`, `_make_test_card` | SDK-INT-001~003 |
-| 3 | `packages/adapter-sdk/src/superteam_a2a/adapter/protocol.py` | FrameworkAdapter Protocol + AgentCardConverter Protocol + 7 错误类 | `FrameworkAdapter`, `AgentCardConverter`, `AdapterError` × 7 | SDK-PROT-001~012 |
+| 3 | `packages/adapter-sdk/src/superteam_a2a/adapter/protocol.py` | Adapter Protocol + FrameworkAdapter Protocol + AgentCardConverter Protocol + 7 错误类（含 `to_jsonrpc_error` 契约） | `Adapter`, `FrameworkAdapter`, `AgentCardConverter`, `AdapterError` × 7 | SDK-PROT-001~015 |
 | 4 | `packages/adapter-sdk/src/superteam_a2a/adapter/models.py` | Pydantic v2 AgentSpec / AgentCard / AdapterConfig | `AgentSpec`, `AgentCard`, `AdapterConfig` | SDK-MOD-001~008 |
 | 5 | `packages/adapter-sdk/src/superteam_a2a/adapter/loader.py` | 6 framework 动态加载 + entry_points 解析 | `load_framework`, `list_frameworks` | SDK-LOAD-001~006 |
 | 6 | `packages/adapter-sdk/src/superteam_a2a/adapter/converter.py` | AgentCard 转换逻辑 + 字段映射 | `convert_agent_card`, `validate_agent_card` | SDK-CONV-001~010 |
 | 7 | `packages/adapter-sdk/src/superteam_a2a/adapter/config.py` | 4 层配置优先级合并（CRD > env > sidecar file > defaults） | `merge_config`, `load_config` | SDK-CFG-001~008 |
 | 8 | `packages/adapter-sdk/src/superteam_a2a/adapter/errors.py` | 7 错误码 enum + Tenacity 5 类策略映射 | `AdapterErrorCode` enum, error mapping | SDK-ERR-001~009 |
-| 9 | `packages/adapter-sdk/src/superteam_a2a/adapter/retry.py` | Tenacity 5 类策略 + structlog 错误日志 | `retry_strategy`, `is_retryable` | SDK-RTY-001~006 |
+| 9 | `packages/adapter-sdk/src/superteam_a2a/adapter/retry.py` | Tenacity 5 类策略 + structlog 错误日志 + `create_retry_policy` 工厂 | `with_retry`, `create_retry_policy`, `compute_backoff` | SDK-RTY-001~008 |
 | 10 | `packages/adapter-sdk/src/superteam_a2a/adapter/observability.py` | 6 框架独立 metrics + structlog 8 字段 + OTel | `MetricsRegistry`, `log_adapter_event` | SDK-OBS-001~008 |
 | 11 | `packages/adapter-sdk/src/superteam_a2a/adapter/version.py` | 6 framework 版本兼容矩阵 + 升级策略 | `VERSION_MATRIX`, `check_version` | SDK-VER-001~004 |
+| 12 | `packages/adapter-sdk/src/superteam_a2a/adapter/lifecycle.py` | **（v0.2.0 #58 新增）** Lifecycle 11 步启动序列 + 30s grace 关闭 + reload（§3.7） | `Lifecycle`, `GRACE_PERIOD_SECONDS`, `READINESS_PERIODS` | SDK-LC-001~008 |
 
 #### 1.3.2 6 framework adapter 子包总览（每个子包 ~3-4 文件 = 22 文件）
 
 | # | 框架 | 子包路径 | 文件清单 | 引用 L3-2 资源 | 测试 ID 前缀 |
 |---|------|----------|----------|----------------|---------------|
-| 12 | **LangChain** | `packages/adapter-langchain/src/superteam_a2a/adapter_langchain/` | `__init__.py` + `adapter.py` + `converter.py` + `errors.py` | A2AClient §6 | LC-A-* / LC-C-* / LC-E-* |
-| 13 | **AutoGen** | `packages/adapter-autogen/src/superteam_a2a/adapter_autogen/` | `__init__.py` + `adapter.py` + `converter.py` + `errors.py` | A2AClient §6 | AG-A-* / AG-C-* / AG-E-* |
-| 14 | **CrewAI** | `packages/adapter-crewai/src/superteam_a2a/adapter_crewai/` | `__init__.py` + `adapter.py` + `converter.py` + `errors.py` | A2AClient §6 | CR-A-* / CR-C-* / CR-E-* |
-| 15 | **Semantic Kernel** | `packages/adapter-sk/src/superteam_a2a/adapter_sk/` | `__init__.py` + `adapter.py` + `converter.py` + `errors.py` | A2AClient §6 | SK-A-* / SK-C-* / SK-E-* |
-| 16 | **Strands** | `packages/adapter-strands/src/superteam_a2a/adapter_strands/` | `__init__.py` + `adapter.py` + `converter.py` + `errors.py` | A2AClient §6 | ST-A-* / ST-C-* / ST-E-* |
-| 17 | **Smolagents** | `packages/adapter-smolagents/src/superteam_a2a/adapter_smolagents/` | `__init__.py` + `adapter.py` + `converter.py` + `errors.py` | A2AClient §6 | SM-A-* / SM-C-* / SM-E-* |
+| 13 | **LangChain** | `packages/adapter-langchain/src/superteam_a2a/adapter_langchain/` | `__init__.py` + `adapter.py` + `converter.py` + `errors.py` | A2AClient §6 | LC-A-* / LC-C-* / LC-E-* |
+| 14 | **AutoGen** | `packages/adapter-autogen/src/superteam_a2a/adapter_autogen/` | `__init__.py` + `adapter.py` + `converter.py` + `errors.py` | A2AClient §6 | AG-A-* / AG-C-* / AG-E-* |
+| 15 | **CrewAI** | `packages/adapter-crewai/src/superteam_a2a/adapter_crewai/` | `__init__.py` + `adapter.py` + `converter.py` + `errors.py` | A2AClient §6 | CR-A-* / CR-C-* / CR-E-* |
+| 16 | **Semantic Kernel** | `packages/adapter-sk/src/superteam_a2a/adapter_sk/` | `__init__.py` + `adapter.py` + `converter.py` + `errors.py` | A2AClient §6 | SK-A-* / SK-C-* / SK-E-* |
+| 17 | **Strands** | `packages/adapter-strands/src/superteam_a2a/adapter_strands/` | `__init__.py` + `adapter.py` + `converter.py` + `errors.py` | A2AClient §6 | ST-A-* / ST-C-* / ST-E-* |
+| 18 | **Smolagents** | `packages/adapter-smolagents/src/superteam_a2a/adapter_smolagents/` | `__init__.py` + `adapter.py` + `converter.py` + `errors.py` | A2AClient §6 | SM-A-* / SM-C-* / SM-E-* |
 
 **6 framework 共同契约**（每个 framework adapter 必须实现）：
 
@@ -170,22 +198,22 @@ class FrameworkAdapter(Protocol):
 
 #### 1.3.3 22 顶层测试文件（镜像规则 · `test_*.py` 1:1 对应 src 文件）
 
-- 11 文件 SDK → 11 `tests/unit/adapter-sdk/test_<file>.py`
+- 12 文件 SDK → 12 `tests/unit/adapter-sdk/test_<file>.py`
 - 6 framework × 3 adapter 文件 = 18 `tests/unit/adapters/test_<framework>_<file>.py` + 4 `tests/integration/framework/test_<framework>_e2e.py`（E2E 仅 6 framework 共享 4 集成测试，避免子包级别 E2E 爆炸）
 
-**合计 11 + 22 + 顶层测试 = 39 文件级契约 + ~50 顶层测试 = ~89 文件级落地点**（不含工程骨架文件）。
+**合计 12 + 22 + 顶层测试 = 42 文件级契约 + ~51 顶层测试 = ~93 文件级落地点**（不含工程骨架文件）。
 
 #### 1.3.4 与 L3-1 / L3-2 文件级规模对照
 
 | 维度 | L3-1 Operator Core | L3-2 A2A Core | **L3-3 Adapter SDK** |
 |------|-------------------:|---------------:|---------------------:|
-| Python 实现文件 | 70 | 30 | **11 SDK + 22 framework = 33** |
-| 顶层测试文件 | 50 | 30 | ~50 |
+| Python 实现文件 | 70 | 30 | **12 SDK + 22 framework = 34** |
+| 顶层测试文件 | 50 | 30 | ~51 |
 | Helm 模板 | 9 | 9 | 0（Adapter SDK 不直接交付 Helm chart；6 framework 各自 HELM-006~010 在 §11 引用） |
 | 工程资产 | 25 | 0 | 0（复用 L3-1 工程资产） |
-| 文件级契约总数 | 162 | 69 | **~89** |
-| 测试 ID | 277 | 276 | **~159**（继承 L2-3 + 6 框架独立） |
-| 公开 Protocol/Class | 36 | 36 | **9**（4 Protocol + 3 Model + 7 Error） |
+| 文件级契约总数 | 162 | 69 | **~93** |
+| 测试 ID | 277 | 276 | **200**（§10.1 加总；L2-3 v1.0 目标 159 + 文件级细化 +41） |
+| 公开 Protocol/Class | 36 | 36 | **18 public 符号**（3 Protocol + 3 Model + 1 ErrorCode enum + 9 Error 类 + 1 重试工厂 + 1 Lifecycle） |
 | ClusterRole apiGroups | 7 | 0 | 0（无 K8s API 依赖） |
 | 开放问题 | 25 | 24 | **15**（L2-3 继承 10 + 5 Spec 新增） |
 
@@ -198,7 +226,7 @@ L3-3 文件级规模**显著小于 L3-1 / L3-2**，但仍需 ~30-40KB / ~800-100
 | 6 framework 名称不变（`langchain` / `autogen` / `crewai` / `sk` / `strands` / `smolagents`） | L2-3 §3.1 + L1 §4.3 + ADR-0005 | §1.3.2 表格 + 6 framework `adapter.py` 文件 + §3.2 `FrameworkName` Literal |
 | 7 AdapterError 子类继承关系 | L2-3 §3.3 + L3-2 §10 错误码 | `errors.py` + 测试 SDK-ERR-001~009 |
 | 4 层配置优先级 CRD > env > sidecar file > defaults | L2-3 §3.2 + ADR-0005 §6.5 | `config.py` + 测试 SDK-CFG-001~008 |
-| 5 类 Tenacity 策略（`retry_network` / `retry_timeout` / `retry_5xx` / `retry_429` / `no_retry_4xx`） | L2-3 §6.4 + 宪法 §15.5 | `retry.py` + 测试 SDK-RTY-001~006 |
+| 5 类 Tenacity 策略（`retry_network` / `retry_timeout` / `retry_5xx` / `retry_429` / `no_retry_4xx`） | L2-3 §6.4 + 宪法 §15.5 | `retry.py` + 测试 SDK-RTY-001~008 |
 | A2A wire 复用 L3-2（不重写） | ADR-0005 §3.3 + §13.6 | `protocol.py` + `converter.py` import L3-2 `from a2a import AgentCard, Message` |
 
 ---
@@ -214,29 +242,31 @@ packages/
 │   ├── README.md
 │   ├── src/
 │   │   └── superteam_a2a/
-│   │       └── adapter/                     # 11 文件 SDK 主清单
-│   │           ├── __init__.py              # public API 入口
+│   │       └── adapter/                     # 12 文件 SDK 主清单
+│   │           ├── __init__.py              # public API 入口（18 符号）
 │   │           ├── _internals.py
-│   │           ├── protocol.py              # FrameworkAdapter + AgentCardConverter
+│   │           ├── protocol.py              # Adapter + FrameworkAdapter + AgentCardConverter
 │   │           ├── models.py                # Pydantic v2
 │   │           ├── loader.py                # 6 framework 动态加载
 │   │           ├── converter.py             # AgentCard 转换
 │   │           ├── config.py                # 4 层配置优先级
 │   │           ├── errors.py                # 7 错误码
-│   │           ├── retry.py                 # Tenacity 5 类策略
+│   │           ├── retry.py                 # Tenacity 5 类策略 + create_retry_policy
 │   │           ├── observability.py         # 6 framework metrics
+│   │           ├── lifecycle.py             # Lifecycle 11 步启动序列（§3.7）
 │   │           └── version.py               # 版本兼容矩阵
 │   └── tests/
 │       ├── unit/
 │       │   └── adapter-sdk/
-│       │       ├── test_protocol.py         # SDK-PROT-001~012
+│       │       ├── test_protocol.py         # SDK-PROT-001~015
 │       │       ├── test_models.py           # SDK-MOD-001~008
 │       │       ├── test_loader.py           # SDK-LOAD-001~006
 │       │       ├── test_converter.py        # SDK-CONV-001~010
 │       │       ├── test_config.py           # SDK-CFG-001~008
 │       │       ├── test_errors.py           # SDK-ERR-001~009
-│       │       ├── test_retry.py            # SDK-RTY-001~006
+│       │       ├── test_retry.py            # SDK-RTY-001~008
 │       │       ├── test_observability.py    # SDK-OBS-001~008
+│       │       ├── test_lifecycle.py        # SDK-LC-001~008
 │       │       └── test_version.py          # SDK-VER-001~004
 │       └── integration/
 │           └── adapter-sdk/
@@ -289,7 +319,7 @@ packages/adapter-{framework}/
 | 8 | 5 类 Tenacity 策略不可新增 | `retry.py` + 测试 SDK-RTY-001 严格枚举 |
 | 9 | 7 AdapterError 子类不可新增 | `errors.py` + 测试 SDK-ERR-001 严格枚举 |
 | 10 | A2A wire contract 不可变（必须通过 L3-2 SDK） | `converter.py` 引用 L3-2 不直接构造 dict |
-| 11 | `__init__.py` 仅导出 `__all__`（其他符号下划线前缀） | 11 文件 SDK + 6 framework `__init__.py` |
+| 11 | `__init__.py` 仅导出 `__all__`（其他符号下划线前缀） | 12 文件 SDK + 6 framework `__init__.py` |
 | 12 | 6 framework 名称字符串不可变（typing.Literal 强制） | `protocol.py` `framework_name: Literal["langchain", ...]` |
 | 13 | 版本兼容矩阵 6 framework 独立 | `version.py` `VERSION_MATRIX` 不可热改 |
 
@@ -318,15 +348,16 @@ packages/adapter-{framework}/
 - **框架版本兼容矩阵**：`framework_version: str` 格式 `X.Y.Z` semver；`VERSION_MATRIX` 6 framework 各自独立（详见 §3.5）。
 - **A2A 协议层薄封装**：`Protocol` 方法签名只引用 L3-2 提供的 `AgentCard` / `Message` / `Task` / `Artifact`，不定义新 wire 字段。
 
-### 3.2 `protocol.py` 文件级契约（466 行 · 核心 SDK 代码）
+### 3.2 `protocol.py` 文件级契约（约 560 行 · 核心 SDK 代码 · v0.2.0 #58 补入 `Adapter` Protocol + `to_jsonrpc_error` 契约摘录）
 
 ```python
 # packages/adapter-sdk/src/superteam_a2a/adapter/protocol.py
 # Copyright 2026 superteam-a2a authors. Apache-2.0 license.
-"""FrameworkAdapter Protocol + AgentCardConverter Protocol + 7 错误类。
+"""Adapter Protocol + FrameworkAdapter Protocol + AgentCardConverter Protocol + 7 错误类。
 
 基于 typing.Protocol + @runtime_checkable；不强制基类继承。
-6 framework adapter 必须实现 FrameworkAdapter 协议的全部 5 生命周期方法。
+6 framework adapter 必须实现 FrameworkAdapter 协议的全部 5 生命周期方法，
+并对外暴露一个满足 Adapter 协议（3 方法）的实例供 A2A Server 消费。
 A2A 协议层引用 L3-2 a2a-core，不重新定义 wire contract。
 """
 
@@ -343,7 +374,7 @@ from a2a import AgentCard, Message, Task, Artifact  # L3-2 a2a-core
 from pydantic import BaseModel, Field, ConfigDict
 
 from .models import AgentSpec, AdapterConfig
-from .errors import AdapterError
+from .errors import AdapterError, AdapterErrorCode
 
 
 FrameworkName = Literal[
@@ -470,7 +501,103 @@ class AgentCardConverter(Protocol):
             framework 特定 tool 描述（如 LangChain Tool 对象）
         """
         ...
+
+
+@runtime_checkable
+class Adapter(Protocol):
+    """Adapter ↔ A2A Server 协议边界（继承 L2-3 Spec §3.1 · public API）。
+
+    与 FrameworkAdapter 的分工（v0.2.0 #58 补齐 · 评审 §M 关注项 9）：
+    - `Adapter`：**面向 A2A Server 的运行时边界**（3 方法），由 L3-2 a2a-core
+      `create_app()` 与 §3.7 `Lifecycle` 消费；6 framework adapter 子包对外暴露的
+      就是本 Protocol 的实例。
+    - `FrameworkAdapter`：**面向 framework SDK 的翻译边界**（5 方法，见上），
+      由 `Adapter` 实现内部持有并调用。
+    - 两者均 `@runtime_checkable`；`isinstance(obj, Adapter)` 用于 §3.7 启动期
+      Step 8 的 duck typing 校验。
+    """
+
+    async def on_message(
+        self,
+        message: Message,
+        context_id: str | None = None,
+    ) -> Task:
+        """处理 A2A sendMessage；返回 Task + 状态。
+
+        Args:
+            message: A2A Message（来自 sendMessage params.message）
+            context_id: A2A context ID（multi-turn 对话）
+
+        Returns:
+            Task: A2A Task（status + artifacts）
+
+        Raises:
+            AdapterError: 含 error_code（-32001 ~ -32007）+ framework_error
+        """
+        ...
+
+    def agent_card(self) -> AgentCard:
+        """返回 Agent Card（用于 /.well-known/agent.json）。
+
+        启动期一次性构建（§3.7 Step 10），运行期 cached；不做 I/O。
+        """
+        ...
+
+    async def health_check(self) -> bool:
+        """健康检查（Adapter container readiness）。
+
+        Returns:
+            True: Adapter 可用
+            False: framework SDK 未初始化 / Agent container 不可达（Sidecar 拓扑）
+        """
+        ...
+
+
+# --- AdapterError JSON-RPC 序列化契约（v0.2.0 #58 补齐 · 评审 §M 关注项 7） ---
+# 定义位置：errors.py 中的 AdapterError 基类方法；此处列出签名与 wire 结构，
+# 供 §8.3 errors_mapping.py 与 L3-2 §10 错误传播直接对照实现。
+
+class AdapterError(Exception):  # 契约摘录（完整定义见 errors.py）
+    """Adapter 错误基类（7 子类见 §1.4 不变量）。"""
+
+    framework: str | None
+    error_code: AdapterErrorCode  # -32001 ~ -32007（L3-2 §10 继承）
+    cause: Exception | None
+
+    def to_jsonrpc_error(self) -> dict[str, Any]:
+        """序列化为 A2A JSON-RPC error object（wire contract · 不可变）。
+
+        Returns:
+            {
+                "code": int,               # error_code 数值（-32001 ~ -32007）
+                "message": str,            # 人类可读摘要（str(self)；≤ 1024 字符截断）
+                "data": {
+                    "framework": str | None,        # 6 framework 名之一或 None（SDK 层错误）
+                    "framework_error": {            # framework 原始异常上下文（B.3 row 31 MUST）
+                        "exception_type": str,      # type(cause).__name__；cause 为 None 时省略
+                        "detail": str,              # str(cause)，经 §7.4 9 项敏感字段脱敏
+                    } | None,
+                    "retryable": bool,              # == §8.3 is_retryable(self)
+                },
+            }
+
+        约束：
+        - **不得**泄漏 §7.4 9 项敏感字段（api_key / token / password 等）——
+          `detail` 必须先过 `redact_sensitive()` 再写入。
+        - `code` 取值必须落在 L3-2 §10 24 错误码 enum 的 Adapter 区间（-32001 ~ -32007）；
+          禁止新增（§2.3 边界规则 9）。
+        - 由 L3-2 a2a-core 的 JSON-RPC 响应层直接嵌入 `error` 字段，Adapter 不自行构造响应包。
+        """
+        ...
 ```
+
+**§3.2 测试 ID 补充**（v0.2.0 #58 新增 3 项）：
+
+| 测试 ID | 测试名 | 断言 |
+|---------|--------|------|
+| SDK-PROT-013 | `test_adapter_protocol_runtime_checkable_3_methods` | `isinstance(stub, Adapter)` 对含 `on_message`/`agent_card`/`health_check` 的对象为 True；缺任一方法为 False |
+| SDK-PROT-014 | `test_to_jsonrpc_error_wire_shape` | 返回 dict 含 `code` / `message` / `data.framework` / `data.framework_error` / `data.retryable`；`code` ∈ -32001~-32007 |
+| SDK-PROT-015 | `test_to_jsonrpc_error_redacts_and_carries_framework_error` | `cause` 存在时 `framework_error.exception_type` 为原始异常类名；`detail` 中 9 项敏感字段已脱敏为 `***` |
 
 ### 3.3 5 生命周期方法时序图（与 L2-3 Spec §3.4 同步）
 
@@ -524,7 +651,7 @@ Operator Core (L3-1)                  Adapter SDK (L3-3)                  Framew
       │ True / False                          │                                       │
 ```
 
-### 3.4 5 生命周期方法测试 ID 矩阵（SDK-PROT-001~012）
+### 3.4 5 生命周期方法测试 ID 矩阵（SDK-PROT-001~012；`Adapter` Protocol 与 `to_jsonrpc_error` 的 013~015 见 §3.2 末尾）
 
 | 测试 ID | 测试名 | 断言 | 对应文件 |
 |---------|--------|------|----------|
@@ -629,6 +756,139 @@ def _check_protocol_compliance(obj: Any) -> bool:
 ```
 
 **测试 ID**：SDK-INT-001（_load_framework entry_points 解析）/ SDK-INT-002（_make_test_card 6 framework fixture）/ SDK-INT-003（_check_protocol_compliance 7 字段校验）
+
+### 3.7 Lifecycle 11 步启动序列 + `lifecycle.py` 文件级契约（约 210 行 · v0.2.0 #58 新增 SDK 第 12 文件）
+
+> **补入依据**：附录 B.2 row 17 / row 18 / row 19 / row 20 将 Lifecycle 11 步启动序列、30s grace period、readiness 5 周期、lifespan 单进程模式列为 MUST，但 v0.2-draft-full 的 §3 仅落地 5 生命周期方法时序图（§3.3），无承载文件——评审 §M 关注项 6 + 关注项 9（`Lifecycle` public 符号缺失）。本节按 [L2-3 Spec v0.2.0 §10.1 + §10.2](../../spec/L2-module-specs/L2-adapter.md) 落地，**wire 与步骤编号完全继承上游，不新增语义**。
+
+#### 3.7.1 11 步启动序列（继承 L2-3 Spec §10.1 · 步骤编号不可变）
+
+```
+时间 ──────────────────────────────────────────────────────────────►
+
+Operator Core (L3-1)                K8s API              Adapter Container (L3-3)
+────────────────────                ───────              ────────────────────────
+1. Watch Agent CRD
+2. Reconcile Agent
+3. 构造 Pod spec（含 Adapter container）
+4. apply Pod ─────────────────────► Pod Created
+5. 调度 + 启动 containers
+                                    Containers Start
+                                                         6.  main() 启动（uvicorn 单 worker · §10.6）
+                                                         7.  load AdapterConfig（4 层优先级 · §6.2）
+                                                             失败 → AdapterError(-32007) + Exit 1
+                                                         8.  init Adapter（entry_points 加载 framework
+                                                             SDK · §6.3；isinstance(obj, Adapter) 校验）
+                                                             失败 → AdapterError(-32001) + Exit 1
+                                                         9.  Lifecycle.start()
+                                                             - 启动 transport（httpx 进程级单例 · B.2 row 20）
+                                                             - 注册 A2A Server（L3-2 create_app）
+                                                             - 注册 /healthz + /readyz
+                                                             - 启动 framework event listener
+                                                             - 启动 Prometheus /metrics（§7.2）
+                                                         10. Card 转换（启动期一次性，cached · §4.2）
+                                                             失败 → AdapterError(-32003) + Exit 1
+                                                         11. 标记 Ready（_ready = True）
+                                    ◄─── readiness probe 通过（5 周期 · B.2 row 19）───
+12. Watch Agent.Status.Ready = true
+```
+
+**步骤 → 落地位置映射**（L4 实施对照表）：
+
+| 步骤 | 动作 | 落地文件 | 失败错误码 | 测试 ID |
+|---:|------|----------|-----------|--------|
+| 6 | uvicorn 单 worker 进程启动 | `__main__.py`（framework 子包各自提供） | — | SDK-LC-001 |
+| 7 | `load_config()` 4 层优先级 | §6.2 `config.py` | `-32007` ADAPTER_CONFIG_ERROR | SDK-LC-002 |
+| 8 | entry_points 加载 + `isinstance(obj, Adapter)` | §6.3 `loader.py` + §3.2 | `-32001` ADAPTER_FRAMEWORK_ERROR | SDK-LC-003 |
+| 9 | `Lifecycle.start()` 5 项子步骤 | 本节 `lifecycle.py` | 透传子步骤错误码 | SDK-LC-004 |
+| 10 | `agent_card()` 一次性构建 + cache | §4.2 `converter.py` | `-32003` CARD_CONVERSION_FAILED | SDK-LC-005 |
+| 11 | `_ready = True` + `/readyz` 200 | 本节 `lifecycle.py` | — | SDK-LC-006 |
+
+**关闭序列（30s grace period · B.2 row 18）**：`SIGTERM` → `/readyz` 立即返回 503（摘流）→ 等待 in-flight `on_message` 完成（上限 30s，与 §9.3 `terminationGracePeriodSeconds: 30` 对齐）→ `Lifecycle.stop()` 关闭 transport + flush OTel span → 进程退出 0；超过 30s 未收敛的 in-flight 请求以 `AdapterError(-32002)` 结束并计入 `supteam_adapter_errors_total{reason="shutdown_timeout"}`。
+
+#### 3.7.2 `lifecycle.py` 文件级契约
+
+```python
+# packages/adapter-sdk/src/superteam_a2a/adapter/lifecycle.py
+# Copyright 2026 superteam-a2a authors. Apache-2.0 license.
+"""Adapter 生命周期 hook（Operator Core 集成 · 继承 L2-3 Spec §10.2）。
+
+本模块不 import 任何 framework SDK（§2.3 边界规则 2），仅依赖 Adapter Protocol。
+"""
+
+from __future__ import annotations
+
+import anyio
+import structlog
+
+from .config import AdapterConfig, validate_adapter_config
+from .errors import AdapterError, AdapterErrorCode
+from .protocol import Adapter
+
+_logger = structlog.get_logger("superteam_a2a.adapter.lifecycle")
+
+GRACE_PERIOD_SECONDS: float = 30.0   # 与 §9.3 terminationGracePeriodSeconds 成对修改
+READINESS_PERIODS: int = 5           # B.2 row 19：readiness probe 连续 5 周期
+
+
+class Lifecycle:
+    """Adapter 生命周期状态机（public API · 由 framework 子包 `__main__` 驱动）。
+
+    状态：INIT → STARTING → READY → DRAINING → STOPPED（单向，不可回退；
+    `reload()` 仅在 READY 态允许，失败时保持旧 config 并停留 READY）。
+    """
+
+    def __init__(
+        self,
+        adapter: Adapter,
+        config: AdapterConfig,
+        logger: structlog.stdlib.BoundLogger | None = None,
+    ) -> None:
+        """持有 Adapter 实例与已合并的 AdapterConfig；不做 I/O。"""
+        ...
+
+    @property
+    def ready(self) -> bool:
+        """`/readyz` 探针数据源（Step 11 置 True；SIGTERM 后立即置 False）。"""
+        ...
+
+    async def start(self) -> None:
+        """启动序列 Step 7-11（见 §3.7.1）。
+
+        Raises:
+            AdapterError: -32007（config 校验失败）/ -32001（framework 加载失败）
+                / -32003（Card 转换失败）——调用方必须 Exit 1，不得降级启动。
+        """
+        ...
+
+    async def reload(self, new_config: AdapterConfig) -> None:
+        """ConfigMap 变化时热更新（仅 reload-able 字段 · §6.1 4 层优先级不变）。
+
+        校验失败时**不更新** self._config（保持旧配置继续服务），抛 AdapterError(-32007)。
+        """
+        ...
+
+    async def stop(self, grace: float = GRACE_PERIOD_SECONDS) -> None:
+        """关闭序列：摘流 → 等待 in-flight（≤ grace）→ 关 transport → flush OTel。
+
+        幂等：重复调用直接返回；超时按 §3.7.1 关闭序列计入 shutdown_timeout。
+        """
+        ...
+```
+
+#### 3.7.3 §3.7 测试 ID 矩阵（8 ID）
+
+| 测试 ID | 文件 | 测试名 | 断言 |
+|---------|------|--------|------|
+| SDK-LC-001 | `tests/unit/adapter-sdk/test_lifecycle.py` | test_start_step6_single_worker | uvicorn 单 worker（`workers == 1`）· ADR-0005 §6 单进程原则 |
+| SDK-LC-002 | 同上 | test_start_step7_config_error_exits | `validate_adapter_config` 抛错 → `AdapterError(-32007)` 且 `ready is False` |
+| SDK-LC-003 | 同上 | test_start_step8_adapter_protocol_check | 不满足 `Adapter` Protocol 的对象 → `AdapterError(-32001)` |
+| SDK-LC-004 | 同上 | test_start_step9_registers_5_subsystems | transport / A2A app / healthz+readyz / event listener / metrics 五项均已注册 |
+| SDK-LC-005 | 同上 | test_start_step10_card_cached_once | `agent_card()` 仅调用 1 次；二次读取命中 cache → `AdapterError(-32003)` 路径覆盖 |
+| SDK-LC-006 | 同上 | test_start_step11_ready_true_after_5_periods | Step 11 后 `ready is True`；readiness 连续 5 周期通过 |
+| SDK-LC-007 | 同上 | test_stop_grace_period_30s_and_idempotent | SIGTERM 后 `ready` 立即 False；in-flight 等待上限 30s；重复 `stop()` 幂等 |
+| SDK-LC-008 | 同上 | test_reload_invalid_config_keeps_old | `reload()` 校验失败后 `self._config` 未变且状态仍为 READY |
+
 
 ---
 
@@ -1239,7 +1499,7 @@ def setup_metrics(registry: CollectorRegistry | None = None) -> CollectorRegistr
         except ValueError as exc:
             raise AdapterConfigError(
                 f"metric {metric._name} already registered",
-                framework=None, error_code=ErrorCode.ADAPTER_CONFIG_ERROR,
+                framework=None, error_code=AdapterErrorCode.ADAPTER_CONFIG_ERROR,
             ) from exc
     return registry
 
@@ -1490,12 +1750,12 @@ def clear_context() -> None:
 
 | # | 路径 | 职责 | 行数估计 | 测试 ID 前缀 |
 |---|------|------|---------|------------|
-| 1 | `packages/adapter-sdk/src/superteam_a2a/adapter/retry.py` | 5 类 Tenacity 策略 + with_retry 装饰器 + jitter 计算 | 156 | RETRY-001~010 |
+| 1 | `packages/adapter-sdk/src/superteam_a2a/adapter/retry.py` | 5 类 Tenacity 策略 + with_retry 装饰器 + jitter 计算 + `create_retry_policy` public 工厂 | 200 | RETRY-001~010 + SDK-RTY-007~008 |
 | 2 | `packages/adapter-sdk/src/superteam_a2a/adapter/errors_mapping.py` | framework 异常 → AdapterError 子类映射表 + Retryable 矩阵 | 124 | ERR-MAP-001~008 |
 
-**合计 2 文件 ~280 行**（§3.2 已定义 `protocol.py` 中 `AdapterError` 基类 + 7 子类，本节仅追加 mapping 与 retry 策略）。
+**合计 2 文件 ~324 行**（§3.2 已定义 `protocol.py` 中 `AdapterError` 基类 + 7 子类 + `to_jsonrpc_error` 契约，本节仅追加 mapping 与 retry 策略）。
 
-### 8.2 `retry.py` 文件级契约（156 行）
+### 8.2 `retry.py` 文件级契约（约 200 行 · v0.2.0 #58 追加 `create_retry_policy`）
 
 ```python
 # packages/adapter-sdk/src/superteam_a2a/adapter/retry.py
@@ -1526,6 +1786,8 @@ from .errors import (
     AdapterTimeoutError,
     AdapterPermanentError,
     AdapterFrameworkError,
+    AdapterConfigError,
+    AdapterErrorCode,
 )
 
 
@@ -1575,7 +1837,7 @@ def compute_backoff(
         raise AdapterConfigError(
             f"invalid retry strategy: {strategy}",
             framework=None,
-            error_code=ErrorCode.ADAPTER_CONFIG_ERROR,
+            error_code=AdapterErrorCode.ADAPTER_CONFIG_ERROR,
         )
     
     if strategy == STRATEGY_RETRY_RATE_LIMIT:
@@ -1635,12 +1897,56 @@ def with_retry(
                 raise AdapterRetryableError(
                     f"retry exhausted after {max_attempts} attempts",
                     framework=None,
-                    error_code=ErrorCode.ADAPTER_RETRYABLE_ERROR,
+                    error_code=AdapterErrorCode.ADAPTER_RETRYABLE_ERROR,
                     cause=last,
                 ) from exc
         return wrapper
     return decorator
+
+
+# --- public 工厂（v0.2.0 #58 补齐 · 评审 §M 关注项 9 · 继承 L2-3 Spec §6.4） ---
+
+def create_retry_policy(
+    error_code: AdapterErrorCode,
+    *,
+    max_attempts: int | None = None,
+) -> AsyncRetrying:
+    """按错误码返回对应的 Tenacity `AsyncRetrying` 策略实例（public API）。
+
+    `with_retry` 装饰器是"按策略名"的语法糖；本工厂是"按错误码"的显式入口，
+    供 framework adapter 子包在 `except AdapterError as e:` 分支内按需构造重试上下文。
+    两者共用同一张策略表——**策略集合以 §1.4 不变量 row 5 + §4.1 `AdapterConfig.retry_strategy`
+    为准，不得在此新增第 6 类策略**（§2.3 边界规则 8）。
+
+    Args:
+        error_code: `AdapterErrorCode` 之一（-32001 ~ -32007）
+        max_attempts: 覆盖默认尝试次数；None 时取策略表默认值
+
+    Returns:
+        AsyncRetrying: 已配置 stop / wait / retry 谓词的实例（`reraise=True`）
+
+    Raises:
+        AdapterConfigError: error_code 不在 7 值枚举内
+
+    错误码 → 策略映射（与 §8.3 `RETRYABLE_MATRIX` 严格一致，False 项返回"不重试"策略）：
+
+        ADAPTER_RETRYABLE_ERROR  → STRATEGY_RETRY_NETWORK    stop_after_attempt(3)  指数退避 + jitter
+        ADAPTER_TIMEOUT_ERROR    → STRATEGY_RETRY_TIMEOUT    stop_after_attempt(3)  指数退避 cap 30s
+        ADAPTER_FRAMEWORK_ERROR  → STRATEGY_RETRY_FRAMEWORK  stop_after_attempt(3)  5s/10s/20s
+        ADAPTER_CONFIG_ERROR     → 不重试                     stop_after_attempt(1)
+        ADAPTER_AUTH_ERROR       → 不重试                     stop_after_attempt(1)
+        ADAPTER_VERSION_ERROR    → 不重试                     stop_after_attempt(1)
+        ADAPTER_PERMANENT_ERROR  → 不重试                     stop_after_attempt(1)
+    """
+    ...
 ```
+
+**§8.2 测试 ID 补充**（v0.2.0 #58 新增 2 项）：
+
+| 测试 ID | 测试名 | 断言 |
+|---------|--------|------|
+| SDK-RTY-007 | `test_create_retry_policy_matches_retryable_matrix` | 7 个错误码逐一构造策略；`is_retryable() is False` 的 4 个错误码返回 `stop_after_attempt(1)`（即不重试） |
+| SDK-RTY-008 | `test_create_retry_policy_rejects_unknown_code` | 非 `AdapterErrorCode` 成员 → `AdapterConfigError`；且不产生第 6 类策略 |
 
 ### 8.3 `errors_mapping.py` 文件级契约（124 行）
 
@@ -1660,21 +1966,21 @@ from .errors import (
     AdapterAuthError,
     AdapterFrameworkError,
     AdapterVersionError,
-    ErrorCode,
+    AdapterErrorCode,
 )
 
 
 # Retryable 矩阵（继承 L3-2 §10 + L2-3 Spec §10.4）
 # True = 该错误码触发重试；False = 立即抛出
 
-RETRYABLE_MATRIX: dict[ErrorCode, bool] = {
-    ErrorCode.ADAPTER_CONFIG_ERROR: False,        # 配置错误 = 永久
-    ErrorCode.ADAPTER_AUTH_ERROR: False,          # 认证错误 = 永久
-    ErrorCode.ADAPTER_TIMEOUT_ERROR: True,        # 超时 = 可重试
-    ErrorCode.ADAPTER_FRAMEWORK_ERROR: True,      # framework 业务错误 = 可重试（有限 3 次）
-    ErrorCode.ADAPTER_VERSION_ERROR: False,       # 版本不兼容 = 永久
-    ErrorCode.ADAPTER_RETRYABLE_ERROR: True,      # 重试错误 = 可重试
-    ErrorCode.ADAPTER_PERMANENT_ERROR: False,     # 永久错误 = 不可重试
+RETRYABLE_MATRIX: dict[AdapterErrorCode, bool] = {
+    AdapterErrorCode.ADAPTER_CONFIG_ERROR: False,        # 配置错误 = 永久
+    AdapterErrorCode.ADAPTER_AUTH_ERROR: False,          # 认证错误 = 永久
+    AdapterErrorCode.ADAPTER_TIMEOUT_ERROR: True,        # 超时 = 可重试
+    AdapterErrorCode.ADAPTER_FRAMEWORK_ERROR: True,      # framework 业务错误 = 可重试（有限 3 次）
+    AdapterErrorCode.ADAPTER_VERSION_ERROR: False,       # 版本不兼容 = 永久
+    AdapterErrorCode.ADAPTER_RETRYABLE_ERROR: True,      # 重试错误 = 可重试
+    AdapterErrorCode.ADAPTER_PERMANENT_ERROR: False,     # 永久错误 = 不可重试
 }
 
 
@@ -1711,14 +2017,14 @@ def map_framework_exception(
         return AdapterRetryableError(
             f"network error: {exc}",
             framework=framework,
-            error_code=ErrorCode.ADAPTER_RETRYABLE_ERROR,
+            error_code=AdapterErrorCode.ADAPTER_RETRYABLE_ERROR,
             cause=exc,
         )
     if isinstance(exc, (httpx.TimeoutException, asyncio.TimeoutError)):
         return AdapterTimeoutError(
             f"timeout error: {exc}",
             framework=framework,
-            error_code=ErrorCode.ADAPTER_TIMEOUT_ERROR,
+            error_code=AdapterErrorCode.ADAPTER_TIMEOUT_ERROR,
             cause=exc,
         )
     if isinstance(exc, httpx.HTTPStatusError):
@@ -1727,34 +2033,34 @@ def map_framework_exception(
             return AdapterRetryableError(
                 f"rate limit (429): {exc}",
                 framework=framework,
-                error_code=ErrorCode.ADAPTER_RETRYABLE_ERROR,
+                error_code=AdapterErrorCode.ADAPTER_RETRYABLE_ERROR,
                 cause=exc,
             )
         if status < 500:
             return AdapterNonRetryableError(
                 f"4xx error ({status}): {exc}",
                 framework=framework,
-                error_code=ErrorCode.ADAPTER_NON_RETRYABLE_ERROR,
+                error_code=AdapterErrorCode.ADAPTER_NON_RETRYABLE_ERROR,
                 cause=exc,
             )
         return AdapterRetryableError(
             f"5xx error ({status}): {exc}",
             framework=framework,
-            error_code=ErrorCode.ADAPTER_RETRYABLE_ERROR,
+            error_code=AdapterErrorCode.ADAPTER_RETRYABLE_ERROR,
             cause=exc,
         )
     if isinstance(exc, ImportError) and "version" in str(exc).lower():
         return AdapterVersionError(
             f"version incompatible: {exc}",
             framework=framework,
-            error_code=ErrorCode.ADAPTER_VERSION_ERROR,
+            error_code=AdapterErrorCode.ADAPTER_VERSION_ERROR,
             cause=exc,
         )
     # fallback: framework 业务错误
     return AdapterFrameworkError(
         f"framework error: {exc}",
         framework=framework,
-        error_code=ErrorCode.ADAPTER_FRAMEWORK_ERROR,
+        error_code=AdapterErrorCode.ADAPTER_FRAMEWORK_ERROR,
         cause=exc,
     )
 
@@ -2008,14 +2314,27 @@ spec:
 
 | Framework | Image tag | CPU request | Memory request | CPU limit | Memory limit | 备注 |
 |-----------|-----------|-------------|----------------|----------|--------------|------|
-| LangChain | `v0.2.0-0.1.5-py3.12` | 200m | 256Mi | 1 | 512Mi | 标准 |
-| AutoGen | `v0.2.0-0.2.3-py3.12` | 200m | 256Mi | 1 | 512Mi | 标准 |
-| CrewAI | `v0.5.0-0.65.0-py3.12` | 300m | 384Mi | 2 | 1Gi | 独占最高 |
-| Semantic Kernel | `v0.5.0-1.15.0-py3.12` | 200m | 256Mi | 1 | 512Mi | 标准 |
+| LangChain | `v0.2.0-0.2.0-py3.12` | 200m | 256Mi | 1 | 512Mi | 标准 |
+| AutoGen | `v0.2.0-0.4.0-py3.12` | 200m | 256Mi | 1 | 512Mi | 标准 |
+| CrewAI | `v0.5.0-0.80.0-py3.12` | 300m | 384Mi | 2 | 1Gi | 独占最高 |
+| Semantic Kernel | `v0.5.0-1.30.0-py3.12` | 200m | 256Mi | 1 | 512Mi | 标准 |
 | Strands | `v0.2.0-0.1.0-py3.12` | 200m | 256Mi | 1 | 512Mi | 标准 |
-| Smolagents | `v0.2.0-1.0.0-py3.12` | 200m | 256Mi | 1 | 512Mi | 标准 |
+| Smolagents | `v0.2.0-1.10.0-py3.12` | 200m | 256Mi | 1 | 512Mi | 标准 |
 
-**说明**：framework version（0.1.5 / 0.2.3 / 等）由 §3.5 VERSION_MATRIX 决定；image tag 模板 `{adapter_version}-{framework_version}-py3.12`。
+**说明**：image tag 模板 `{adapter_version}-{framework_version}-py3.12`；其中 `{framework_version}` **必须等于 §3.5 `VERSION_MATRIX[framework].min_version`**（首个受支持版本），否则 §6.3 `_check_version_compatibility` 会在启动期拒绝并抛 `AdapterVersionError`。
+
+**image tag ↔ §3.5 VERSION_MATRIX 对齐矩阵**（v0.2.0 #58 修正 · 评审 §M 关注项 8）：
+
+| Framework | image tag `{framework_version}` | §3.5 `min_version` | §3.5 `max_version`（不含） | 一致性 |
+|-----------|--------------------------------|--------------------|---------------------------|--------|
+| LangChain | `0.2.0` | `0.2.0` | `0.3.0` | ✅ |
+| AutoGen | `0.4.0` | `0.4.0` | `1.0.0` | ✅ |
+| CrewAI | `0.80.0` | `0.80.0` | `0.100.0` | ✅ |
+| Semantic Kernel | `1.30.0` | `1.30.0` | `1.40.0` | ✅ |
+| Strands | `0.1.0` | `0.1.0` | `0.3.0` | ✅ |
+| Smolagents | `1.10.0` | `1.10.0` | `2.0.0` | ✅ |
+
+**变更约束**：§3.5 `VERSION_MATRIX` 与本表 image tag 为**成对修改项**——任一 framework 的 `min_version` 上调，必须在同一 PR 内同步上调本表 image tag（测试 ID `HELM-IMG-001~006` 逐 framework 断言两处一致）。
 
 ### 9.5 RBAC + NetworkPolicy 共享模板（位于 `helm/adapter-shared/`）
 
@@ -2026,11 +2345,11 @@ spec:
 | 3 | `helm/adapter-shared/templates/networkpolicy.yaml` | NetworkPolicy：ingress 8080 from namespace selector；egress K8s API + otel-collector + agent localhost | 64 | HELM-NP-001~004 |
 | 4 | `helm/adapter-shared/templates/servicemonitor.yaml` | ServiceMonitor：抓取 /metrics（每 30s）；6 framework 独立 label | 38 | HELM-SM-001~003 |
 
-### 9.6 §9 测试 ID 矩阵（36 ID）
+### 9.6 §9 测试 ID 矩阵（42 ID · v0.2.0 #58 新增 HELM-IMG-001~006）
 
 | 测试 ID | 文件 | 测试名 | 断言 |
 |---------|------|--------|------|
-| HELM-LC-001 | helm/adapter-langchain/values.yaml | test_helm_langchain_image_tag_format | tag = `v0.2.0-{0.1.5}-py3.12` 模板匹配 |
+| HELM-LC-001 | helm/adapter-langchain/values.yaml | test_helm_langchain_image_tag_format | tag = `v0.2.0-0.2.0-py3.12` 模板匹配（framework_version = §3.5 min_version） |
 | HELM-LC-002 | helm/adapter-langchain/values.yaml | test_helm_langchain_resources_standard | CPU request 200m / limit 1 |
 | HELM-LC-003 | helm/adapter-langchain/values.yaml | test_helm_langchain_security_context_restricted | Pod Security Standard: restricted 全部开启 |
 | HELM-LC-DEPLOY-001 | helm/adapter-langchain/templates/deployment.yaml | test_helm_langchain_two_container_pod | adapter + agent 两容器 |
@@ -2053,25 +2372,31 @@ spec:
 | HELM-SM-001 | helm/adapter-shared/templates/servicemonitor.yaml | test_servicemonitor_interval_30s | interval: 30s |
 | HELM-SM-002 | helm/adapter-shared/templates/servicemonitor.yaml | test_servicemonitor_framework_label_present | label `framework: {name}` |
 | HELM-SM-003 | helm/adapter-shared/templates/servicemonitor.yaml | test_servicemonitor_metrics_path_/metrics | path: `/metrics` |
+| HELM-IMG-001 | helm/adapter-langchain/values.yaml | test_image_tag_matches_version_matrix_langchain | image tag 中 `{framework_version}` == §3.5 `VERSION_MATRIX["langchain"].min_version`（`0.2.0`） |
+| HELM-IMG-002 | helm/adapter-autogen/values.yaml | test_image_tag_matches_version_matrix_autogen | == `VERSION_MATRIX["autogen"].min_version`（`0.4.0`） |
+| HELM-IMG-003 | helm/adapter-crewai/values.yaml | test_image_tag_matches_version_matrix_crewai | == `VERSION_MATRIX["crewai"].min_version`（`0.80.0`） |
+| HELM-IMG-004 | helm/adapter-sk/values.yaml | test_image_tag_matches_version_matrix_sk | == `VERSION_MATRIX["sk"].min_version`（`1.30.0`） |
+| HELM-IMG-005 | helm/adapter-strands/values.yaml | test_image_tag_matches_version_matrix_strands | == `VERSION_MATRIX["strands"].min_version`（`0.1.0`） |
+| HELM-IMG-006 | helm/adapter-smolagents/values.yaml | test_image_tag_matches_version_matrix_smolagents | == `VERSION_MATRIX["smolagents"].min_version`（`1.10.0`） |
 
 ---
 
-## 10. 测试策略 + 工具链文件级契约（继承 L2-3 Spec §12-§13 · 159 测试 ID + 6 重静态门禁）
+## 10. 测试策略 + 工具链文件级契约（继承 L2-3 Spec §12-§13 · 200 测试 ID + 6 重静态门禁）
 
-### 10.1 测试 ID 总计矩阵（继承 L2-3 Spec §12.8 · 81 v0.2 / 159 v1.0）
+### 10.1 测试 ID 总计矩阵（继承 L2-3 Spec §12.8 · 81 v0.2 / 159 v1.0 · v0.2.0 #58 修正为 200）
 
 | 层级 | v0.2 ID | v1.0 ID | L3-3 已落地（§1-§9） | L3-3 本节（§10） | 累计 |
 |------|--------:|--------:|----------------------:|-----------------:|------:|
-| UT（adapter-sdk） | 48 | 48 | SDK-PROT 12 + SDK-MOD 8 + SDK-CONV 10 + SDK-VER 4 + SDK-INT 3 = 37 | OBS-METRICS 8 + OBS-TRACING 6 + OBS-LOGGING 5 + RETRY 10 + ERR-MAP 8 = 37 | **74** |
+| UT（adapter-sdk） | 48 | 48 | SDK-PROT 15 + SDK-MOD 8 + SDK-CONV 10 + SDK-VER 4 + SDK-INT 3 + SDK-LC 8 = 48 | OBS-METRICS 8 + OBS-TRACING 6 + OBS-LOGGING 5 + RETRY 12 + ERR-MAP 8 = 39 | **87** |
 | UT（framework · 各 6 framework × 3 文件） | - | 24 | LC/AG/CR/SK/ST/SM × 9 = 54 | （已计入 §1.3.2） | **54** |
 | IT | 12 | 36 | LC 5 + AG 5 + CR 5 + SK 5 + ST 5 + SM 5 = 30 | SDK-CFG 8 + SDK-LOAD 6 = 14 | **44** |
 | Golden | 10 | 60 | - | - | **0**（待后续 §12 单独落地） |
 | Conformance | 5 | 5 | - | 5（CF-A2A-001~005 适配 §7 + §8） | **5** |
 | E2E | 2 | 6 | - | 6 framework × 1 = 6 | **6** |
 | Property | 4 | 4 | - | 4（PROP-ENV / PROP-FSM / PROP-CARD / PROP-RETRY） | **4** |
-| **合计** | **81** | **159** | **121** | **66** | **187** |
+| **合计** | **81** | **159** | **132** | **68** | **200** |
 
-**注**：L3-3 累计 **187 测试 ID**（已超过 v1.0 目标 159；多出的 28 来自 L3-3 文件级细化如 `test_redact_sensitive_9_keys` 等 9 项敏感字段单测）。
+**注**：L3-3 累计 **200 测试 ID**（已超过 v1.0 目标 159；多出的 41 来自 L3-3 文件级细化——如 `test_redact_sensitive_9_keys` 等 9 项敏感字段单测，以及 v0.2.0 #58 补入的 SDK-LC 8 + SDK-PROT-013~015 3 + SDK-RTY-007~008 2 = 13 项）。**HELM-* 42 ID（§9.6）为部署面独立计数，不计入本表 200**。
 
 ### 10.2 6 重静态门禁（继承 L2-3 Spec §13.2）
 
@@ -2124,14 +2449,14 @@ uv run pytest tests/property/ -v --hypothesis-seed=0
 
 | 类别 | 文件数 | 路径模式 |
 |------|------:|---------|
-| `tests/unit/`（adapter-sdk 11 文件 SDK） | 11 | `packages/adapter-sdk/tests/unit/test_{protocol,models,converter,version,_internals,config,loader,observability/metrics,observability/tracing,observability/logging,retry,errors_mapping}.py` |
+| `tests/unit/`（adapter-sdk 12 文件 SDK） | 12 | `packages/adapter-sdk/tests/unit/test_{protocol,models,converter,version,_internals,config,loader,lifecycle,observability/metrics,observability/tracing,observability/logging,retry,errors_mapping}.py` |
 | `tests/unit/`（framework · 6 × 3 文件） | 18 | `packages/adapter-{framework}/tests/unit/test_{adapter,converter,errors}.py` |
 | `tests/integration/`（6 framework） | 6 | `packages/adapter-{framework}/tests/integration/test_{framework}_e2e.py` |
 | `tests/conformance/` | 1 | `packages/adapter-sdk/tests/conformance/test_a2a_compat.py` |
 | `tests/e2e/`（6 framework） | 6 | `packages/adapter-{framework}/tests/e2e/test_k8s_e2e.py` |
 | `tests/property/` | 1 | `packages/adapter-sdk/tests/property/test_fuzz.py` |
 | `tests/helm/`（Helm template 渲染验证） | 1 | `packages/adapter-sdk/tests/helm/test_helm_render.py`（验证 §9 12 文件渲染合法） |
-| **合计** | **44** | （与 187 测试 ID 一一对应） |
+| **合计** | **45** | （与 200 测试 ID + §9.6 42 HELM ID 一一对应） |
 
 ### 10.5 uv workspace 布局（继承 ADR-0005 §13.1）
 
@@ -2248,9 +2573,9 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 ---
 
-## 附录 A：跨模块引用清单（v0.2-draft-full 完整版）
+## 附录 A：跨模块引用清单（v0.2.0 完整版）
 
-**说明**：本附录覆盖 L3-3 Spec v0.2-draft-full 全部 §0-§10 + 附录 B 引用的 6 子表 30 行；每条 = 文档路径 + 章节 + 引用类型（MUST/SHOULD/MAY）+ 同步状态。
+**说明**：本附录覆盖 L3-3 Spec v0.2.0 全部 §0-§10 + 附录 B 引用的 6 子表 30 行；每条 = 文档路径 + 章节 + 引用类型（MUST/SHOULD/MAY）+ 同步状态。
 
 ### A.1 L1 Architecture + Spec
 
@@ -2314,7 +2639,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 ---
 
-## 附录 B：ADR / Constitution 引用矩阵（v0.2-draft-full 完整版 · 5 子表 49 行）
+## 附录 B：ADR / Constitution 引用矩阵（v0.2.0 完整版 · 5 子表 49 行）
 
 **说明**：本附录对 L3-3 Spec 全部 MUST / SHOULD / MAY 强度分级约束 + ADR 章节 + Constitution 章节进行追溯矩阵化，确保每条规范有出处。
 
@@ -2338,13 +2663,13 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 | # | 主题 | 强度 | ADR 章节 | Constitution 章节 |
 |---|------|------|----------|-------------------|
-| 12 | FrameworkAdapter Protocol 5 方法（list_agents / get_agent_card / send_message / get_task / cancel_task） | MUST | ADR-0005 §6 | §3.7 |
-| 13 | AgentCardConverter Protocol 1 方法（convert） | MUST | ADR-0005 §6 | §3.7 |
+| 12 | FrameworkAdapter Protocol 5 方法（`load_agent` / `to_agent_card` / `from_agent_card` / `invoke` / `health_check`，落地于 §3.2） | MUST | ADR-0005 §6 | §3.7 |
+| 13 | AgentCardConverter Protocol 2 方法（`framework_to_card_skill` / `card_skill_to_framework`，落地于 §3.2） | MUST | ADR-0005 §6 | §3.7 |
 | 14 | entry_points 动态加载 6 framework | MUST | ADR-0005 §3.3 | §3.7 |
 | 15 | runtime_checkable Protocol 校验 | MUST | ADR-0005 §6 | §3.7 |
 | 16 | A2AClient 复用 L3-2 §6（不重写 wire contract） | MUST | ADR-0005 §3.1 | §3.7 |
-| 17 | Lifecycle 11 步启动序列 | MUST | ADR-0005 §6 | §3.7 |
-| 18 | Lifecycle.stop 30s grace period | MUST | ADR-0005 §6 | §9.3 |
+| 17 | Lifecycle 11 步启动序列（落地于 §3.7 + `lifecycle.py`） | MUST | ADR-0005 §6 | §3.7 |
+| 18 | Lifecycle.stop 30s grace period（落地于 §3.7 `Lifecycle.stop`） | MUST | ADR-0005 §6 | §9.3 |
 | 19 | readiness probe 5 周期 | SHOULD | ADR-0005 §6 | §3.7 |
 | 20 | lifespan 单进程模式（httpx 进程级单例） | MUST | ADR-0005 §6 | §3.7 |
 | 21 | mTLS cert 热更新（与 L3-1 协同） | MUST | ADR-0005 §7 | §6 |
@@ -2362,7 +2687,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 | 28 | framework 异常 → AdapterError 映射表（map_framework_exception） | MUST | ADR-0005 §10 | §15.5 |
 | 29 | 永久错误不重试（is_retryable=False） | MUST | ADR-0005 §10 | §15.5 |
 | 30 | 重试耗尽包装为 AdapterRetryableError | MUST | ADR-0005 §10 | §15.5 |
-| 31 | AdapterError.to_jsonrpc_error 含 framework_error | MUST | ADR-0005 §10 | §15.5 |
+| 31 | `AdapterError.to_jsonrpc_error()` 含 framework_error（落地于 §3.2 末尾） | MUST | ADR-0005 §10 | §15.5 |
 
 ### B.4 安全（10 条）
 
@@ -2388,7 +2713,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 | 44 | OTel 4 层 Span 结构 | SHOULD | ADR-0005 §10 | §7 |
 | 45 | structlog JSON + 7 强制字段 | MUST | ADR-0005 §10 | §7 |
 | 46 | 单进程 mode（无 prometheus multiprocess） | MUST | ADR-0005 §10 | §7 |
-| 47 | 187 测试 ID（UT 128 + IT 44 + CF 5 + E2E 6 + PROP 4） | MUST | ADR-0005 §13.2 | §9.7 |
+| 47 | 200 测试 ID（UT 141 + IT 44 + CF 5 + E2E 6 + PROP 4；另 §9.6 42 HELM-* 独立计数） | MUST | ADR-0005 §13.2 | §9.7 |
 | 48 | adapter-sdk ≥ 95% / framework ≥ 80% 覆盖率 | MUST | ADR-0005 §13.2 | §9.7 |
 | 49 | 6 重静态门禁（uv sync + ruff + pyright + bandit + pip-audit + ST-ADAPTER-BOUNDARY） | MUST | ADR-0005 §13.2 | §9.7 + §13.2 |
 
@@ -2400,13 +2725,13 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 
 | 字段 | 值 |
 |---|---|
-| 版本 | **v0.2-draft-full** |
-| 状态 | ✅ **完整版**（#56 骨架 + #57 §3-§6 + 本次会话 §7-§10 + 完整附录 A/B）—— §0-§10 + 附录 A（30 行 6 子表）+ 附录 B（49 行 5 子表）全部落地；累计 187 测试 ID / 44 文件镜像清单 |
+| 版本 | **v0.2.0** |
+| 状态 | ✅ **已通过独立评审并升级**（#56 骨架 + #57 §3-§6 + #57 §7-§10/附录 A/B + #58 评审 + 关注项 4-9 PR 同步修正）—— §0-§10 + 附录 A（30 行 6 子表）+ 附录 B（49 行 5 子表）全部落地；累计 200 测试 ID（+ §9.6 42 HELM-*）/ 45 文件镜像清单 / 42 文件级契约 |
 | 上游 | L2-3 Adapter Design + Spec v0.2.0（#35 + #37 评审通过） |
 | 同级已通过 | L3-1 Operator Core v0.2.0 (#56) + L3-2 A2A Core v0.2.0 (#54) |
 | supersedes | L2-3 v0.1.0 Go baseline 实现条款；L3-2 wire 引用继续有效 |
-| 评审报告 | `docs/reviews/l3-3-adapter-sdk-spec-review.md`（下一会话创建） |
-| 当前变更边界 | 仅本 Spec v0.2-draft-full；独立评审通过 → v0.2.0 后方可进入 L4 实施 |
+| 评审报告 | [`docs/reviews/l3-3-adapter-sdk-spec-review.md`](../../reviews/l3-3-adapter-sdk-spec-review.md)（#58 · 38.8KB / §A-§P 16 节 / 10 维度全 PASS / 0 阻塞项 / 9 关注项 / 4 建议项） |
+| 当前变更边界 | 本 Spec 已达 v0.2.0，**可作为 L4 实施输入**；后续修改走 v0.2.1 微同步或 ADR |
 
 ### M.2 落地记录
 
@@ -2415,16 +2740,31 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 | 2026-07-28 #56 | L3-1 v0.2.0 通过 + L3-3 启动 | L3 阶段 1/4 完成 |
 | 2026-07-28 #57 | L3-3 v0.2-draft 骨架稿 + 13 边界规则 + 6 框架独立 metrics + 11 文件 SDK + 24 framework 子包文件清单 | §0-§2 + 附录 A/B 占位 |
 | 2026-07-28 #57（本会话 #2） | L3-3 §3-§6 补完：FrameworkAdapter Protocol（466 行 · 5 生命周期方法）+ AgentCardConverter（322 行 · 6 框架字段映射）+ 6 framework 子包 24 文件级契约 + 4 层配置优先级 + 6 framework 动态加载 + 累计 1206 行 / 68KB / 84 测试 ID | §3-§6 完整版 + §1.3 文件清单 22 → 24 |
-| **2026-07-28（本会话 #3）** | **L3-3 §7-§10 + 完整附录 A/B 补完**：§7 observability 4 文件（metrics.py 178 + tracing.py 124 + logging.py 96 + __init__.py 12）+ 19 OBS-* 测试 ID + §8 retry + errors 2 文件（retry.py 156 + errors_mapping.py 124）+ 18 RETRY/ERR-MAP 测试 ID + §9 Helm values 12 文件（6 framework × values.yaml 86 + deployment.yaml 124）+ 4 共享模板 + 36 HELM-* 测试 ID + §10 testing + toolchain 6 重静态门禁 + Dockerfile 多阶段 + uv workspace + 30 TOOL/HELM-RENDER/CF/PROP/E2E/COV 测试 ID + 附录 A 6 子表 30 行 + 附录 B 5 子表 49 行 + 累计 **187 测试 ID / 44 文件镜像清单 / 5 文件类型 / 6 静态门禁** | **v0.2-draft-full 完整版**；下一会话：独立评审 §A-§P 10 维度 → v0.2.0 → §F 6 步同步 → git commit → L3-4 Hello Agent 启动 |
+| 2026-07-28 #57（本会话 #3） | L3-3 §7-§10 + 完整附录 A/B 补完：§7 observability 4 文件 + 19 OBS-* 测试 ID + §8 retry + errors 2 文件 + 18 RETRY/ERR-MAP 测试 ID + §9 Helm values 12 文件 + 4 共享模板 + 36 HELM-* 测试 ID + §10 testing + toolchain 6 重静态门禁 + Dockerfile 多阶段 + uv workspace + 30 TOOL/HELM-RENDER/CF/PROP/E2E/COV 测试 ID + 附录 A 6 子表 30 行 + 附录 B 5 子表 49 行 + 累计 187 测试 ID / 44 文件镜像清单 | v0.2-draft-full 完整版；进入独立评审 |
+| **2026-07-29 #58** | **评审通过 + 升级 v0.2.0 + 评审 §M 关注项 4-9 PR 同步修正**：附录 B.2 row 12/13 Protocol 方法名与方法数对齐 §3.2；B.2 row 17/18 + B.3 row 31 补落地位置；**新增 §3.7 Lifecycle 11 步启动序列 + `lifecycle.py`（SDK 第 12 文件 · 8 SDK-LC ID）**；§3.2 补入 `Adapter` Protocol（3 方法）+ `AdapterError.to_jsonrpc_error()` wire 契约（3 SDK-PROT ID）；§8.2 补入 `create_retry_policy` 工厂（2 SDK-RTY ID）；`__all__` 14 → 18 符号；§9.4 6 framework image tag 全部对齐 §3.5 `VERSION_MATRIX.min_version` + 新增对齐矩阵与 6 个 HELM-IMG ID；全文 `ErrorCode.` → `AdapterErrorCode.`（17 处）；文件计数 41 → 42、测试 ID 187 → 200、镜像清单 44 → 45 全链路同步 | **v0.2.0**；关注项 1-3 + 4 项建议项移交 v0.2.1 / L4 第一周（见 §M.2 台账）；下一步：§F 6 步跨文档同步 → L3-4 Hello Agent |
+
+**#58 评审关注项处理台账**（评审 §M 9 项 + 4 建议项）：
+
+| 关注项 | 主题 | 本次处理 | 去向 |
+|---|------|---------|------|
+| 1 | 5 处命名/枚举漂移（子包路径 / retry_strategy 枚举 / metrics prefix / framework label / `supteam` vs `superteam`） | 部分：`ErrorCode` → `AdapterErrorCode` 统一 17 处 | **v0.2.1 微同步**（其余 4 处需与 L2-3 Spec 成对修改） |
+| 2 | `ST-ADAPTER-BOUNDARY` Ruff 规则标注 planned 未落地 | 未处理 | **L4 实施第一周**（需实际插件实现，非文档变更） |
+| 3 | §1.3.4 测试 ID 159 vs §10.1 偏差未交叉引用 | 已闭环：§1.3.4 改为 200 并注明 "+41 文件级细化"，§10.1 注同步 | ✅ 本次 |
+| 4 | §B.2 row 12 FrameworkAdapter 方法名错误 | 已改为 `load_agent / to_agent_card / from_agent_card / invoke / health_check` | ✅ 本次 |
+| 5 | §B.2 row 13 AgentCardConverter 方法数错误 | 已改为 2 方法 `framework_to_card_skill / card_skill_to_framework` | ✅ 本次 |
+| 6 | §B.2 row 17 Lifecycle 11 步未落地 | 已新增 §3.7（11 步序列 + 步骤→文件映射 + `lifecycle.py` 契约 + 8 测试 ID） | ✅ 本次 |
+| 7 | §B.3 row 31 `to_jsonrpc_error` 未落地 | 已在 §3.2 补入方法契约（wire 结构 + 脱敏约束 + 3 测试 ID） | ✅ 本次 |
+| 8 | §9.4 image tag 与 §3.5 VERSION_MATRIX 5/6 不符 | 已按 min_version 更新 6 tag + 新增对齐矩阵 + HELM-IMG-001~006 | ✅ 本次 |
+| 9 | public API 缺 4 项符号 | 已按**选项 A** 补齐（`Adapter` / `AdapterErrorCode` / `create_retry_policy` / `Lifecycle`），各自落地位置见 §1.2 表 | ✅ 本次 |
+| 建议 1-4 | §1.3.4 行数 33→35 / `label_result` 4 vs 3 取值 / §10.4 import prefix / 附录 A.4 row 28 L3-4 回填 | 未处理 | **v0.2.1**（建议 4 在 L3-4 起草时回填） |
 
 ### M.3 下一会话固定入口
 
-1. **独立评审 L3-3 v0.2-draft-full**：创建 `docs/reviews/l3-3-adapter-sdk-spec-review.md`，按 §A-§P / 10 维度核验 §0-§10 + 附录 A/B 完整版 + 187 测试 ID + 44 文件镜像清单 + 6 静态门禁（参照 L3-2 #54 评审模板 18KB / 217 行 / §A-§P 16 节 / 10 维度 PASS 模板）。
-2. **评审通过 + 升级 v0.2.0**：头部版本 v0.2-draft-full → v0.2.0 + 状态行 + 落地记录新增 + 配套 Spec 引用 v0.2.0。
-3. **§F 6 步跨文档同步**：F.1 L1 Architecture + L1 Spec；F.2 L2-3 Spec/D appendix A；F.3 L3-1 + L3-2 appendix A；F.4 ROADMAP + README；F.5 CONSTITUTION-CHANGELOG；F.6 archive/README.md（参照 #56 L3-1 + #54 L3-2 同步模板）。
-4. **git commit**：`feat(L3-3): 升级 v0.2.0 + §A-§P 评审通过 + §F 6 步跨文档同步`（参照 #56 + #54 commit 模板）。
-5. **L3-4 Hello Agent 启动**：基于 L3-2 v0.2.0 + L3-1 v0.2.0 + L3-3 v0.2.0（不依赖 framework adapter，纯 A2A ping/pong 10 行代码；独立会话）。
+1. **§F 6 步跨文档同步**（本次升级后的必做动作 · 参照评审报告 §O）：F.1 L1 Architecture v0.2.0 §3.5 + §4.3（L3-3 文件级落地完成 + 42 文件清单）；F.2 L1 Spec v0.2.0 §16（200 测试 ID 文件级确认）；F.3 L2-3 Spec v0.2.0 附录 A（反向引用升级 L3-3 v0.2.0 + 评审链接）；F.4 L3-1 + L3-2 Spec 附录 A.5（L3-3 → v0.2.0 + 评审链接）；F.5 ROADMAP（L3 阶段 3/6 进度）；F.6 README + CONSTITUTION-CHANGELOG + archive/README.md。
+2. **v0.2.1 微同步清单**（评审关注项 1 剩余 4 处 + 建议项 1-3）：framework 子包路径 vs Literal vs metrics label 三层映射；`retry_strategy` 枚举 §4.1 / §8.2 / §1.4 统一；metrics prefix `supteam_adapter_*` 统一；`supteam_a2a` vs `superteam_a2a` 包路径（需与 L2-3 Spec §2.1 成对修改）。
+3. **L4 实施第一周**：`ST-ADAPTER-BOUNDARY` Ruff 插件实现（评审关注项 2 · 文档已标 MUST，需实际拦截能力）。
+4. **L3-4 Hello Agent 启动**：基于 L3-1 v0.2.0 + L3-2 v0.2.0 + L3-3 v0.2.0（不依赖 framework adapter，纯 A2A ping/pong；独立会话），并回填附录 A.4 row 28 链接。
 
 ---
 
-> **签署**：本 L3-3 Adapter SDK 文件级 Spec Python v0.2-draft 由 #56 + #57 共同形成，依据 [L2-3 Adapter Spec v0.2.0](../../spec/L2-module-specs/L2-adapter.md)、[L2-3 Adapter Design v0.2.0](../../design/L2-modules/L2-adapter.md)、[L3-1 Operator Core v0.2.0](../../spec/L3-file-specs/L3-operator-core.md)、[L3-2 A2A Core v0.2.0](../../spec/L3-file-specs/L3-a2a-core.md)、[L2-3 Go baseline（已归档）](../../archive/pre-python-2026-07-24/L2-adapter-spec-v0.1.0-go-baseline.md) 与 Constitution v0.5.0 编写。**当前骨架稿仅具备进入独立评审的准备条件；§3-§10 + 完整附录 A/B 补完后才能进入独立评审。**
+> **签署**：本 L3-3 Adapter SDK 文件级 Spec Python **v0.2.0** 由 #56（骨架）+ #57（§3-§10 + 附录 A/B）+ **#58（评审 + 关注项 4-9 PR 同步修正 + 升级）** 共同形成，依据 [L2-3 Adapter Spec v0.2.0](../../spec/L2-module-specs/L2-adapter.md)、[L2-3 Adapter Design v0.2.0](../../design/L2-modules/L2-adapter.md)、[L3-1 Operator Core v0.2.0](../../spec/L3-file-specs/L3-operator-core.md)、[L3-2 A2A Core v0.2.0](../../spec/L3-file-specs/L3-a2a-core.md)、[L2-3 Go baseline（已归档）](../../archive/pre-python-2026-07-24/L2-adapter-spec-v0.1.0-go-baseline.md) 与 Constitution v0.5.0 编写，并已通过 [#58 独立评审](../../reviews/l3-3-adapter-sdk-spec-review.md)（§A-§P 16 节 / 10 维度全 PASS / 0 阻塞项）。**本版可直接作为 L4 实施输入；关注项 1-2 与 4 项建议项按 §M.2 台账在 v0.2.1 / L4 第一周处理。**

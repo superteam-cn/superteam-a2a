@@ -1,7 +1,8 @@
 # superteam-a2a — L3-3 Adapter SDK 文件级 Spec 评审报告
 
 > **评审日期**：2026-07-28 · #58 会话
-> **评审对象**：[`docs/spec/L3-file-specs/L3-adapter-sdk.md` v0.2-draft-full](../spec/L3-file-specs/L3-adapter-sdk.md)（126KB / 2431 行 / 16 主章节 + 2 附录）
+> **评审结论落地**：✅ 2026-07-29 已升级 [`L3-adapter-sdk.md` **v0.2.0**](../spec/L3-file-specs/L3-adapter-sdk.md)；**§M 关注项 4-9 六项已在本次 v0.2.0 PR 内同步修正**（详见该文档 §M.2 "#58 评审关注项处理台账"）；关注项 1-3 与 4 项建议项移交 v0.2.1 / L4 实施第一周。
+> **评审对象**：[`docs/spec/L3-file-specs/L3-adapter-sdk.md` v0.2-draft-full](../spec/L3-file-specs/L3-adapter-sdk.md)（126KB / 2431 行 / 16 主章节 + 2 附录 · **评审时快照**；修正后 v0.2.0 为 148KB / 2770 行）
 > **配套上游 Design**：[L2-3 Adapter Design v0.2.0 Python](../design/L2-modules/L2-adapter.md)（66KB / 1267 行 / 14 主章节 · 2026-07-26 #35 评审通过）
 > **配套上游 Spec**：[L2-3 Adapter Spec v0.2.0 Python](../spec/L2-module-specs/L2-adapter.md)（114KB / 2705 行 / 14 节 + 2 附录 · 2026-07-26 #37 评审通过）
 > **配套 L3 同级**：[L3-1 Operator Core 文件级 Spec v0.2.0](../spec/L3-file-specs/L3-operator-core.md)（2026-07-27 #49 §9 补完稿 + #56 评审）/ [L3-2 A2A Core 文件级 Spec v0.2.0](../spec/L3-file-specs/L3-a2a-core.md)（2026-07-28 #54 评审通过 · [评审报告](./l3-2-a2a-core-spec-review.md)）
@@ -333,8 +334,15 @@
 - 依据宪法 §14.5 MVP 例外时间窗口，单点评审有效。
 
 **下一步**：
-1. L3-3 Spec 头部升级 v0.2.0（版本/状态/变更记录/配套 Review 引用）。
-2. **本次会话内**：在 v0.2.0 PR 描述中**显式列出 9 项关注项**（特别标注 §M row 4-7 附录 B 错误 / row 8 framework version 冲突 / row 9 public API 缺失 必须在 v0.2.0 PR 同步修正）。
+1. ✅ **已完成（2026-07-29）** L3-3 Spec 头部升级 v0.2.0（版本/状态/变更记录/配套 Review 引用 + §M.1/§M.2/§M.3 元数据）。
+2. ✅ **已完成（2026-07-29）** 关注项 **row 4-9 六项全部在 v0.2.0 PR 内同步修正**：
+   - row 4/5 → 附录 B.2 row 12/13 方法名与方法数对齐 §3.2；
+   - row 6 → 新增 **§3.7 Lifecycle 11 步启动序列 + `lifecycle.py`**（SDK 第 12 文件 · SDK-LC-001~008）；
+   - row 7 → §3.2 补入 **`AdapterError.to_jsonrpc_error()`** wire 契约（含 framework_error + 脱敏约束 · SDK-PROT-014/015）；
+   - row 8 → §9.4 六个 image tag 全部对齐 §3.5 `VERSION_MATRIX.min_version` + 新增对齐矩阵与 **HELM-IMG-001~006**；
+   - row 9 → **选项 A** 补齐 `Adapter` / `AdapterErrorCode` / `create_retry_policy` / `Lifecycle`，`__all__` 14 → 18 符号。
+   - 连带同步：文件计数 41 → 42、测试 ID 187 → 200、镜像清单 44 → 45、全文 `ErrorCode.` → `AdapterErrorCode.`（17 处）。
+   - **未在本次 PR 处理**：row 1（剩余 4 处命名漂移，需与 L2-3 Spec 成对修改）/ row 2（`ST-ADAPTER-BOUNDARY` Ruff 插件，需代码实现）→ v0.2.1 / L4 第一周；row 3 已闭环。
 3. §F.1-§F.6 跨文档同步（L1 Arch/Spec、L2-3 Spec 附录、L3-1/L3-2 Spec 附录 A.5、ROADMAP、README、CONSTITUTION-CHANGELOG）。
 4. git commit。
 5. 后续：L3-4 Hello Agent / L3-5 Knowledge Service / L3-6 Memory backend 文件级 Spec 起草（L3 阶段 2/6 → 后续）。
