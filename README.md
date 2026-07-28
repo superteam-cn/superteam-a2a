@@ -31,7 +31,7 @@
 
 This repository was created on 2026-07-08. Scope is locked per [ADR-0001](./docs/adr/0001-v1-scope-statement.md) and [ADR-0004](./docs/adr/0004-v01-scope-extension-knowledge-and-memory.md): **5 base capabilities** (discovery / communication / observability / orchestration / **knowledge management**), **6 CRDs** (Agent / AgentSet / Workflow / KnowledgeScope / KnowledgeItem / Memory), 4-phase delivery (`v0.1.0-alpha` → `beta` → `rc` → `v0.1.0`).
 
-Constitution is at v0.5.0; L1 architecture has been reviewed and accepted. **The current focus is Python-first full-stack migration (ADR-0005)** — L1 v0.2.0 + L2-1 v0.2.0 + L2-2 v0.2.0 + L2-3 v0.2.0 + **L2-4 v0.2.0** Python all passed review (2026-07-24 → 2026-07-27). **L2 阶段 4/4 全部完成**（Python 化 100%）。No production code yet — check [ROADMAP.md](./ROADMAP.md) for the full timeline.
+Constitution is at v0.5.0; L1 architecture has been reviewed and accepted. **The current focus is Python-first full-stack migration (ADR-0005)** — L1 v0.2.0 + L2-1 v0.2.0 + L2-2 v0.2.0 + L2-3 v0.2.0 + **L2-4 v0.2.0** Python all passed review (2026-07-24 → 2026-07-27). **L2 阶段 4/4 全部完成**（Python 化 100%）。**L3 阶段 1/4 ~ 2/4 进行中**：L3-1 Operator Core v0.2.0（2026-07-28 #56）+ L3-2 A2A Core v0.2.0（2026-07-28 #54）文件级 Spec 均通过评审。No production code yet — check [ROADMAP.md](./ROADMAP.md) for the full timeline.
 
 ### L2 模块矩阵（2026-07-27 · L2 阶段 4/4 完成）
 

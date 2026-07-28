@@ -1729,6 +1729,7 @@ class QueryMemoryResponse(BaseModel):
 ### 16.1 Operator 指标（与 v0.1 一致）
 
 > **对应 L2 模块**：✅ **L2-2 Operator Core v0.2.0**（Python 重写 · 2026-07-24 评审通过；11 个 Operator metric name 与 L2-2 Spec v0.2-draft §10.1 完全一致，详见 [`docs/design/L2-modules/L2-operator-core.md`](../design/L2-modules/L2-operator-core.md) + [评审](../reviews/l2-2-operator-core-python-review.md)）
+> **对应 L3 文件级**：✅ **L3-1 Operator Core 文件级 Spec v0.2.0**（2026-07-28 #56 评审通过 · 11 Operator + 4 Python runtime metric name 与 L3-1 Spec v0.2.0 §7.1.2 完全一致，详见 [`docs/spec/L3-file-specs/L3-operator-core.md`](./L3-file-specs/L3-operator-core.md) + [评审](reviews/l3-1-operator-core-spec-review.md)）
 
 | 指标名 | 类型 | Labels | 含义 |
 |--------|------|--------|------|

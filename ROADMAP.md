@@ -1,6 +1,6 @@
 # superteam-a2a — Roadmap
 
-> 📅 Last updated: **2026-07-24**（同步至 ADR-0001 / 0004 / 0005 + 宪法 v0.5.0 + L1 v0.2.0 + L2-1 v0.2.0 Python 通过 + L2-2/3/4 v0.1.0 Go baseline + L2-2 Python v0.2-draft-skeleton）
+> 📅 Last updated: **2026-07-28**（同步至 ADR-0001 / 0004 / 0005 + 宪法 v0.5.0 + L1 v0.2.0 + L2-1/L2-2/L2-3/L2-4 v0.2.0 Python 通过 + **L3-1 Operator Core v0.2.0 #56** + L3-2 A2A Core v0.2.0 #54；L3 阶段 1/4 ~ 2/4 完成）
 > 👤 Maintainer: [@CoderZhangfujiang](https://github.com/CoderZhangfujiang)
 > 🎯 Goal: ≥3,000 GitHub stars within 18 months (by **2027-09**)
 
@@ -73,6 +73,7 @@ This roadmap is a living document, kept in sync with the authoritative [ADR-0001
 
 - [x] **ADR-0005**（Python-first 技术栈）✅ 2026-07-24
 - [x] **宪法 v0.5.0**（§3.8 Python-first + §9 pytest + §10 docstring + §13 SDK 维护 + §15 类型检查红线）✅ 2026-07-24
+- [x] **L3-1 Operator Core v0.2.0**（[Spec](docs/spec/L3-file-specs/L3-operator-core.md) · 245KB / 3925 行 / 16 节 + 2 附录 / 70 Python + 9 Helm + 25 工程 + 50 顶层测试 = 162 文件 + 277 测试 ID + 25 OPEN-OP / [评审](docs/reviews/l3-1-operator-core-spec-review.md) 700 行 / 55KB / §A-§P 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项）✅ 2026-07-28 #56
 - [x] **L1 v0.2.0**（Architecture + Spec + 评审）✅ 2026-07-24
 - [x] **L2-1 A2A Protocol v0.2.0 Python**（设计 + Spec + 评审）✅ 2026-07-24
 - [x] **L2-2 Go baseline 归档** → `docs/archive/pre-python-2026-07-24/` ✅ 2026-07-24
@@ -85,8 +86,8 @@ This roadmap is a living document, kept in sync with the authoritative [ADR-0001
 - [x] **L2-3 Adapter Python v0.2 评审**（[评审](docs/reviews/l2-3-adapter-python-review.md) · §A-§P 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项 · 49.7KB / 657 行 · 升级 v0.2.0）✅ 2026-07-26
 - [x] **L2-3 Adapter Python v0.2 Spec**（[Spec](docs/spec/L2-module-specs/L2-adapter.md) · 114KB / 2705 行 / 14 节 + 2 附录）✅ 2026-07-26
 - [x] **L2-4 Knowledge/Memory Python v0.2**（[Design](docs/design/L2-modules/L2-knowledge-memory.md) 1920 行 / 97KB + [Spec](docs/spec/L2-module-specs/L2-knowledge-memory.md) 4152 行 / 194.6KB + [评审](docs/reviews/l2-4-knowledge-memory-spec-python-review.md) 697 行 / 59.7KB · §A-§P 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项 · 60 测试 ID + 30 验收点 + 22 开放问题）✅ 2026-07-27
-- [x] **L3-1 Operator Core v0.2-draft**（[Spec](docs/spec/L3-file-specs/L3-operator-core.md) · 3750 行 / 162KB / §0-§9 + 附录 A/B）✅ 2026-07-27
-- [x] **L3-2 A2A Core v0.2.0**（[Spec](docs/spec/L3-file-specs/L3-a2a-core.md) · 2852 行 / 160KB / 16 节 + 2 附录 / 30 文件 + 9 Helm + 30 测试 / 276 测试 ID / 24 错误码 / 15 指标 / [评审](docs/reviews/l3-2-a2a-core-spec-review.md) 217 行 / 20KB · §A-§P 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项）✅ 2026-07-28
+- [x] **L3-1 Operator Core v0.2.0**（[Spec](docs/spec/L3-file-specs/L3-operator-core.md) · 245KB / 3925 行 / 70 Python + 9 Helm + 25 工程 + 50 顶层测试 = 162 文件 + 277 测试 ID + 25 OPEN-OP / [评审](docs/reviews/l3-1-operator-core-spec-review.md) 700 行 / 55KB · §A-§P 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项；L3 阶段 1/4 完成）✅ 2026-07-28 #56
+- [x] **L3-2 A2A Core v0.2.0**（[Spec](docs/spec/L3-file-specs/L3-a2a-core.md) · 2852 行 / 160KB / 16 节 + 2 附录 / 30 文件 + 9 Helm + 30 测试 / 276 测试 ID / 24 错误码 / 15 指标 / [评审](docs/reviews/l3-2-a2a-core-spec-review.md) 217 行 / 20KB · §A-§P 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项）✅ 2026-07-28 #54
 - [ ] **L3-3 Adapter SDK Python 重写**（基于 L2-3 v0.2.0 Spec）
 - [ ] **L3-4 Hello Agent 文件级 Spec 启动**（L3 阶段 4/6）
 - [ ] **L4 Python 实现启动**（uv workspace + packages/operator + packages/a2a-core + packages/adapter-sdk + packages/knowledge + packages/memory + packages/hello-agent）

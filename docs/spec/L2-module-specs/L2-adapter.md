@@ -2704,4 +2704,4 @@ curl http://adapter-pod:8080/metrics | grep supteam_adapter_
 ---
 
 > **状态**：✅ **v0.2.0**（#36 起草完整版 + #37 评审通过 10 维度全 PASS；0 阻塞项）
-> **下次会话入口**：L3-1 Operator Core 文件级 Spec Python 起草（独立任务；基于 L2-2 v0.2.0 Design + Spec；70 文件清单 + 4 Controllers reconcile 伪代码 + 122 UT + 11 IT + 6 E2E）→ L2-4 Knowledge/Memory Python 重写
+> **下次会话入口**：L3-1 Operator Core 文件级 Spec Python ✅ v0.2.0 通过（2026-07-28 #56 · [Spec](L3-file-specs/L3-operator-core.md) 245KB / 3925 行 / [评审](../../reviews/l3-1-operator-core-spec-review.md) §A-§P 10 维度全 PASS · 19 字段 wire sync 矩阵 + 4 纯函数完整契约）→ L3-3 Adapter SDK Python 重写（基于本 L2-3 v0.2.0 Spec + 复用 L3-2 §6 A2AClient + 6-framework matrix）

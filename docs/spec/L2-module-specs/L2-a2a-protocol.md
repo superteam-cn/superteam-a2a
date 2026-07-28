@@ -1862,7 +1862,7 @@ rbac:
 | ADR-0002 | `docs/adr/0002-knowledge-management-design.md` | 4 扩展 method 业务语义 |
 | ADR-0003 | `docs/adr/0003-memory-design.md` | Memory 生命周期 |
 | Constitution v0.5.0 | `CONSTITUTION.md` | 最高纲领 |
-| L3-1 Operator Core | `docs/spec/L3-file-specs/L3-operator-core.md` | 下游 Operator |
+| L3-1 Operator Core | `docs/spec/L3-file-specs/L3-operator-core.md` v0.2.0（2026-07-28 #56 评审通过 · [评审](reviews/l3-1-operator-core-spec-review.md)） | 下游 Operator |
 | L3-2 A2A Core | `docs/spec/L3-file-specs/L3-a2a-core.md` | 下游实现文件级 |
 | L2-2 Operator Core Spec | `docs/spec/L2-module-specs/L2-operator-core.md` | 兄弟 Spec |
 | L2-4 Knowledge/Memory Spec | `docs/spec/L2-module-specs/L2-knowledge-memory.md` | 业务实现扩展 router |

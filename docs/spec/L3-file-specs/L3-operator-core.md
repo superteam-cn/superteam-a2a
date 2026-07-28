@@ -1,31 +1,32 @@
 # L3 文件级 Spec：Operator Core（编排层文件级 · Python-first）
 
-> **⚠️ ADR-0005 supersede + 归档标记（2026-07-27）**：本 v0.2-draft Spec 文档**仅 supersede Go struct / kubebuilder / controller-runtime / client-go 实现条款**；wire contract（4 Controller 职责 / CRD 状态机 / Leader Election / Finalizer / RBAC / metric name）与 v0.1-draft 业务语义**完全继续有效**。原 v0.1-draft Go baseline 已归档至 [`docs/archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md`](../../archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md)（2026-07-27 归档 / **未评审** / 75KB / 1886 行）。
+> **⚠️ ADR-0005 supersede + 归档标记（2026-07-27）**：本 v0.2-draft Spec 文档**仅 supersede Go struct / kubebuilder / controller-runtime / client-go 实现条款**；wire contract（3 个 CRD Controller + C-1.4 MemoryReconciler 职责 / CRD 状态机 / Leader Election / Finalizer / RBAC / metric name）与 v0.1-draft 业务语义**完全继续有效**。原 v0.1-draft Go baseline 已归档至 [`docs/archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md`](../../archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md)（2026-07-27 归档 / **未评审** / 75KB / 1886 行）。
 >
-> **Python 重写入口**：依据 L1 v0.2.0 Architecture §3.2 + ADR-0005 §3.1 + §13.1 + L2-2 Design v0.2.0 §3,Go baseline 70 文件清单 → Python 包结构（`packages/operator/src/superteam_a2a/operator/` 13 子包）；4 Controller 完整 Go 代码契约 → **Kopf `@kopf.create` / `@kopf.update` / `@kopf.delete` handlers(30-50 行/Controller) + 独立 async reconciler services(业务逻辑分离)**；MemoryReconciler 60s 周期 → **`@kopf.timer(interval=60.0)`** + Leader Election 单 leader 触发。
+> **Python 重写入口**：依据 L1 v0.2.0 Architecture §3.2 + ADR-0005 §3.1 + §13.1 + L2-2 Design v0.2.0 §3，Go baseline 70 文件清单 → Python 包结构（`packages/operator/src/superteam_a2a/operator/` 13 子包）；3 个 CRD Controller 的完整 Go 代码契约 → **Kopf `@kopf.create` / `@kopf.update` / `@kopf.delete` handlers（30-50 行/Controller）+ 独立 async reconciler services（业务逻辑分离）**；C-1.4 MemoryReconciler 60s 周期 → **`@kopf.timer(interval=60.0)`** + Leader Election 单 leader 触发。
 >
 > **层级**：L3 — 文件级 Spec
 > **模块 ID**：C-1（Operator Core，见 L1 Architecture §4.1）
 > **代码位置**：`packages/operator/src/superteam_a2a/operator/`（**ADR-0005 §13.1 uv workspace 布局**，替代原 Go baseline 的 `src/operator/`）
-> **版本**：v0.2-draft（2026-07-27 起 Python 重写 + 2026-07-27 #16 Go baseline 归档）
-> **状态**：🟡 v0.2-draft **§9 补完稿（#44 骨架 + #45 §4-§6 + #47 §7 observability + RBAC + Helm values + #48 §8 测试策略 + 工具链 + #49 §9 验收清单 补完）**——头部 + §0-§9 + 附录 A 已落地 + ⚠️ §10 开放问题 + 附录 B 矩阵 = **1 节 + 1 附录待后续 #50+ 会话补完**
-> **上游约束**：[`docs/design/L2-modules/L2-operator-core.md`](../../design/L2-modules/L2-operator-core.md) **v0.2.0**（2026-07-24 评审通过 · 80KB / 1583 行 / 14 主章节）+ [`docs/spec/L2-module-specs/L2-operator-core.md`](../../spec/L2-module-specs/L2-operator-core.md) **v0.2.0**（2026-07-25 评审通过 · 103KB / 1890 行 / 16 节 + 2 附录 / 122 测试 ID / 16 开放问题 / 80% 收敛率）
-> **本 Spec 目的**：将 L2-2 Operator Core Spec v0.2.0 中的 **13 子包 + 4 Controller + MemoryReconciler + admission webhook + Leader Election + Finalizer + observability + RBAC + Helm + 测试策略** 落地为 **文件级 Python 代码契约**——每个文件列明**绝对路径（基于 uv workspace 布局）**、**职责一句话**、**完整 import 列表**、**exported 符号签名（type hints + docstring 一行）**、**内部 helper 列表**、**关联测试文件路径 + 测试 ID 前缀**。是 L4 实施阶段（开发者打开 IDE 即可对照写代码）的直接输入。
-> **配套 Spec**：[L3-5 Knowledge Service 文件级 Spec](./L3-knowledge-service.md)（待起草）/ [L3-6 Memory backend 文件级 Spec](./L3-memory-backend.md)（待起草）/ [L3-2 A2A Core Library 文件级 Spec](./L3-a2a-core.md)（**本次 #44 同步归档 Go baseline 62KB/1446 行；Python 重写待 #47+ 启动**）
+> **版本**：**v0.2.0**（2026-07-27 起 Python 重写 + 2026-07-27 #44 Go baseline 归档；2026-07-28 §10 + 附录 B 补完；2026-07-28 #56 评审通过升级 v0.2.0）
+> **状态**：✅ **v0.2.0 已通过评审**（#44 骨架 + #45 §4-§6 + #47 §7 observability/RBAC/Helm + #48 §8 测试/工具链 + #49 §9 验收清单 + #55 §10/附录 B 补完 + #56 评审 §A-§P 10 维度全 PASS / 0 阻塞项 / 3 关注项 / 4 建议项）——**L3 阶段 1/4 完成**；头部 + §0-§10 + 附录 A/B 全部落地，0 个待补完章节
+> **上游约束**：[`docs/design/L2-modules/L2-operator-core.md`](../../design/L2-modules/L2-operator-core.md) **v0.2.0**（2026-07-24 评审通过 · 80KB / 1583 行 / 14 主章节）+ [`docs/spec/L2-module-specs/L2-operator-core.md`](../../spec/L2-module-specs/L2-operator-core.md) **v0.2.0**（2026-07-25 评审通过 · 103KB / 1890 行 / 16 节 + 2 附录 / 122 测试 ID / 20 开放问题：16 已收敛 + 3 移交 L3-1 + 1 推迟 v0.5+）
+> **本 Spec 目的**：将 L2-2 Operator Core Spec v0.2.0 中的 **13 子包 + 3 个 CRD Controller + MemoryReconciler + admission webhook + Leader Election + Finalizer + observability + RBAC + Helm + 测试策略** 落地为 **文件级 Python 代码契约**——每个文件列明**绝对路径（基于 uv workspace 布局）**、**职责一句话**、**完整 import 列表**、**exported 符号签名（type hints + docstring 一行）**、**内部 helper 列表**、**关联测试文件路径 + 测试 ID 前缀**。是 L4 实施阶段（开发者打开 IDE 即可对照写代码）的直接输入。
+> **配套 Spec**：[L3-2 A2A Core Library 文件级 Spec v0.2.0](./L3-a2a-core.md)（2026-07-28 #54 评审通过 · [评审报告](../../reviews/l3-2-a2a-core-spec-review.md) §A-§P 10 维度全 PASS）/ [L3-5 Knowledge Service 文件级 Spec](./L3-knowledge-service.md)（待起草）/ [L3-6 Memory backend 文件级 Spec](./L3-memory-backend.md)（待起草）
+> **配套 Review**：[L3-1 Operator Core Spec 评审报告 v0.2.0](../../reviews/l3-1-operator-core-spec-review.md)（2026-07-28 #56 · 700 行 / 55KB / §A-§P 16 节 / 10 维度全 PASS / 0 阻塞项 / 3 关注项 / 4 建议项）
 
 ---
 
 ## 0. 阅读指南
 
 - **读者**：Operator 实施工程师（L4 Python 编码）、Code Reviewer（PR 审查）、架构 Reviewer（设计一致性）
-- **必读章节**：§1（模块使命 + 70 → 162 文件清单总览）/ §2（Python 包结构）/ §3（4 Controller + MemoryReconciler 概要）/ §8（测试策略 + 工具链）/ §9（验收清单）/ 附录 A（跨模块引用清单）
-- **可选章节**：本次 v0.2-draft 补完稿不包含 §10 主体 + 附录 B（已在各 §标题占位；后续 #50+ 会话补完）
-- **配套阅读**：[L2-2 Operator Core Spec v0.2.0](../../spec/L2-module-specs/L2-operator-core.md) §1-§15 + 附录 A/B · [L2-2 Operator Core Design v0.2.0](../../design/L2-modules/L2-operator-core.md) §3-§14 · [L1 Architecture v0.2.0 §3.2 编排层](../../design/L1-architecture.md) · [ADR-0003 §4 Memory 衰减算法](../adr/0003-memory-design.md) · [ADR-0005 §3.1 Operator 模块映射](../adr/0005-python-first-technology-stack.md) · [Kopf 官方文档](https://kopf.readthedocs.io/) · [kubernetes_asyncio 文档](https://github.com/kubernetes-client/python/tree/master/kubernetes_asyncio)
+- **必读章节**：§1（模块使命 + 70 → 162 文件清单总览）/ §2（Python 包结构）/ §3（3 个 CRD Controller + MemoryReconciler 概要）/ §8（测试策略 + 工具链）/ §9（277 测试 ID + 30 条硬验收）/ §10（25 项开放问题去重收敛）/ 附录 A（跨模块引用清单）/ 附录 B（ADR / Constitution 5 子表追溯矩阵）
+- **评审入口**：§9 验收清单 + §10 开放问题状态与移交 + 附录 B MUST/SHOULD/MAY 约束矩阵；三处必须互相回链且数量一致
+- **配套阅读**：[L2-2 Operator Core Spec v0.2.0](../../spec/L2-module-specs/L2-operator-core.md) §1-§15 + 附录 A/B · [L2-2 Operator Core Design v0.2.0](../../design/L2-modules/L2-operator-core.md) §3-§14 · [L1 Architecture v0.2.0 §3.2 编排层](../../design/L1-architecture.md) · [ADR-0003 §4 Memory 衰减算法](../../adr/0003-memory-design.md) · [ADR-0005 §3.1 Operator 模块映射](../../adr/0005-python-first-technology-stack.md) · [Kopf 官方文档](https://kopf.readthedocs.io/) · [kubernetes_asyncio 文档](https://github.com/kubernetes-client/python/tree/master/kubernetes_asyncio)
 
 **与 L3-1 Go baseline 关系**：
-- v0.1-draft Go baseline 已归档（**不可变,仅参考**：`../../../archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md` 1886 行）
+- v0.1-draft Go baseline 已归档（**不可变，仅参考**：`../../archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md`，1886 行）
 - 本 v0.2 Spec **完全替代** Go baseline 的 Python 实现决策（Kopf handlers + async reconciler services + `kubernetes_asyncio` + K8s Lease Leader Election + structlog + Pydantic v2）
-- 业务语义（4 Controller 职责 / CRD 状态机 / Finalizer / RBAC / metric name）与 v0.1-draft Go baseline **完全一致**
+- 业务语义（3 个 CRD Controller + C-1.4 MemoryReconciler 职责 / CRD 状态机 / Finalizer / RBAC / metric name）与 v0.1-draft Go baseline **完全一致**
 
 ---
 
@@ -45,7 +46,7 @@ L3-1 Operator Core 文件级 Spec 将 [L2-2 Spec v0.2.0](../../spec/L2-module-sp
 | **目的** | "为什么 + 是什么"（设计决策 + 模块契约） | "怎么做"（每个文件具体怎么写） |
 | **读者** | 架构师 + L3 起草者 | L4 实施工程师（开发者打开 IDE 对照） |
 | **变更频率** | 低（设计变更才改） | 中（实现微调可能改） |
-| **测试 ID 范围** | 122 UT + 11 IT + 6 E2E（§A-§G ID 矩阵） | L3-1 不创造新测试 ID；**继承 L2-2 ID 矩阵**,仅在测试文件中将 ID 落实到具体文件路径 |
+| **测试 ID 范围** | 122 个模块级测试 ID（§A-§G ID 矩阵） | 继承 L2-2 前缀与语义，并按文件级路径细化为 §9.2 的 **277 个可执行测试 ID**；§10 的 `OPEN-OP-*` 仅作决策追踪，不计入 277 |
 
 ### 1.2 模块对外契约（public API surface · 继承 L2-2 Spec §1.2）
 
@@ -98,52 +99,53 @@ from .finalizers.names import AGENT_FINALIZER, AGENTSET_FINALIZER, WORKFLOW_FINA
 from .clients.k8s_client import AsyncK8sClient
 ```
 
-### 1.3 文件清单总览（70 个 Python 文件 + 9 Helm 模板）
+### 1.3 文件清单总览（70 个 Python 文件 + 9 个 Helm manifest 模板 + 1 个 helper）
 
-> **完整文件清单在 §2.3 表格中分 13 子包展开**。本 §1.3 给汇总 + 测试 ID 前缀分布。
+> **完整文件清单在 §2.3 按子包展开，§4-§7 给最终扩展口径，§8 将测试与工程资产映射后形成 162 个文件级条目**。本节给出评审使用的最终汇总；历史骨架中的 65 文件仅是 §4-§7 展开前的中间数，不再作为验收基线。
 
-**70 Python 文件分 13 子包**：
+**70 个 Python 文件分布**：
 
 | 子包 | 文件数 | 职责一句话 | 测试 ID 前缀 |
 |---|---|---|---|
-| `operator/` (顶层) | 3 | 主入口 + 公开 API + ASGI runner | UT-OP-01~04 |
-| `operator/controllers/` | 4 | 4 个 Controller 的 Kopf handlers | UT-C-01~30(7 类前缀)|
-| `operator/reconcilers/` | 5 | 业务逻辑 services（与 Kopf 解耦） | UT-R-01~25 |
-| `operator/admission/` (server + validators) | 7 | ASGI admission webhook server + 5 validators + TLS | UT-AW-01~18 |
-| `operator/leader_election/` | 2 | K8s Lease 客户端 + Election 主类 | UT-LE-01~10 |
-| `operator/finalizers/` | 1 | 4 Finalizer 名称常量 + 工具 | UT-FN-01~03 |
-| `operator/clients/` | 1 | kubernetes_asyncio 封装 | UT-KC-01~07 |
-| `operator/observability/` | 4 | metrics + tracing + logging + events | UT-OB-01~12 |
+| `operator/`（顶层） | 3 | 主入口 + 公开 API + ASGI runner | UT-OP-01~14 |
+| `operator/controllers/` | 4 | `__init__.py` + 3 个 CRD Controller 的 Kopf handlers；MemoryReconciler 不在此包 | UT-C-01~30 |
+| `operator/reconcilers/` | 5 | 业务逻辑 services + leader-gated MemoryReconciler（与 Kopf handlers 解耦） | UT-R-01~25 |
+| `operator/admission/` | 9 | ASGI admission webhook server + TLS + 5 validators | UT-AW-01~18 |
+| `operator/leader_election/` | 3 | 子包入口 + K8s Lease 客户端 + Election 主类 | UT-LE-01~10 |
+| `operator/finalizers/` | 1 | 4 个永久 `/cleanup` Finalizer 名称常量 + 工具 | UT-FN-01~03 |
+| `operator/clients/` | 1（实现文件） | `k8s_client.py`；纯重导出的 `clients/__init__.py` 不重复计入 70 基线 | UT-KC-01~07 |
+| `operator/observability/` | 6 | 子包入口 + metrics + health + tracing + logging + events | OBS-001~025 / HLT-001~008 |
 | `operator/errors/` | 1 | ReconcileError hierarchy | UT-ER-01~06 |
 | `operator/config/` | 1 | Helm values Pydantic model | UT-CF-01~04 |
-| `operator/models/` (L3-1 新增) | 36 | **CRD 实体 Pydantic model** + status/conditions enum（按 4 CRD × 9 文件细拆） | UT-MD-01~25 |
-| **小计** | **65** | + `pyproject.toml` + `__init__.py`（13 个）= **70 文件** | |
+| `operator/models/` | 36 | 4 CRD 的 Pydantic model + status / conditions / enum / helper | UT-MD-01~25 |
+| **合计** | **70** | §4-§7 展开后的最终 Python 文件口径 | |
 
-注 1：`models/` 子包是 L3-1 新增（基于 Pydantic v2 + Kopf persistence 落地 CRD 实体）——v0.1-draft Go baseline 没有此层（Go 用 kubebuilder 注解 + controller-runtime 自带 CRD 类型）。本层在 L2-2 Spec §2.5 已铺垫但未展开。
+**计数规则**：70 是“具有独立实现契约的 Python 文件”基线；仅做同包符号重导出、且没有独立行为的叶子 `__init__.py`（如 `clients/__init__.py`）可在 §2.3 索引中出现但不重复计数。带 public API、注册或聚合行为的 `__init__.py` 仍计入对应子包。
 
-注 2：第 65-70 文件为 **9 Helm 模板**（`deploy/helm/operator/templates/*.yaml`）——非 Python 文件,在 `deploy/helm/operator/` 下,本表不计入 70。
+`models/` 子包是 L3-1 相对 Go baseline 的关键新增层：Go 使用 kubebuilder 注解 + controller-runtime CRD 类型；Python 实现使用 Pydantic v2 + Kopf persistence。
 
-**9 Helm 模板**（L3-1 在 §7 Helm values 段展开）：
+**Helm 资产**（§7.2.1 为唯一清单）：9 个 manifest 模板 + 1 个 `_helpers.tpl`；`Chart.yaml` / `values.yaml` / `values.schema.json` / `NOTES.txt` 为 chart 顶层工程资产，不计入 70 个 Python 文件。
 
-```
+```text
 deploy/helm/operator/
-├── Chart.yaml                            # Helm chart 元数据
-├── values.yaml                           # 默认 Helm values（开发环境）
-├── values.schema.json                    # JSON Schema（从 HelmValues Pydantic 自动生成）
+├── Chart.yaml
+├── values.yaml
+├── values.schema.json
+├── NOTES.txt
 └── templates/
-    ├── deployment.yaml                   # Operator Deployment（Operator + admission webhook 同 Pod,2 containers）
-    ├── service.yaml                      # Service（Operator metrics :9090 + admission webhook :9443）
-    ├── serviceaccount.yaml               # ServiceAccount
-    ├── clusterrole.yaml                  # ClusterRole（4 CRD + core resources + events + leases）
-    ├── clusterrolebinding.yaml           # ClusterRoleBinding
-    ├── role.yaml                         # Role（namespaced 权限：configmaps + secrets）
-    ├── rolebinding.yaml                  # RoleBinding
-    ├── webhookconfig.yaml                # ValidatingWebhookConfiguration（4 CRD 全部）
-    ├── networkpolicy.yaml                # NetworkPolicy（限制 Pod egress）
-    └── leader_election_lease.yaml        # Lease object（namespace 隔离）
+    ├── _helpers.tpl
+    ├── deployment.yaml
+    ├── service.yaml
+    ├── serviceaccount.yaml
+    ├── configmap.yaml
+    ├── rbac.yaml
+    ├── admission_rbac.yaml
+    ├── networkpolicy.yaml
+    ├── prometheusrule.yaml
+    └── servicemonitor.yaml
 ```
 
-**70 Python 测试文件**（镜像 `src/superteam_a2a/operator/` 结构,在 `packages/operator/tests/` 下,本 L3-1 不逐文件列出,在 §8 测试策略段按测试 ID 矩阵展开）。
+**测试与工程资产**：§8 把 70 个 Python 文件映射到单元/集成/E2E/Conformance/性能测试，并加入 25 个工程资产；§9.2 的 277 个测试 ID 是最终验收口径。
 
 ### 1.4 关键不变量（跨 L3-1 全文件清单适用）
 
@@ -152,7 +154,7 @@ deploy/helm/operator/
 - ✅ **Leader Election 不阻塞 event loop**：Lease 续约在独立 `asyncio.Task`,acquire 失败立即让位
 - ✅ **Finalizer 永久保留 v0.1 名称**：4 个 CRD 的 Finalizer 在 v1.0+ 不变（语义变化只增不改）
 - ✅ **Status 子资源仅通过 `kopf.adopt` + status_patch**：禁止直接 `kubectl patch` 风格 API
-- ✅ **错误分类（Permanent > NonRetryable > Retryable）**：单 `BaseReconciler.handle_error()` 统一调度,见 §9(后续 #45+)
+- ✅ **错误分类（Permanent > NonRetryable > Retryable）**：单 `BaseReconciler.handle_error()` 统一调度，见 §2.3.10 + §3.5 + §8.5
 - ✅ **Public API 仅 `__init__.py` 暴露**：其他文件以下划线前缀不允 import(由 `import-linter` 静态检查)
 
 ---
@@ -228,13 +230,11 @@ superteam-a2a/                            # uv workspace 根(由 L4 pyproject.to
 | 10 | **`controllers/` 与 `reconcilers/` 通过 `BaseReconciler` Protocol 解耦** | `controllers/*.py` 仅依赖 `reconcilers/base.py` 的 Protocol(不在 handlers 里 import 具体 reconciler 类) | 静态类型检查 |
 | 11 | **`__init__.py` 仅导出 `__all__` 列出的符号** | 其他符号需下划线前缀;由 `ruff` + `import-linter` 双重检查 | ADR-0005 §9.4 |
 
-### 2.3 文件清单（13 子包 · 65 Python 文件 + 5 配置/入口/文档 = 70 文件）
+### 2.3 文件清单（70 个 Python 文件 · §4-§7 展开后最终口径）
 
-> **70 文件分两层**:
-> - **65 Python 文件**(13 子包)
-> - **5 配置/入口/文档**:`pyproject.toml` + `README.md` + `__main__.py` + `__init__.py`(顶层) + `conftest.py`
+> **70 个 Python 文件**按 §1.3 的最终分布统计；`pyproject.toml` / `README.md` / chart 顶层文件 / Helm templates / tests 属工程与部署资产，在 §7-§8 单列，不重复计入本节。
 >
-> 每个文件列:**绝对路径** / **职责一句话** / **exported 符号** / **内部 helper** / **关联测试文件** / **L2-2 Spec 对应章节**
+> 每个文件列：**绝对路径** / **职责一句话** / **exported 符号** / **内部 helper** / **关联测试文件** / **L2-2 Spec 对应章节**
 
 #### 2.3.1 顶层 3 文件(`operator/__init__.py` + `main.py` + `__main__.py`)
 
@@ -248,12 +248,12 @@ superteam-a2a/                            # uv workspace 根(由 L4 pyproject.to
 
 | 文件路径 | 职责 | exported 符号 | helper | 测试文件 | L2-2 对应 |
 |---|---|---|---|---|---|
-| `controllers/__init__.py` | 导出 4 Controller 类 | `AgentController`, `AgentSetController`, `WorkflowController`, `MemoryReconcilerController`(包装 `reconcilers/memory_reconciler.py`) | 无 | `tests/unit/test_controllers___init__.py` (UT-C-01) | L2-2 Spec §3.1 |
+| `controllers/__init__.py` | 导出 3 个 CRD Controller 类；MemoryReconciler 由 `reconcilers/` 导出 | `AgentController`, `AgentSetController`, `WorkflowController` | 无 | `tests/unit/test_controllers___init__.py` (UT-C-01) | L2-2 Spec §3.1 |
 | `controllers/agent.py` | `AgentController`:Kopf `@kopf.create/update/delete` handlers,30-50 行/handler | `class AgentController`,`@kopf.create.on(progress_pending=True)` + 3 装饰器方法 | `_build_spec()`, `_patch_status()`, `_emit_event()` | `tests/unit/test_agent_controller.py` (UT-C-02~09) + `tests/integration/test_agent_reconcile.py` (IT-C-01) | L2-2 Spec §3.2 + Design §4.1 |
 | `controllers/agentset.py` | `AgentSetController`:replicas 调谐 + 滚动更新 | `class AgentSetController`,3 装饰器方法 + `async def _reconcile_replicas(self, body, spec, status) -> None` | `_list_child_agents()`, `_scale_up()`, `_scale_down()` | `tests/unit/test_agentset_controller.py` (UT-C-10~17) + `tests/integration/test_agentset_reconcile.py` (IT-C-02) | L2-2 Spec §3.2 + Design §4.2 |
 | `controllers/workflow.py` | `WorkflowController`:DAG 校验 + Task CR stub(v0.1 + Task 由 v0.5+ 调度) | `class WorkflowController`,3 装饰器方法 + `async def _validate_dag(self, tasks: list[WorkflowTask]) -> None` | `_check_dag_cycles()`, `_emit_task_stub()` | `tests/unit/test_workflow_controller.py` (UT-C-18~25) + `tests/integration/test_workflow_reconcile.py` (IT-C-03) | L2-2 Spec §3.2 + Design §4.3 |
 
-**MemoryReconciler 单独占一个 controller 文件**(`controllers/memory_reconciler.py`),但实现是 `@kopf.timer` + Leader Election 单 leader 触发——不放 `controllers/` 而放 `reconcilers/`(业务逻辑分离原则)。详见 §3.4 / 待补完 §4。
+**MemoryReconciler 不放在 `controllers/`**：它落地于 `reconcilers/memory_reconciler.py`，由 `@kopf.timer` + `LeaderGate` 单 leader 触发；CRD handlers 与后台任务的业务逻辑均遵循 reconciler service 分离原则。详见 §3.4 与 §6.2.10。
 
 #### 2.3.3 `reconcilers/` 子包(5 文件)
 
@@ -292,9 +292,9 @@ superteam-a2a/                            # uv workspace 根(由 L4 pyproject.to
 | `models/agent/rbac.py` | `ServiceAccountSpec` + `RoleBindingSpec`(Agent RABC) | UT-MD-AG-07 |
 | `models/agent/validators.py` | Pydantic root validators(`@model_validator(mode="after")`):image 必须存在 / replicas ∈ [1,100] / mode 与 command 互斥 | UT-MD-AG-08 |
 
-**AgentSet / Workflow / Memory 各 8 文件结构类似**, 在 §-X 后续 #45+ 会话逐一展开(避免本骨架超 50% 临界)。
+**AgentSet / Workflow / Memory 各 8 文件遵循同一布局**；Controller/reconciler 的 exported 符号以 §3 为准，Memory 的 8 个模型文件与 4 个纯函数以 §6.2 为准。
 
-#### 2.3.5 `admission/` 子包(7 文件)
+#### 2.3.5 `admission/` 子包（9 文件）
 
 | 文件路径 | 职责 | exported 符号 | helper | 测试文件 | L2-2 对应 |
 |---|---|---|---|---|---|
@@ -310,7 +310,7 @@ superteam-a2a/                            # uv workspace 根(由 L4 pyproject.to
 
 **注**:Go baseline `mutual_exclusion.go` 是 1 文件;L3-1 拆为独立子包文件,清晰边界。
 
-#### 2.3.6 `leader_election/` 子包(2 文件)
+#### 2.3.6 `leader_election/` 子包（3 文件）
 
 | 文件路径 | 职责 | exported 符号 | helper | 测试文件 | L2-2 对应 |
 |---|---|---|---|---|---|
@@ -334,24 +334,25 @@ WORKFLOW_FINALIZER = "workflow.superteam-a2a.io/cleanup"
 MEMORY_FINALIZER = "memory.superteam-a2a.io/cleanup"
 ```
 
-#### 2.3.8 `clients/` 子包(1 文件)
+#### 2.3.8 `clients/` 子包（1 个实现文件 + 1 个纯重导出入口）
 
 | 文件路径 | 职责 | exported 符号 | helper | 测试文件 | L2-2 对应 |
 |---|---|---|---|---|---|
 | `clients/__init__.py` | 导出 `AsyncK8sClient`(custom resources + core resources)| `AsyncK8sClient`, `CoreV1API`(kubernetes_asyncio), `CustomObjectsAPI` | 无 | `tests/unit/test_clients___init__.py` (UT-KC-01~02) | L2-2 Spec §8 |
 | `clients/k8s_client.py` | `AsyncK8sClient`(CRUD + status patch + watch)| `class AsyncK8sClient`,`async def get_agent()`,`async def list_agents()`,`async def create_agent()`,`async def update_agent_status()`,`async def watch_agents()`(K8s watch + 10s timeout) | `_retry_with_backoff()`,`_extract_spec_metadata()` | `tests/unit/test_k8s_client.py` (UT-KC-03~07) + `tests/integration/test_k8s_client_envtest.py` (IT-KC-01) | L2-2 Spec §8 + Design §6.3 |
 
-#### 2.3.9 `observability/` 子包(4 文件)
+#### 2.3.9 `observability/` 子包（6 文件）
 
 | 文件路径 | 职责 | exported 符号 | helper | 测试文件 | L2-2 对应 |
 |---|---|---|---|---|---|
 | `observability/__init__.py` | 导出 `OperatorMetrics` + `StructuredLogger` + `EventRecorder` + `TracerProvider` | 4 个 facade 类 | 无 | `tests/unit/test_observability___init__.py` (UT-OB-01) | L2-2 Spec §10 + Design §10 |
-| `observability/metrics.py` | `OperatorMetrics`(11 Prometheus 指标,与 L1 Spec §16 一致 + Agent Controller 状态细分) | `class OperatorMetrics`,11 个 `Counter`/`Gauge`/`Histogram`,`def render_latest() -> bytes` | `_labels_from_body()`,`_record_reconcile()` | `tests/unit/test_metrics.py` (UT-OB-02~06) | L2-2 Spec §10.1 + Design §10.1 |
+| `observability/metrics.py` | `MetricsRegistry`（11 Operator + 4 Python runtime 指标，与 L1 Spec §16 一致） | `class MetricsRegistry`,`register_or_get()`,`as_dict()` | `_labels_from_body()`,`_record_reconcile()` | `tests/unit/observability/test_metrics.py` (OBS-001~013) | L2-2 Spec §10.1-§10.3 |
+| `observability/health.py` | `/healthz` + `/readyz` ASGI 探针，聚合 Lease / admission TLS / MemoryReconciler last_run | `class HealthCheck`,`create_health_app()` | `_liveness_payload()`,`_readiness_payload()` | `tests/unit/observability/test_health.py` (HLT-001~008) | L2-2 Spec §13.5 |
 | `observability/tracing.py` | OTel SDK 初始化(Provider injection,与 L1 Arch §9.2 一致)| `class TracerProvider`,`def init_tracer()`(从 Helm values 读 endpoint),`def get_tracer(name: str) -> Tracer` | `_config_otlp_exporter()`,`_setup_resource()` | `tests/unit/test_tracing.py` (UT-OB-07~09) | L2-2 Spec §10.2 + Design §10.2 |
 | `observability/logging.py` | structlog 配置(JSON 输出 + trace_id 注入)| `class StructuredLogger`,`def configure_structlog(level: str) -> None`,`def get_logger(name: str) -> BoundLogger` | `_inject_trace_id()`,`_json_renderer()` | `tests/unit/test_logging.py` (UT-OB-10) | L2-2 Spec §10.3 + Design §10.3 |
-| `observability/events.py` | K8s Events 客户端(4 种 event reason)| `class EventRecorder`,`async def record_event(reason: EventReason, message: str, involved_object: K8sObject)` | `_format_event()`,`_retry_on_409()` | `tests/unit/test_events.py` (UT-OB-11~12) + `tests/integration/test_events_e2e.py` (IT-OB-01) | L2-2 Spec §10.4 + Design §10.4 |
+| `observability/events.py` | K8s Events 客户端（8 种 `EventReason`，以 §7.1.5 为唯一枚举） | `EventReason`,`async def emit_event(reason: EventReason, message: str, involved_object: K8sObject)` | `_format_event()`,`_retry_on_409()` | `tests/unit/observability/test_events.py` (OBS-007/022/025) | L2-2 Spec §10.6 |
 
-**11 Prometheus 指标**(继承 L2-2 Spec §10.1 + L1 Spec §16,列表在 §7 后续 #45+ 展开):
+**指标与事件基线**：11 个 Operator 指标 + 4 个 Python runtime 指标见 §7.1.2；8 个 `EventReason` 见 §7.1.5。§7 是本子包的唯一完整契约，本 §2.3.9 仅提供文件索引。
 
 ```
 # Operator 主指标(4 个)
@@ -433,22 +434,17 @@ def classify_error(exc: Exception) -> ErrorCategory:
 | `models/memory/gc.py` | `should_garbage_collect(effective_confidence: float, threshold: float = 0.1) -> bool` | UT-MD-ME-07 |
 | `models/memory/promotion.py` | `is_eligible_for_promotion(effective_confidence: float, reinforced_count: int, min_confidence: float = 0.9, min_reinforced: int = 10) -> bool` | UT-MD-ME-08 |
 
-#### 2.3.13 9 Helm 模板(在 §7 后续 #45+ 展开;此处仅列表)
+#### 2.3.13 Helm 资产索引（§7.2.1 为唯一完整清单）
 
-不在 70 文件 Python 计数内,在 `deploy/helm/operator/templates/`:
+Helm 资产不计入 70 个 Python 文件：`templates/` 包含 **9 个 manifest 模板 + 1 个 `_helpers.tpl`**；chart 顶层另有 `Chart.yaml` / `values.yaml` / `values.schema.json` / `NOTES.txt`。精确路径、职责、RBAC 聚合方式与测试 ID 统一见 §7.2.1 和 §8.13，本节不维护第二份易漂移清单。
 
-| 模板 | 职责 | L2-2 对应 |
+| 资产组 | 文件 | 关键职责 |
 |---|---|---|
-| `deployment.yaml` | Operator + admission webhook 同 Pod 2 containers;3 replicas 单 leader;Operator 镜像 pull policy | L2-2 Spec §11 + Design §11 |
-| `service.yaml` | Operator metrics Service :9090 + admission webhook Service :9443 | 同上 |
-| `serviceaccount.yaml` | ServiceAccount | L2-2 Spec §12 |
-| `clusterrole.yaml` | ClusterRole(4 CRD + leases + events + configmaps + secrets)| L2-2 Spec §12 + Design §12 |
-| `clusterrolebinding.yaml` | ClusterRoleBinding | 同上 |
-| `role.yaml` | Role(operator namespace 隔离;configmaps + secrets get/list/watch)| L2-2 Spec §12 + Design §12 |
-| `rolebinding.yaml` | RoleBinding | 同上 |
-| `webhookconfig.yaml` | ValidatingWebhookConfiguration(4 CRD + 1 mutual-exclusion)— admission webhook K8s 配置 | L2-2 Spec §4 + Design §5 |
-| `networkpolicy.yaml` | NetworkPolicy(限制 Pod egress:仅 K8s API server + admission webhook server)| L2-2 Spec §12 + 宪法 §6 |
-| `leader_election_lease.yaml` | Lease object 模板(命名空间隔离)| L2-2 Spec §6 |
+| helper | `_helpers.tpl` | 命名、labels、ServiceAccount 辅助模板 |
+| workload/network | `deployment.yaml` / `service.yaml` / `networkpolicy.yaml` | Operator + admission 双 container、双端口与流量白名单 |
+| identity/config | `serviceaccount.yaml` / `configmap.yaml` | cert-manager annotation 与 values→env 映射 |
+| authorization | `rbac.yaml` / `admission_rbac.yaml` | ClusterRole/Binding 与 namespace-scoped Role/Binding |
+| observability | `prometheusrule.yaml` / `servicemonitor.yaml` | 6 条告警与 11+4 指标采集 |
 
 **4 CRD YAML 文件**(L3-1 边界外,在 `deploy/helm/crds/`,由 L2-2 Design §3.1 CRD YAML 在 Operator 镜像构建时打包;不在 L3-1 操作范围;L3-1 仅消费):
 
@@ -462,9 +458,9 @@ deploy/helm/crds/
 
 ---
 
-## 3. 4 Controllers + MemoryReconciler 文件级契约
+## 3. 3 个 CRD Controller + MemoryReconciler 文件级契约
 
-> 本 §3 给出 4 Controllers + MemoryReconciler 的**概要级**文件契约(每个 controller 一段;**完整 reconcile 伪代码 + 状态机时序图 + 异常路径** 移交 §-X 在 #45+ 后续会话补完)。
+> 本节给出 Agent / AgentSet / Workflow 三个 CRD Controller 与 C-1.4 MemoryReconciler 后台 service 的文件契约；完整 admission、Leader Election 与 Memory 实现分别见 §4、§5、§6。
 
 ### 3.1 Agent Controller（`controllers/agent.py` · C-1.1）
 
@@ -478,7 +474,6 @@ deploy/helm/crds/
 ```python
 # packages/operator/src/superteam_a2a/operator/controllers/agent.py
 # 行 1-30:imports + class 装饰器
-fromkopf import Kopf
 import kopf
 
 from superteam_a2a.operator.reconcilers import AgentReconcilerService
@@ -504,7 +499,7 @@ async def agent_create(spec: AgentSpec, name: str, namespace: str, body: Agent, 
         controller._metrics.inc_reconcile_total(controller='agent', result='error')
         raise kopf.PermanentError(str(e)) if e.category == ErrorCategory.PERMANENT else kopf.TemporaryError(str(e), delay=10)
 
-# update/delete handler 类似(各 30-50 行);完整见 §-X 后续 #45+
+# update/delete handlers 遵循同一结构；完整异常分类与 status patch 契约见 §3.5
 ```
 
 **与 Go baseline 对应**:L2-2 Go baseline §4.3 Agent Controller(60 行/handler);L3-1 Python 版 30-50 行/handler(50% 精简得益于 Kopf decorator + base reconciler 抽象)。
@@ -980,7 +975,7 @@ class AgentValidator:
 
 **关键校验**(继承 L2-2 Design §5.3.1):
 - ✅ image 必填(command + args 互斥)
-- ✅ replicas ∈ [1, 100](继承 v0.1 Go baseline)
+- ✅ `1 ≤ replicas ≤ 100`（继承 v0.1 Go baseline）
 - ✅ Plugin 模式禁止 privileged(由 sidecar 接管)
 
 **测试文件**:`tests/unit/admission/test_agent_validator.py`(UT-AW-12)
@@ -1128,7 +1123,7 @@ class MemoryValidator:
     group: str = "superteam-a2a.io"
 
     async def validate(self, namespace: str, name: str, spec: MemorySpec, operation: str) -> ValidationResult:
-        # 1. content 键数 ∈ [1, 20](继承 L2-4 Spec §3.4 MemorySpec)
+        # 1. content 键数满足 1 ≤ count ≤ 20（继承 L2-4 Spec §3.4 MemorySpec）
         # 2. scope_ref 必填
         # 3. agent-private visibility 必填 owner_agent_id
         # 4. decay_days ∈ [1, 3650]
@@ -2957,7 +2952,7 @@ rules:
 
 - **§1.3 文件清单**:observability/ 子包 6 文件 + helm/operator/templates/ 9 模板 + RBAC 2 子模板 = **17 文件**新增到 §1.3 主清单;落地后 L3-1 文件清单 **70 → 87**;
 - **§2.3 Python 包结构**:§7.2.3 Pydantic models 落实 §2.3.7 config/helm_values.py 完整契约;
-- **§3 4 Controllers + MemoryReconciler 概要**:MemoryReconciler 调用 `observability.events` + `observability.metrics` 的接口在 §6.3 MemoryReconcilerService 伪代码中已声明;本 §7 是其落地的文件级契约;
+- **§3 3 个 CRD Controller + MemoryReconciler 概要**:MemoryReconciler 调用 `observability.events` + `observability.metrics` 的接口在 §6.3 MemoryReconcilerService 伪代码中已声明;本 §7 是其落地的文件级契约;
 - **§4 admission webhook**:调用 `observability.metrics.admission_validation_total` / `observability.events.ADMISSION_REJECTED`;此处 §7.1 提供契约;
 - **§5 Leader Election**:调用 `observability.metrics.leader_election` / `.lease_renew_total` / `.lease_transition_total`;`observability.events.LEADER_ACQUIRED` / `LEADER_LOST`;此处 §7.1 提供契约;
 - **§6 Memory**:调用 `observability.metrics.memory_reconcile_total` / `.memory_decay_total`;此处 §7.1 提供契约;
@@ -3504,7 +3499,7 @@ Pod 启动:
 
 - **§1.3 文件清单**:§8 新增 25 工程资产 + 50 测试夹具 = **75 文件** 新增到 §1.3 主清单;落地后 L3-1 文件清单 **87 → 162**(87 src + 25 工程 + 50 顶层测试 = 162);
 - **§2.3 Python 包结构**:§8.9 pyproject.toml 锁定依赖与 Python 版本约束,落地 §2.3.13 build / install / test 工具链;
-- **§3 4 Controllers + MemoryReconciler 概要**:`tests/unit/controllers/test_*.py` 与 `tests/unit/reconcilers/test_*.py` 1:1 镜像;
+- **§3 3 个 CRD Controller + MemoryReconciler 概要**:`tests/unit/controllers/test_*.py` 与 `tests/unit/reconcilers/test_*.py` 1:1 镜像;
 - **§4 admission webhook**:§8.1 admission/ 子目录镜像 + §8.3 IT-AW-* 集成测试 + §8.13 webhookconfig.yaml 契约;
 - **§5 Leader Election**:§8.1 leader_election/ 子目录镜像 + §8.3 IT-ENV-CE-* 多副本并发集成 + TOOL-022/025 探针契约;
 - **§6 Memory**:§8.1 memory/ 子目录镜像(decay/reinforce 属性测试 TEST-007)+ §8.3 IT-ENV-MT-* MemoryReconciler timer 集成;
@@ -3608,7 +3603,7 @@ Pod 启动:
 | 1 | 11 个 Operator 指标 + 4 Python runtime 指标全量暴露(`/metrics` 路径,scrape interval 30s) | §7.1.2 + §8.13 HELM-021~024 + E2E-010 | ☐ |
 | 2 | 8 个 EventReason 在代码与文档严格匹配(AdmissionRejected / LeaderAcquired / LeaderLost / MemoryDecayed / MemoryReinforced / CleanupCompleted / CertificateNotReady / ReconciliationFailed) | §7.1.5 OBS-007 + §8.4 E2E-018 | ☐ |
 | 3 | structlog 8 必含字段(timestamp / level / event / logger / agent_name / crd / trace_id / span_id)在 sample 日志中全部存在 | §7.1.4 OBS-010 + TEST-025 | ☐ |
-| 4 | 4 个 Finalizer 名称(`agent.superteam-a2a.io/finalizer` 等)与 K8s CRD annotation 一致 | §1.4 + §3 + FIN-001~004 | ☐ |
+| 4 | 4 个永久 Finalizer 名称（`agent.superteam-a2a.io/cleanup` / `agentset.superteam-a2a.io/cleanup` / `workflow.superteam-a2a.io/cleanup` / `memory.superteam-a2a.io/cleanup`）与 K8s CRD metadata.finalizers 一致 | §1.4 + §2.3.7 + FIN-001~004 | ☐ |
 | 5 | `pyproject.version` == `Chart.appVersion`(CI 校验 `tests/tools/test_chart_version_sync.py`) | §8.16 TOOL-010 | ☐ |
 | 6 | `values.schema.json` 与 `HelmValues.model_json_schema(by_alias=True)` 无差异 | §8.16 TOOL-019 + `tests/integration/helm/test_values_schema.py` | ☐ |
 | 7 | `helm template` 无 warning + `helm lint` 通过 | §8.16 TOOL-016 | ☐ |
@@ -3648,7 +3643,7 @@ Pod 启动:
 - `ACCEPT-007`:§9.3 部署与文档交付 **20 条**全部勾选(`tests/integration/helm/test_chart_lint.py` + E2E + CI workflow 全绿验证)。
 - `ACCEPT-010`:§9.4 评审与归档 **10 条**全部勾选(评审报告 + Design/Spec 升级 + ROADMAP/README/CHANGELOG 同步)。
 - `ACCEPT-013`:未勾选项必须在评审报告附录列出推迟版本(v0.2.1 / v0.5 / v1.0);不允许"未勾选但无推迟版本"的情况。
-- `ACCEPT-016`(L3-1 §9 新增):L3-1 §0-§8 + 附录 A/B 全部存在,**0 个待补完占位符**(`§9 补完稿` / `§10 补完稿` / `附录 B 待补完` 等遗留标记必须在评审前全部清理)。
+- `ACCEPT-016`（L3-1 §9 新增）：L3-1 §0-§10 + 附录 A/B 全部存在，**0 个待补完章节标记**；真正属于 v0.5+ 或尚未起草的 L3-3/L3-5/L3-6 功能占位必须明确标注目标版本/模块，不得伪装成当前 Spec 缺口。
 - `ACCEPT-019`(L3-1 §9 新增):conftest 分层 + import-linter 规则 `ST-A2A-CONFTEST` + `ST-A2A-BOUNDARY` 在 CI 通过(TEST-028 + TOOL-034)。
 - `ACCEPT-022`(L3-1 §9 新增):L3-1 文件清单 162 文件(87 src + 25 工程 + 50 顶层测试)与 §1.3 + §8.1 树形目录一致(`find packages/operator -name "*.py" | wc -l == 87` 校验)。
 
@@ -3656,7 +3651,95 @@ Pod 启动:
 
 ---
 
-## 附录 A：跨模块引用清单（v0.2-draft 骨架稿）
+## 10. 开放问题（三层追踪 · 25 项去重基线 · 移交 L4 / v0.5+）
+
+> ✅ **本节为 v0.2-draft-full 完整版**。它完整继承 [L2-2 Operator Core Spec v0.2.0 §15](../../spec/L2-module-specs/L2-operator-core.md) 的 20 项，并把 [L3-1 Go baseline 附录 B](../../archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md) 的 7 项做去重 crosswalk：B.2 与 Q-03 重复、B.5 与 Q-01 重复，其余 5 项形成 L3-1 文件级独立决策。因此本节的**去重问题总数为 25 项**。
+>
+> **状态图例**：✅ 本 Spec 已给出可直接实施的最终决策 · 🟡 已给默认决策但必须在 L4 环境实测 · ⬜ 未决（阻塞评审）· 🔵 明确推迟 v0.5+。本版为 **20 ✅ + 5 🟡 + 0 ⬜**；🔵 只标注后续能力，不改变 v0.2-draft-full 可评审结论。
+
+### 10.1 继承 L2-2 Spec §15 的 20 项
+
+| 决策 ID | 上游项 | 问题 | L3-1 状态 | 文件级结论 / 收敛位置 |
+|---|---|---|---|---|
+| `OPEN-OP-001` | Q-01 | Agent > 1000 时是否 informer 分片 | ✅ | v0.2 不分片；§7.1.2 暴露 reconcile queue depth，§7.2 保留资源阈值；达到规模门槛后走 v0.5+ ADR，不在 v0.2 隐式启用 HPA |
+| `OPEN-OP-002` | Q-02 | Workflow 表达式引擎 | ✅ | v0.1 仅静态 inputs；§3.3 保留 `WorkflowExpression` stub，CEL 明确推迟 v0.5+，不得提前进入 public API |
+| `OPEN-OP-003` | Q-03 | Memory 衰减频率 | ✅ | 默认 60s；以 L2-2 §9.2 与本 Spec §7.2.3 的 Pydantic 约束 `ge=10, le=3600` 为权威。L2-2 §15 Q-03 的“30-300s”是同一上游文档内未同步的摘要 erratum，不覆盖字段级 schema |
+| `OPEN-OP-004` | Q-04 | AgentSet owns Agent 删除处理 | ✅ | 采用 §3.2 adoption/orphan 语义并复用 `agentset.superteam-a2a.io/cleanup`。L2-2 §15 Q-04 的 `superteam.a2a.io/agentset-adoption` 与同文档 §7 的 4 个永久名称冲突，登记为上游摘要 erratum；本 Spec 以 L2-2 §7 + 本 Spec §2.3.7 的 wire contract 为权威，**不得新增第 5 个 Finalizer** |
+| `OPEN-OP-005` | Q-05 | Operator 升级时避免 reconcile 抖动 | 🟡 | §8.14 先 drain leader + readiness=false + pre-upgrade 检查；v0.1 不实现 conversion webhook 自动迁移，升级行为需 L4 kind 测试确认 |
+| `OPEN-OP-006` | Q-06 | Kopf Singleton 与 event loop 绑定 | ✅ | 单 container 单 Python 进程 / 单 event loop；Controller handlers 不使用 `@kopf.Singleton`，MemoryReconciler 只使用 leader-gated `@kopf.timer`（§3.4 / §5 / §6） |
+| `OPEN-OP-007` | Q-07 | Lease 续约失败处理 | ✅ | §5 锁定 30s TTL / 10s renew / 连续 3 次失败让位；正式 EventReason 为 `LeaderLost`，上游问题表中的 `LeaseLost` 只视为旧措辞 |
+| `OPEN-OP-008` | Q-08 | admission TLS 证书轮换 | 🟡 | §4.2.3 `TLSHotReloader` + cert-manager 挂载 + 失败保留旧 context；是否无需重启即可被 Uvicorn 接受由 `IT-AW-MT-*` 在 L4 实测 |
+| `OPEN-OP-009` | Q-09 | MemoryReconciler CPU offload 阈值 | ✅ | §6.2.10 + §7.2.3 锁定 CR 数量 > 1000 时 `anyio.to_thread.run_sync`，由 Helm/Pydantic 字段 `memoryReconciler.cpuOffloadThreshold` 配置 |
+| `OPEN-OP-010` | Q-10 | 升级期间 reconcile 抖动抑制 | 🟡 | 与 Q-05 共用 §8.14 时序；grace period 30s 已定，conversion webhook 与真实滚动升级窗口移交 L4，不重复创建第二套升级机制 |
+| `OPEN-OP-011` | Q-11 | 4 CRD validator 错误响应格式 | ✅ | §4 使用 snake_case `reason` + 400/422 `http_status` + Pydantic `AdmissionResponse`；wire 字段不得由框架自动改名 |
+| `OPEN-OP-012` | Q-12 | Kopf handler 异常是否更新 Status | ✅ | §3 共同契约 + Reconciler error hierarchy：失败写 `status.phase=Failed`，并追加 `conditions[]`（`type=ReconcileFailed` / `reason=ExceptionClass` / `message` 含 trace_id 且脱敏截断） |
+| `OPEN-OP-013` | Q-13 | MemoryReconciler 与 Leader Election 关系 | ✅ | §3.4 / §6.2.10 明确它不是第 4 个 CRD Controller；仅 leader 执行 timer，非 leader 立即返回 |
+| `OPEN-OP-014` | Q-14 | admission 拒绝审计日志与 OTLP | 🟡 | §7.1.4 structlog + OTel 双写契约已定，正式 EventReason 为 `AdmissionRejected`（非上游问题表旧称 `AdmissionDenied`）；OTLP Collector 链路由 L4 集成测试验证 |
+| `OPEN-OP-015` | Q-15 | CrashLoopBackOff 时 Lease 释放 | ✅ | §5 锁定 grace 30s + Lease TTL 30s；进程无法主动 release 时依赖 Lease 过期，其他副本按 10s renew cadence 接管 |
+| `OPEN-OP-016` | Q-16 | structlog trace_id 注入位置 | ✅ | §7.1.3-§7.1.5 统一由 OTel context 注入 structlog 与 K8s Event annotation；禁止各 Controller 自造 trace_id |
+| `OPEN-OP-017` | Q-17 | Helm values 校验错误可读性 | ✅ | §7.2.3 使用 Pydantic alias + `populate_by_name`；ValidationError 必须显示 YAML 路径、wire 字段名和实际值 |
+| `OPEN-OP-018` | Q-18 | Operator 与 admission 崩溃隔离 | ✅ | 同 Deployment / 同 Pod 的**两个 container、两个单进程**：Operator 与 admission 各自单 worker，共享网络而不共享 Python event loop；不采用“单进程双 ASGI”解释 |
+| `OPEN-OP-019` | OPEN-Q-01 | Pydantic schema 与 `values.schema.json` 同步 | ✅ | §7.2.3 + §8.16：CI 以 `HelmValues.model_json_schema(by_alias=True)` 生成并比较；禁止手改 schema |
+| `OPEN-OP-020` | OPEN-Q-02 | `@kopf.on.resume` 与 admission 就绪顺序 | 🟡 | readiness 只有在 TLS、webhook 注册与 Lease 初始化完成后才为 true；Helm pre-install/pre-upgrade 等待 `/readyz`，真实 APIServer 时序由 L4 E2E 验证 |
+
+### 10.2 Go baseline 附录 B 去重 crosswalk（7 项 → 5 个独立决策）
+
+| Go baseline 项 | 历史问题 | 去重结果 | Python-first 结论 | 决策 ID |
+|---|---|---|---|---|
+| B.1 | Operator 是否包含 KnowledgeScope/KnowledgeItem Controller | 独立 | ✅ 不包含；Knowledge CRD 业务 Controller 属 L3-5，Operator 只保留 admission / 生命周期集成点（§1.1 / 附录 A.5） | `OPEN-OP-021` |
+| B.2 | MemoryReconciler 周期 | 与 Q-03 重复 | 复用 60s 默认 + Helm 可配，不创建新 ID | `OPEN-OP-003` |
+| B.3 | PeriodicWorker 与单 CR reconcile 是否双触发 | 独立 | ✅ Python v0.2 只由 leader-gated `@kopf.timer` 执行全量生命周期计算；Memory CR create/update 只做 admission/schema/status 基线，不再触发第二套 decay worker | `OPEN-OP-022` |
+| B.4 | admission webhook 是否参与 Leader Election | 独立 | ✅ 不参与；所有 admission 副本均服务，只有业务 reconcile/timer 受 `LeaderGate` 控制（§4 / §5） | `OPEN-OP-023` |
+| B.5 | Operator 是否需要 HPA | 与 Q-01 重复 | v0.2 不启用；复用规模监控与 v0.5+ 决策门槛 | `OPEN-OP-001` |
+| B.6 | status.endpoints 更新是否引发 reconcile 风暴 | 独立 | ✅ 只在值变化时 patch status subresource；使用 `observedGeneration` + no-op diff，禁止写回未变化字段（§3 / §8 集成测试） | `OPEN-OP-024` |
+| B.7 | specChanged 使用 hash annotation 还是 generation | 独立 | ✅ Python/Kopf 使用 handler `old/new/diff` + `metadata.generation` / `status.observedGeneration`；不沿用 Go hash annotation | `OPEN-OP-025` |
+
+**去重不变量**：20 个 L2-2 项 + 7 个 Go baseline 项 - 2 个重复项（B.2/B.5）= **25 个独立决策 ID**。crosswalk 中重复项必须引用已有 ID，不得为了“每行一个编号”把问题总数虚增为 27。
+
+### 10.3 口径冲突决议（评审前封口）
+
+| 冲突 | 权威口径 | 决议 |
+|---|---|---|
+| `LeaseLost` vs `LeaderLost` | L2-2 §10.6 `EventReason` + 本 Spec §7.1.5 | 正式字符串只允许 `LeaderLost`；`LeaseLost` 仅在本节作为已纠正的历史措辞出现 |
+| `AdmissionDenied` vs `AdmissionRejected` | L2-2 §10.6 + 本 Spec §7.1.5 | 正式字符串只允许 `AdmissionRejected`；日志字段可用 `admission_denied=true`，不得成为 EventReason |
+| `agentset-adoption` vs 4 个永久 Finalizer | L2-2 §7 + 本 Spec §2.3.7 | L2-2 §15 Q-04 登记为摘要 erratum；**§2.3.7 是本 Spec 的唯一 Finalizer 名称清单**，仅保留 4 个 `*.superteam-a2a.io/cleanup`。adoption 是 AgentSet cleanup 行为，不是第 5 个名称 |
+| `intervalSeconds` 30-300 vs 10-3600 | L2-2 §9.2 Pydantic schema + 本 Spec §7.2.3 | 字段级 schema `ge=10, le=3600` 优先；L2-2 §15 Q-03 的 30-300 为摘要 erratum，默认值仍为 60s |
+| MemoryReconciler 是否为 Controller | L2-2 §3.4 + 本 Spec §3.4/§6 | C-1.4 是 `reconcilers/memory_reconciler.py` 的后台 service；不导出 `MemoryReconcilerController`，不新增 `controllers/memory_reconciler.py` |
+| Python/Helm 文件数量 | 本 Spec §1.3 + §7.2.1 + §8.1 | 70 个 Python 文件；9 个 Helm manifest 模板 + 1 helper；§8 加入工程与测试资产后形成 162 个文件级条目 |
+| admission 隔离形态 | ADR-0005 §6/§7 + 本 Spec §4/§7.2 | 同 Pod 双 container，各自单 Python 进程/单 worker；“单进程原则”按 container 解释，不是整个 Pod 只能有一个进程 |
+| OPEN ID 与测试 ID | L2-2 §15.8 + 本 Spec §9.2 | `OPEN-OP-*` 仅作决策追踪，不计入 277 个可执行测试 ID，也不计入 `ACCEPT-*` |
+
+### 10.4 收敛统计与 v0.5+ 演进路线
+
+| 来源 | 去重数量 | ✅ 已收敛 | 🟡 待 L4 实测 | ⬜ 未决 | v0.2.0 阻塞 |
+|---|---:|---:|---:|---:|---:|
+| L2-2 §15 | 20 | 15 | 5 | 0 | 0 |
+| Go baseline 独立项 | 5 | 5 | 0 | 0 | 0 |
+| **合计** | **25** | **20** | **5** | **0** | **0** |
+
+**收敛率口径**：25/25 均已有可实施默认决策；其中 20 项无需额外环境即可完全收敛，5 项须由 L4 的 kind/cert-manager/OTLP/滚动升级测试确认。因此“可实施决策覆盖率”= **100%**，“完全收敛率”= **80%**。
+
+**v0.5+ 五项演进路线**：
+
+1. Workflow CEL 表达式引擎替代静态 inputs stub。
+2. Agent > 1000 后的 informer 分片 / HPA，以及 conversion webhook 驱动的无抖动升级。
+3. reconcile throughput、Memory 批处理、status patch storm 的正式性能预算与压测基线。
+4. Operator 镜像增加 `linux/arm64` 多架构发布。
+5. `cosign` keyless 签名 + `syft` CycloneDX SBOM 供应链元数据。
+
+### 10.5 `OPEN-OP-*` 决策追踪 ID
+
+- `OPEN-OP-001~020`：L2-2 §15 的 20 项，编号顺序与 Q-01~Q-18 + OPEN-Q-01/02 表格顺序一致。
+- `OPEN-OP-021~025`：Go baseline 去重后 5 个独立问题；B.2/B.5 复用 `OPEN-OP-003`/`OPEN-OP-001`。
+- `OPEN-OP-026~030`：预留给 v0.5+ 的新决策；本 v0.2-draft-full 不得提前占用。
+- **命名空间独立**：L2-2 的 `OPEN-Q-*` 与本 L3-1 的 `OPEN-OP-*` 是不同层级的追踪 ID，不要求数字一一对应；上游 Q 项通过 §10.1 的“上游项”列建立映射，后续 CEL 若落地将占用一个新的 `OPEN-OP-*` 预留 ID。
+- `OPEN-OP-*` **不计入** §9.2 的 277 个测试 ID；只有问题转化为可执行测试时，才在既有 TEST/TOOL/OBS/HLT/HELM/RBAC/UT/IT/E2E/CONFORMANCE/PERF 前缀中登记。
+
+**基线引用**：[L2-2 Spec §15](../../spec/L2-module-specs/L2-operator-core.md)（20 项）+ [L3-1 Go baseline 附录 B](../../archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md)（7 项历史问题）+ [L3-2 Spec §15](./L3-a2a-core.md)（状态图例与去重统计模板）。
+
+---
+
+## 附录 A：跨模块引用清单（v0.2-draft-full）
 
 > 本附录列出 L3-1 文件级 Spec 引用的所有外部文档与符号,确保 L4 实施者能正确 import。L3-1 不创造新概念;所有协议 / wire contract / 业务语义均来自 L1/L2 已评审文档。
 
@@ -3672,7 +3755,7 @@ Pod 启动:
 | L2 文档 | 关键章节 | L3-1 引用位置 |
 |---|---|---|
 | `docs/design/L2-modules/L2-operator-core.md` v0.2.0 | §3 Python 包结构 + §4 4 Controllers + §5 admission + §6 Leader Election + §9 错误模型 + §10 可观测性 + §11 Helm values + §12 RBAC + §13 测试策略 | 全文依据 + §1.3 + §2.3 |
-| `docs/spec/L2-module-specs/L2-operator-core.md` v0.2.0 | §1.1-§1.4 使命边界 + §3 4 Controllers + §4 admission + §5 Helm values Pydantic schema + §8 Memory + §10 错误模型 + §11 可观测性 + §12 RBAC + §13 测试策略 + §14 验收清单 + §15 开放问题 | 全文依据 + §3.1-§3.5 + 后续 #45+ §4-§9 |
+| `docs/spec/L2-module-specs/L2-operator-core.md` v0.2.0 | §1.1-§1.4 使命边界 + §3 4 Controllers + §4 admission + §5 Helm values Pydantic schema + §8 Memory + §10 错误模型 + §11 可观测性 + §12 RBAC + §13 测试策略 + §14 验收清单 + §15 开放问题 | 全文依据 + §3-§10 |
 | `docs/design/L2-modules/L2-a2a-protocol.md` v0.2.0 | §3 A2A method 协议 | §3 副调用 + 附录 B 待补 |
 | `docs/spec/L2-module-specs/L2-a2a-protocol.md` v0.2.0 | §2.5 (client) | 全文引用 + 附录 B 待补 |
 | `docs/design/L2-modules/L2-adapter.md` v0.2.0 | §3 Card 转换 + §6 框架矩阵 | §3.1 Agent Controller Adapter 注入 |
@@ -3698,10 +3781,10 @@ Pod 启动:
 | v0.5.0 §3.8 | Python-first(ADR-0005 supersede ADR-0001~0004 实现栈)| 全文 |
 | v0.5.0 §5 | 文档层级(L1-L4)| §1 阅读指南 |
 | v0.5.0 §6 | mTLS + NetworkPolicy | §2.3.9 events.py + §2.3.13 networkpolicy.yaml |
-| v0.5.0 §7 | 可观测性无例外(11 Prometheus 指标 + OTel + structlog + K8s Events)| §2.3.9 observability/*(4 文件)|
+| v0.5.0 §7 | 可观测性无例外（11 Operator + 4 Python runtime 指标 + OTel + structlog + K8s Events） | §7.1 observability/*（6 文件） |
 | v0.5.0 §9.4 | ruff + import-linter 静态检查 | §2.2 边界规则 #11 |
 | v0.5.0 §9.7 | pyright strict + interrogate docstring 100% | §1.4 文件清单 |
-| v0.5.0 §14.4 | 评审门禁:每个 L3 Spec 必须通过 §A-§G 10 维度评审 | 全文依据 + #45+ 评审计划 |
+| v0.5.0 §14.4 | 评审门禁：每个 L3 Spec 必须通过 10 维度评审 | §9 验收清单 + 下一会话独立评审 |
 | v0.5.0 §15.5 | 质量红线(测试覆盖率 ≥ 80%)| §2.3 测试文件 ID 矩阵 |
 | v0.5.0 §16 | 会话与上下文管理(1M 窗口 / 500K 红线 / §16.1.3 实际水位 / §16.1.4 参照表)| 本次 #44 骨架撰写依据 |
 
@@ -3710,42 +3793,141 @@ Pod 启动:
 | L3 配套 | 状态 | L3-1 引用位置 |
 |---|---|---|
 | `docs/spec/L3-file-specs/L3-a2a-core.md` | **v0.2.0 已通过评审**（2026-07-28 · 2852 行 / 160KB / 16 节 + 2 附录 / 30 文件 + 9 Helm + 30 测试 / 276 测试 ID / 24 错误码 / 15 指标；[评审报告](../../reviews/l3-2-a2a-core-spec-review.md) §A-§P 10 维度全 PASS）| §0 阅读指南 + 头部 frontmatter + 附录 A.4 |
-| `docs/spec/L3-file-specs/L3-knowledge-service.md` | **待起草**(L3-5)| §3.4 + 后续 #45+ |
-| `docs/spec/L3-file-specs/L3-memory-backend.md` | **待起草**(L3-6)| §3.4 + 后续 #45+ |
+| `docs/spec/L3-file-specs/L3-knowledge-service.md` | **待起草**（L3-5） | §3.4 + §10.2 B.1 边界决议 |
+| `docs/spec/L3-file-specs/L3-memory-backend.md` | **待起草**(L3-6)| §3.4 + §6 |
+
+### A.6 归档基线
+
+| 归档文档 | 状态 | 本 Spec 用途 |
+|---|---|---|
+| [L3-operator-core-spec-v0.1-draft-go-baseline.md](../../archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md) | 2026-07-27 归档 · 未评审 · 75KB / 1886 行 | 仅保留 4 Controller 职责、CRD 状态机、4 Finalizer、RBAC、metric name 与附录 B 7 项历史问题的业务语义 |
+| [L2-operator-core-spec-v0.1.0-go-baseline.md](../../archive/pre-python-2026-07-24/L2-operator-core-spec-v0.1.0-go-baseline.md) | 2026-07-24 归档 · v0.1.0 | 追溯 L2-2 Go → Python 的 supersede 边界；不得作为 Python import/package 依据 |
 
 ---
 
-## 附录 B：ADR / Constitution 引用矩阵(占位 · 后续 #48+ 补完)
+## 附录 B：ADR / Constitution 引用矩阵（5 子表 · v0.2-draft-full 完整版）
 
-> 本附录在 L3-1 Spec §9 验收清单补完后一并整理(参照 L2-2 Spec v0.2.0 §16 附录 B 模式,5 子表:架构/接口/可见性/安全/测试)。
+> ✅ 本附录把 L3-1 的文件级约束逐项回溯到 ADR / Constitution / L1 / L2 权威条款，供 §9 的宪法一致性与跨文档一致性评审使用。
+>
+> **约束强度**：**MUST** = 违反即与已评审上游冲突、阻断合并 · **SHOULD** = 默认实现，偏离需在 PR 中解释并补测试 · **MAY** = 兼容扩展点，不属于 v0.1 验收门禁。
+
+### B.1 架构与部署
+
+| L3-1 条款 | 上游引用 | 约束内容 | 强度 |
+|---|---|---|---|
+| §1.1 C-1 模块使命 | L1 Architecture v0.2.0 §3.2 + §4.1 | Operator 是编排层唯一实现，不承载 Agent 框架业务逻辑 | MUST |
+| §1.2 public API | L2-2 Spec §1.2 + Constitution §3.7 | 仅导出 Operator/Controller/Reconciler/admission/leader/config/error 公共符号 | MUST |
+| §2.2 依赖方向 | ADR-0005 §3.1 + Constitution §3.8 | Controller → Reconciler → Client/Model 单向依赖；Operator 不依赖 Adapter 实现 | MUST |
+| §2.1 uv workspace | ADR-0005 §13.1 | 代码固定在 `packages/operator/src/superteam_a2a/operator/` | MUST |
+| §3 Controller 结构 | L2-2 Design §4 + Spec §3 | 3 个 CRD Controller 使用 30-50 行 Kopf handlers，业务逻辑下沉 service | MUST |
+| §3.4 / §6 MemoryReconciler | ADR-0003 §6.5 + L2-2 Spec §3.4 | MemoryReconciler 是 leader-gated timer service，不是额外 CRD Controller | MUST |
+| §4 admission 隔离 | ADR-0005 §7 + L2-2 Spec §4.1 | 同 Pod 独立 container / 独立单进程；所有副本均服务 admission | MUST |
+| §5 Leader Election | L2-2 Spec §6 | K8s Lease：30s TTL / 10s renew / 3 次失败让位 | MUST |
+| §7.2 Helm 部署 | L2-2 Spec §9 + §13 | 9 个 manifest 模板 + 1 helper；Operator/admission 双 container | MUST |
+| §10.4 v0.5+ | ADR-0001/0004 范围约束 | CEL、HPA/分片、arm64、签名/SBOM 不得反向扩大 v0.1 验收面 | MUST |
+
+### B.2 接口与生命周期
+
+| L3-1 条款 | 上游引用 | 约束内容 | 强度 |
+|---|---|---|---|
+| §1.2 `OperatorMain` | L2-2 Spec §1.2 | 启动 Kopf、admission 与 Leader Election；不得暴露框架私有类型 | MUST |
+| §3.1-§3.3 CRD handlers | L1 Spec §2-§4 + §7 | Agent / AgentSet / Workflow spec/status 字段与状态机不可改名 | MUST |
+| §2.3.7 Finalizer | L2-2 Spec §7 + Constitution §3.4 | 仅 4 个 `*.superteam-a2a.io/cleanup`，名称永久不变 | MUST |
+| §4 `AdmissionResponse` | L2-2 Spec §4 | `reason` snake_case + `http_status` 400/422；Pydantic alias 不得改变 wire 名 | MUST |
+| §4 validators | ADR-0002 §2/§3 + ADR-0003 §5 | DAG 校验和 Knowledge↔Memory 双向互斥为 admission 强约束 | MUST |
+| §5 `LeaderGate` | L2-2 Spec §5-§6 | 非 leader 不执行 Memory timer；admission 不受 LeaderGate 控制 | MUST |
+| §6.3 Memory wire sync | L2-4 Spec v0.2.0 §3.4 | 19 个 Memory 字段逐项一致；Operator 只 patch status，不解释 query wire | MUST |
+| §7.1.5 EventReason | L2-2 Spec §10.6 | 8 个字符串为稳定契约；使用 `LeaderLost` / `AdmissionRejected` | MUST |
+| §10.2 generation/diff | Kopf persistence + Go baseline B.7 supersede | 使用 `old/new/diff` + generation/observedGeneration，不使用 Go hash annotation | SHOULD |
+| §10.5 OPEN ID | L2-2 Spec §15.8 | `OPEN-OP-*` 是决策追踪器，不进入 277 测试 ID | MUST |
+
+### B.3 Knowledge / Memory 可见性与业务边界
+
+| L3-1 条款 | 上游引用 | 约束内容 | 强度 |
+|---|---|---|---|
+| §0 模块外能力 | ADR-0002 + ADR-0003 + L1 Architecture §3.5 | Knowledge 搜索、Memory query/record 业务属于 L3-5/L3-6 | MUST |
+| §3 Agent Controller | ADR-0002 §2 | 只传递 `knowledge.scopeRef`，不在 Operator 内实现作用域继承 | MUST |
+| §4 MutualExclusionValidator | ADR-0002 §2 + ADR-0003 §5 | Knowledge 与 Memory 引用按双向互斥矩阵校验 | MUST |
+| §6 Memory models | ADR-0003 §4/§6 + L2-4 Spec §3 | 5 维可见性字段只验证/持久化，不改变语义 | MUST |
+| §6 decay/reinforce/gc/promotion | ADR-0003 §4 + L2-4 Spec §7 | 4 个纯函数公式必须与 L2-4 逐字符一致 | MUST |
+| §6 MemoryReconciler | ADR-0003 §6.5 | 仅 leader 周期执行 status 生命周期计算；不得实现 A2A queryMemory | MUST |
+| §10.2 B.1 决议 | L2-4 Design/Spec v0.2.0 | KnowledgeScope/KnowledgeItem Controller 属 L3-5，不加入 Operator 包 | MUST |
+
+### B.4 安全
+
+| L3-1 条款 | 上游引用 | 约束内容 | 强度 |
+|---|---|---|---|
+| §4 admission mTLS | ADR-0005 §9.1 + Constitution §6.1 | cert-manager 证书、TLS 强制、无明文 fallback | MUST |
+| §4.2.3 TLS reload | Constitution §6.3 | 私钥权限校验；reload 失败保留旧 context 并使 readiness 反映状态 | MUST |
+| §7.2 ServiceAccount | L2-2 Spec §11.3 | cert-manager CA 注解与命名固定通过 values 显式配置 | MUST |
+| §7.3 ClusterRole | Constitution §6.4 | 仅 7 个已列 apiGroups/resource 组合；不得用 `*` 扩权 | MUST |
+| §7.3 admission Role | Constitution §6.4 | 仅 namespace-scoped TLS secrets；不得读取其他业务 secrets | MUST |
+| §7.2 NetworkPolicy | Constitution §6.5 | 默认拒绝，显式允许 APIServer、DNS、OTLP 与必要 webhook 流量 | SHOULD |
+| §8.11 容器用户 | ADR-0005 §12 + Constitution §6.3 | `python:3.12-slim`、uid/gid 65532、只读 rootfs | MUST |
+| §8.11 capabilities | Constitution §6.3 | drop ALL；8443 不需要 `NET_BIND_SERVICE`，不得无理由添加 capability | MUST |
+| §8.6 安全门禁 | Constitution §9.7 | bandit + pip-audit 0 高危漏洞，失败阻断合并 | MUST |
+| §7.1.4 日志脱敏 | Constitution §6.6 | token、证书私钥、Memory content 等敏感值不得进入 structlog/K8s Event | MUST |
+
+### B.5 可观测性与测试
+
+| L3-1 条款 | 上游引用 | 约束内容 | 强度 |
+|---|---|---|---|
+| §7.1.2 指标 | L1 Spec §16 + L2-2 Spec §10 | 11 个 Operator + 4 个 Python runtime metric name 不可改 | MUST |
+| §7.1.3 health | L2-2 Spec §13.5 | `/healthz` 只表示进程存活；`/readyz` 聚合 TLS/webhook/Lease/Memory last_run | MUST |
+| §7.1.4 tracing | ADR-0005 §10 + Constitution §7 | 显式 TracerProvider 注入 + W3C trace context；测试不得污染全局 provider | MUST |
+| §7.1.4 logging | ADR-0005 §10 | structlog JSON 8 必含字段，trace_id/span_id 与 OTel 一致 | MUST |
+| §7.1.5 Events | Constitution §7 | 8 个 EventReason 白名单 + message 1024 字符上限 | MUST |
+| §8.1 文件镜像 | ADR-0005 §11 | 源文件、测试、工程资产共 162 个文件级条目可追溯 | SHOULD |
+| §8.2 测试金字塔 | Constitution §9 | UT / IT / E2E / Conformance / Property / PERF 分层明确 | MUST |
+| §9.2 测试矩阵 | Constitution §9.7 + §14.4 | 277 个测试 ID 映射到具体文件或场景 | MUST |
+| §8.6 覆盖率 | Constitution §15.5 | 全包 ≥80%，reconcile/cleanup/admission 关键路径 ≥95% | MUST |
+| §8.6 静态门禁 | ADR-0005 §11 + Constitution §9.7 | ruff / pyright strict / bandit / pip-audit / interrogate / import-linter | MUST |
+| §8.10 `ST-A2A-BOUNDARY` | ADR-0005 §3.1 + Constitution §3.8 | Operator 不 import Adapter 实现或官方 A2A SDK 私有路径 | MUST |
+| §9 验收清单 | Constitution §14.4 | 30 条硬验收 + ACCEPT-001~022 是升级 v0.2.0 的唯一凭证 | MUST |
+| §10 开放问题 | L2-2 Spec §15 | 25 项均有默认决策；5 项 L4 实测不阻塞独立文档评审 | MUST |
+
+**基线引用**：[L2-2 Operator Core Spec 附录 B](../../spec/L2-module-specs/L2-operator-core.md)（5 子表模板）+ [L3-2 A2A Core Spec 附录 B](./L3-a2a-core.md)（MUST/SHOULD/MAY 文件级模板）+ [CONSTITUTION v0.5.0](../../../CONSTITUTION.md)。
 
 ---
 
-## v0.2-draft 骨架稿下次补完清单
+## 文档元数据与后续入口
 
-**已落地**(#44 + #45 + #47 + #48 + #49 累计):
-- ✅ 头部 frontmatter(模块 ID、层级、版本 v0.2-draft、状态、supersedes、依据)
-- ✅ §0 阅读指南
-- ✅ §1 模块使命与文件清单总览(70 → 162 文件清单 + 测试 ID 前缀分布)
-- ✅ §2 Python 包结构(13 子包 + 65 Python 文件 + 5 配置 + 9 Helm 模板)
-- ✅ §3 4 Controllers + MemoryReconciler 文件级契约概要(每个 controller 一段 + 关键不变量)
-- ✅ §4 admission webhook server 完整文件级 Spec(**9 文件**:子包入口 + ASGI server + TLS 热更新 + 5 validators + CRDValidator Protocol;含 DAG 校验纯函数算法 + Knowledge↔Memory 双向互斥 + Helm `webhookconfig.yaml` 契约 + **18 UT + 4 IT = 22 测试 ID 矩阵**)
-- ✅ §5 Leader Election 完整(**3 文件**:子包入口 + AsyncLeaseClient + Election + LeaderGate;含状态机 Standby↔Leader + grace period 30s + renew 失败 3 次让位 + wire contract 完整 + **10 UT + 2 IT = 12 测试 ID 矩阵**)
-- ✅ §6 Memory 接口实现完整(**9 文件**:`models/memory/` 8 + `reconcilers/memory_reconciler.py`;含 MemorySpec/Status/Condition/Phase 完整 Pydantic + 4 纯函数(decay/reinforce/gc/promotion)数学公式 + MemoryReconcilerService 完整伪代码 + 与 L2-4 Spec §3.4 **wire sync 矩阵 19 字段全 PASS** + **8 UT-MD-ME + 3 UT-R + 1 IT-R = 12 测试 ID 矩阵**)
-- ✅ §7 observability + RBAC + Helm values 完整文件级 Spec(**17 文件新增**:observability/ 子包 6 文件 + Helm 9 模板 + RBAC 2 子模板;L3-1 文件清单 **70 → 87 文件**;Helm values Pydantic schema + ServiceAccountConfig;完整继承 L2-2 §10.2 11 指标 + §10.3 4 runtime 指标 + §10.6 8 EventReason;新增 health.py 文件级契约(8 HLT 测试 ID)与 6 NetworkPolicy 双端口策略 + 6 prometheusrule 告警;ClusterRole 完整 7 apiGroups + admission Role namespace-scoped secrets only + 4 RBAC-IT envtest 集成;**29 HELM + 14 RBAC + 28 OBS+HLT = 71 测试 ID**;**§7.4 wire contract 总览** ~52 wire 字段 + **§7.5 与既有 L2 Spec 测试 ID 对应** + **§7.6 与 L3-1 §0-§6 衔接**)
-- ✅ §8 测试策略 + 工具链完整文件级 Spec(**新增 25 工程资产 + 50 测试夹具 = 75 文件**:测试目录 87 test_*.py 1:1 镜像 + 4 conftest.py + pytest.ini + pyproject.toml + Dockerfile + Chart.yaml + values.yaml + values.schema.json + 10 Helm 模板 + uv workspace 根 pyproject.toml + 4 CI workflow + .dockerignore;L3-1 文件清单 **87 → 162 文件**;**TEST 完整继承 25 + 新增 3 = 28 ID** + **TOOL 完整继承 34 + 新增 2 = 36 ID** + **§8 测试 ID 总计 64 ID**)
-- ✅ §9 验收清单完整(v0.2-draft-full 完整版;**§9.1 §A-§G 10 维度** + **§9.2 277 测试 ID 全覆盖矩阵** + **§9.3 部署与文档交付 20 条** + **§9.4 评审与归档 10 条** + **§9.5 ACCEPT-001~022 关键不变量**;新增强化 ACCEPT-016/019/022 共 3 ID;§9 是 L3-1 Spec 升级 v0.2.0 的**唯一凭证**)
-- ✅ 附录 A 跨模块引用清单(L1/L2/ADR/Constitution/配套)
+### M.1 版本与状态
 
-**待补完**(后续 #50+):
-- ⏳ §10 开放问题(继承 L2-2 Spec §15 16 项 + L3-1 新发现 + v0.5+ 5 项演进路线)
-- ⏳ 附录 B ADR/Constitution 矩阵 5 子表(参照 L2-2 Spec v0.2.0 §16 附录 B 模式)
+| 字段 | 值 |
+|---|---|
+| 版本 | **v0.2.0** |
+| 状态 | ✅ §0-§10 + 附录 A/B 完整；**已通过独立评审**（§A-§P 10 维度全 PASS / 0 阻塞项 / 3 关注项 / 4 建议项） |
+| 上游 | L2-2 Operator Core Design + Spec v0.2.0 |
+| 同级已通过 | L3-2 A2A Core v0.2.0 |
+| supersedes | L3-1 v0.1-draft Go 实现条款；归档业务语义继续有效 |
+| 评审报告 | `docs/reviews/l3-1-operator-core-spec-review.md`（2026-07-28 #56 · 700 行 / 55KB / §A-§P 16 节） |
+| 当前变更边界 | 单 commit 含本 Spec 升级 + 评审文件 + §F.1-§F.6 6 步微同步（详见 §M.3） |
 
-**评审入口**:
-- 完整 v0.2-draft-full 后启动评审(参照 [L2-2 Spec 评审模板](../../reviews/l2-2-operator-core-spec-review.md) 15-25KB / §A-§G 10 维度 · 2026-07-25 #33 通过)
-- 升级 v0.2.0 + §F.1-§F.6 跨文档同步 6 步(L1 Arch/Spec + L2-3/L2-4 Spec 附录 A + ROADMAP + README + CONSTITUTION-CHANGELOG + archive/README.md)
-- 建议拆 Spec 补完 + Spec 评审两会话避免 §16.1 红线
+### M.2 落地记录
+
+| 日期 / 会话 | 增量 | 结果 |
+|---|---|---|
+| 2026-07-27 #44 | Python v0.2 骨架 + Go baseline 归档 | §0-§3 + 附录 A |
+| 2026-07-27 #45 | admission / Leader Election / Memory | §4-§6 |
+| 2026-07-27 #47 | observability / RBAC / Helm | §7 |
+| 2026-07-27 #48 | 测试策略 / 工具链 | §8 |
+| 2026-07-27 #49 | 277 测试 ID + 30 条硬验收 | §9 |
+| 2026-07-28 #55 | 25 项开放问题 + 5 子表追溯矩阵 + 口径封口 | §10 + 附录 B；形成 v0.2-draft-full |
+| 2026-07-28 #56 | 独立评审 §A-§P 10 维度全 PASS + 头部/§M 升级 v0.2.0 | **v0.2.0 通过评审；L3 阶段 1/4 完成** |
+
+### M.3 下一会话固定入口
+
+1. **§F.1-§F.6 跨文档同步（低风险微同步 · 与本会话升级绑定）**：参照 L3-2 #54 §F 6 步模板
+   - F.1 L1 Architecture v0.2.0 §3.2 + §4.1（2 处微同步）
+   - F.2 L1 Spec v0.2.0 §16 11+4 指标 metric name 文件级确认标记
+   - F.3 L2-1 A2A Spec v0.2.0 附录 A 反向引用升级 L3-1 v0.2.0 + 评审链接
+   - F.4 L2-3 Adapter Spec v0.2.0 + L2-4 Knowledge/Memory Spec v0.2.0 附录 A 反向引用升级 L3-1 v0.2.0 + 评审链接
+   - F.5 ROADMAP.md Phase 1.5 L3 阶段进度：L3-1 v0.2-draft → v0.2.0 + L3-2 v0.2.0 双勾选；新增 L3-3/L3-4 任务
+   - F.6 README.md + CONSTITUTION-CHANGELOG.md L3-1 v0.2.0 通过标记
+2. **git commit（单 commit 模板）**：`feat(L3-1): 升级 v0.2.0 + §A-§P 评审通过 + §F 6 步跨文档同步`（参照 L3-2 #54 commit `68085f2`）。
+3. **随后启动 L3-3 Adapter SDK 文件级 Spec Python 起草**（独立会话）：基于 L2-3 v0.2.0 Spec + 复用 L3-2 §6 `A2AClient` + L2-3 v0.2.0 6-framework matrix；不重新定义 A2A wire contract；建议拆 Spec 起草 + 评审两会话避免 §16.1 红线。
 
 ---
 
-> **签署**:本 L3-1 文件级 Spec Python v0.2-draft §9 补完稿(#44 骨架 + #45 §4-§6 + #47 §7 observability + RBAC + Helm values + #48 §8 测试策略 + 工具链 + #49 §9 验收清单 补完)由起草人根据 [L2-2 Operator Core Spec v0.2.0](../../spec/L2-module-specs/L2-operator-core.md) + [L2-2 Design v0.2.0](../../design/L2-modules/L2-operator-core.md) + [L3-1 v0.1-draft Go baseline(已归档)](../../archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md) + [L2-4 Spec v0.2.0 §3.4 Memory CRD 完整 Pydantic schema](../../spec/L2-module-specs/L2-knowledge-memory.md) 编写,依据宪法 v0.5.0 §14.4 待评审。**评审通过后**进入 L4 实施阶段(开发者对照本文件逐文件实现 + uv workspace + pyright strict + ruff)。**累计进度**:L3-1 Spec 8 主章节中 §0-§9 + 附录 A 已落地;L3 阶段 1/4 进度 **~93%**;后续 #50+ 补完 §10 + 附录 B → v0.2-draft-full 完整版 → 评审 → v0.2.0。
+> **签署**：本 L3-1 Operator Core 文件级 Spec Python v0.2.0 由 #44/#45/#47/#48/#49/#55 与 2026-07-28 #56 共同形成，依据 [L2-2 Operator Core Spec v0.2.0](../../spec/L2-module-specs/L2-operator-core.md)、[L2-2 Design v0.2.0](../../design/L2-modules/L2-operator-core.md)、[L3-1 Go baseline（已归档）](../../archive/pre-python-2026-07-24/L3-operator-core-spec-v0.1-draft-go-baseline.md)、[L2-4 Spec v0.2.0](../../spec/L2-module-specs/L2-knowledge-memory.md) 与 Constitution v0.5.0 编写。**v0.2.0 已通过评审；可进入 L4 实施阶段或启动 L3-3 Adapter SDK 重写。**

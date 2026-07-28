@@ -4152,6 +4152,6 @@ CMD ["kopf", "run", "--standalone", "--namespace=superteam-a2a", \
 
 - **选项 A**：§F.1-§F.6 跨文档同步 6 步（L1 Arch / L1 Spec / L2-1/L2-2/L2-3 Spec / ROADMAP / README / CHANGELOG 共 ~12-15 Edit ≈ 5-8KB · 低风险必做）
 - **选项 B**：L2-4 Go baseline 归档（docs/archive/pre-python-2026-07-24/，与 L2-2 归档模式一致）
-- **选项 C**：L3-1 Operator Core 文件级 Spec Python 起草（独立任务；基于 L2-2 v0.2.0 Design + Spec）
+- **选项 C**：✅ L3-1 Operator Core 文件级 Spec v0.2.0 通过（2026-07-28 #56 · [Spec](L3-file-specs/L3-operator-core.md) 245KB / 3925 行 / [评审](../../reviews/l3-1-operator-core-spec-review.md) §A-§P 10 维度全 PASS · 19 字段 wire sync 矩阵 + 4 纯函数完整契约）
 - **选项 D**：L3-4 Knowledge/Memory 文件级 Spec Python 起草（基于本 L2-4 v0.2.0 Spec；5 包文件清单 + MemoryReconciler reconcile 完整伪代码 + 9 类模块前缀测试 ID）
 | 宪法 v0.5.0 §16.1 会话管理 | 起草流程 | 本文档章节拆分 | 1M 窗口 / 500K 红线 / 实际水位判断 / 典型参照表 |

@@ -177,6 +177,7 @@
 ### 3.2 ② 编排层（Orchestration Layer · Python + Kopf）
 
 > **对应 L2 模块**：✅ **L2-2 Operator Core v0.2.0**（Python 重写 · 2026-07-24 评审通过；详见 [设计](../design/L2-modules/L2-operator-core.md) + [评审](../reviews/l2-2-operator-core-python-review.md)；模块 ID C-1 不变；4 Controllers + admission webhook + Leader Election + Finalizer + async-first + 错误模型 + 可观测性 + Helm values + RBAC + 测试策略 11 个主题）
+> **对应 L3 文件级**：✅ **L3-1 Operator Core 文件级 Spec v0.2.0**（2026-07-28 #56 评审通过 · [Spec](../spec/L3-file-specs/L3-operator-core.md) 245KB / 3925 行 / 70 Python + 9 Helm + 25 工程 + 50 顶层测试 = 162 文件 + 277 测试 ID + 25 OPEN-OP / [评审](../reviews/l3-1-operator-core-spec-review.md) 700 行 / 55KB / §A-§P 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项；L3 阶段 1/4 完成）
 
 **职责**：观察 CRD 变化，调度资源，使系统状态收敛到期望状态。
 
@@ -458,7 +459,7 @@ Pod:
 
 | ID | 组件名 | 层级 | 语言 | Python 包路径 |
 |----|--------|------|------|----------------|
-| C-1 | superteam-a2a Operator | ② | **Python 3.12+** | `packages/operator/src/superteam_a2a/operator/` |
+| C-1 | superteam-a2a Operator | ② | **Python 3.12+** | `packages/operator/src/superteam_a2a/operator/` | [L3-1 Spec v0.2.0 ✅](../spec/L3-file-specs/L3-operator-core.md) |
 | C-2 | A2A Core Library | ④ | **Python 3.12+** | `packages/a2a-core/src/superteam_a2a/a2a/` | [L3-2 Spec v0.2.0 ✅](../spec/L3-file-specs/L3-a2a-core.md) |
 | C-3 | Adapter SDK | ④ | **Python 3.12+** | `packages/adapter-sdk/src/superteam_a2a/adapter/` |
 | C-4 | Framework Adapters | ④ | **Python 3.12+** | `adapters/{langchain,autogen,crewai,sk,strands,smolagents}/` |
