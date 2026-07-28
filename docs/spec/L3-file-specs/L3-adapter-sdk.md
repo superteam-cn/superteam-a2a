@@ -7,8 +7,8 @@
 > **层级**：L3 — 文件级 Spec
 > **模块 ID**：C-3（Adapter SDK，见 L1 Architecture §4.3）
 > **代码位置**：`packages/adapter-sdk/src/superteam_a2a/adapter/`（**ADR-0005 §13.1 uv workspace 布局**，替代原 baseline 的 `src/adapter-sdk/`）
-> **版本**：**v0.2-draft-skeleton**（2026-07-28 起 Python 重写 + L3-1 v0.2.0 #56 + L3-2 v0.2.0 #54 L3 阶段 1/4 ~ 2/4 已通过；2026-07-28 #57 §3-§6 补完）
-> **状态**：✅ **v0.2-draft-skeleton §3-§6 补完稿**（#56 骨架 + #57 §3-§6 补完）——头部 + §0-§6 + 附录 A/B 占位 全部落地；§7-§10 + 完整附录 A/B 留待补完（约 30-40KB / ~700-1000 行）
+> **版本**：**v0.2-draft-full**（2026-07-28 起 Python 重写 + L3-1 v0.2.0 #56 + L3-2 v0.2.0 #54 L3 阶段 1/4 ~ 2/4 已通过；2026-07-28 #57 §3-§6 补完；**本次会话 §7-§10 + 完整附录 A/B 补完**）
+> **状态**：✅ **v0.2-draft-full §0-§10 + 附录 A/B 完整版**（#56 骨架 + #57 §3-§6 补完 + 本次会话 §7-§10 + 附录 A/B 完整版）——头部 + §0-§10 + 附录 A（30 行 6 子表）+ 附录 B（49 行 5 子表）全部落地；**待独立评审后升级 v0.2.0**
 > **上游约束**：[`docs/design/L2-modules/L2-adapter.md`](../../design/L2-modules/L2-adapter.md) **v0.2.0**（2026-07-26 #35 评审通过 · 1267 行 / 66KB / 14 主章节）+ [`docs/spec/L2-module-specs/L2-adapter.md`](../../spec/L2-module-specs/L2-adapter.md) **v0.2.0**（2026-07-26 #37 评审通过 · 114KB / 2705 行 / 14 节 + 2 附录 / 81-159 测试 ID / 15 开放问题 / 9 Python Protocol/Class + 5 生命周期时序图 + Helm values 11.1-11.6 + 6 framework 完整 schema + 6 层测试策略）
 > **本 Spec 目的**：将 L2-3 Adapter Spec v0.2.0 中的 **11 文件 SDK + 6 framework adapter 子包 + FrameworkAdapter Protocol + AgentCardConverter + A2AClient 复用 + Helm values + 测试策略** 落地为 **文件级 Python 代码契约**——每个文件列明**绝对路径（基于 uv workspace 布局）**、**职责一句话**、**完整 import 列表**、**exported 符号签名（type hints + docstring 一行）**、**内部 helper 列表**、**关联测试文件路径 + 测试 ID 前缀**。是 L4 实施阶段（开发者打开 IDE 即可对照写代码）的直接输入。
 > **配套 Spec**：[L3-1 Operator Core 文件级 Spec v0.2.0](./L3-operator-core.md)（2026-07-28 #56 评审通过）/ [L3-2 A2A Core Library 文件级 Spec v0.2.0](./L3-a2a-core.md)（2026-07-28 #54 评审通过 · [评审报告](../../reviews/l3-2-a2a-core-spec-review.md)） — L3-3 复用 L3-2 §6 `A2AClient` 与 §9 15 指标 + L3-2 §10 24 错误码 enum，不重复定义 A2A wire contract / [L3-4 Hello Agent 文件级 Spec](./L3-hello-agent.md)（待起草）/ [L3-5 Knowledge Service 文件级 Spec](./L3-knowledge-service.md)（待起草）/ [L3-6 Memory backend 文件级 Spec](./L3-memory-backend.md)（待起草）
@@ -1133,32 +1133,1264 @@ def _check_version_compatibility(name: FrameworkName, version: str) -> None:
 
 ---
 
-## 附录 A：跨模块引用清单（v0.2-draft §3-§6 补完）
+## 7. 可观测性文件级契约（继承 L2-3 Spec §7 · 6 framework 独立指标 + 4 复用 L3-2 §9）
 
-**说明**：本附录为 v0.2-draft 骨架占位，§3-§10 补完时同步展开 6 子表（L1 / L2 / ADR / Constitution / 配套 L3 / 归档基线）。
+### 7.1 文件清单（4 文件）
 
-| 子表 | 目标文档 | 引用条数 | 状态 |
-|------|----------|---------:|------|
-| A.1 L1 | `docs/design/L1-architecture.md` §3.5 + §4.3 + `docs/spec/L1-system-spec.md` §16 | 待补完 | 占位 |
-| A.2 L2 | `docs/spec/L2-module-specs/L2-adapter.md` v0.2.0 §3-§15（上游权威） | 待补完 | 占位 |
-| A.3 ADR | `docs/adr/0005-python-first-technology-stack.md` §3.3 + §13.1 | 待补完 | 占位 |
-| A.4 Constitution | `docs/CONSTITUTION.md` v0.5.0 §3.8 + §9.7 + §15.5 + §13.6 | 待补完 | 占位 |
-| A.5 配套 L3 | L3-1 Operator Core v0.2.0 + L3-2 A2A Core v0.2.0 + L3-4 Hello Agent（待起草） | 待补完 | 占位 |
-| A.6 归档基线 | `docs/archive/pre-python-2026-07-24/L2-adapter-spec-v0.1.0-go-baseline.md`（已归档） | 待补完 | 占位 |
+| # | 路径 | 职责 | 行数估计 | 测试 ID 前缀 |
+|---|------|------|---------|------------|
+| 1 | `packages/adapter-sdk/src/superteam_a2a/adapter/observability/__init__.py` | 公共 API 入口（re-export 6 metrics + tracer factory + logger factory） | 12 | OBS-EXPORT-001 |
+| 2 | `packages/adapter-sdk/src/superteam_a2a/adapter/observability/metrics.py` | 6 framework 独立 Prometheus 指标（Counter/Histogram/Gauge）+ 单进程 DEFAULT_REGISTRY | 178 | OBS-METRICS-001~008 |
+| 3 | `packages/adapter-sdk/src/superteam_a2a/adapter/observability/tracing.py` | OTel tracer factory + 4 层 Span 结构 + Root Span attributes | 124 | OBS-TRACING-001~006 |
+| 4 | `packages/adapter-sdk/src/superteam_a2a/adapter/observability/logging.py` | structlog JSON 配置 + 9 项敏感字段脱敏 + 7 强制字段 | 96 | OBS-LOGGING-001~005 |
+
+**合计 4 文件 ~410 行**（保留 §7 边界文件粒度；metrics.py 占比最大因 6 framework × 2~3 指标）。
+
+### 7.2 `metrics.py` 文件级契约（178 行）
+
+```python
+# packages/adapter-sdk/src/superteam_a2a/adapter/observability/metrics.py
+from __future__ import annotations
+
+from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry
+
+
+# 单进程模式默认 registry（ADR-0005 §10 · 避免 multiprocess mode 复杂性）
+DEFAULT_REGISTRY = CollectorRegistry()
+
+
+# 6 framework 独立指标（label framework 必须存在）
+
+REQUESTS_TOTAL = Counter(
+    "supteam_adapter_requests_total",
+    "Adapter request count by framework/method/status",
+    labelnames=("framework", "method", "status"),
+    registry=DEFAULT_REGISTRY,
+)
+
+REQUEST_DURATION_SECONDS = Histogram(
+    "supteam_adapter_request_duration_seconds",
+    "Adapter request duration in seconds",
+    labelnames=("framework", "method"),
+    buckets=(0.1, 0.5, 1, 2, 5, 10, 30),
+    registry=DEFAULT_REGISTRY,
+)
+
+CARD_CONVERSION_DURATION_SECONDS = Histogram(
+    "supteam_adapter_card_conversion_duration_seconds",
+    "AgentCard conversion duration in seconds (framework introspection → A2A Card)",
+    labelnames=("framework",),
+    buckets=(0.01, 0.05, 0.1, 0.5, 1, 5),
+    registry=DEFAULT_REGISTRY,
+)
+
+FRAMEWORK_LOAD_DURATION_SECONDS = Histogram(
+    "supteam_adapter_framework_load_duration_seconds",
+    "Framework SDK load duration in seconds (entry_points → Protocol instance)",
+    labelnames=("framework",),
+    buckets=(0.5, 1, 2, 5, 10, 30, 60),
+    registry=DEFAULT_REGISTRY,
+)
+
+ERRORS_TOTAL = Counter(
+    "supteam_adapter_errors_total",
+    "Adapter error count by framework/error_code (-32001 ~ -32007)",
+    labelnames=("framework", "error_code"),
+    registry=DEFAULT_REGISTRY,
+)
+
+ACTIVE_AGENTS = Gauge(
+    "supteam_adapter_active_agents",
+    "Currently active agents per framework (derived from readiness probe)",
+    labelnames=("framework",),
+    registry=DEFAULT_REGISTRY,
+)
+
+GOLDEN_CASE_PASS_TOTAL = Counter(
+    "supteam_adapter_golden_case_pass_total",
+    "Golden Adapter test pass count (CI report by case_id)",
+    labelnames=("framework", "case_id"),
+    registry=DEFAULT_REGISTRY,
+)
+
+
+def setup_metrics(registry: CollectorRegistry | None = None) -> CollectorRegistry:
+    """注册指标到指定 registry（None = DEFAULT_REGISTRY）。
+    
+    Args:
+        registry: 自定义 registry（测试场景注入；生产 = None）
+    
+    Returns:
+        CollectorRegistry: 实际使用的 registry
+    
+    Raises:
+        AdapterConfigError: registry 已包含同名指标（重新注册冲突）
+    """
+    if registry is None:
+        return DEFAULT_REGISTRY
+    for metric in (
+        REQUESTS_TOTAL, REQUEST_DURATION_SECONDS,
+        CARD_CONVERSION_DURATION_SECONDS, FRAMEWORK_LOAD_DURATION_SECONDS,
+        ERRORS_TOTAL, ACTIVE_AGENTS, GOLDEN_CASE_PASS_TOTAL,
+    ):
+        # 重新注册到自定义 registry（幂等保护）
+        try:
+            registry.register(metric)
+        except ValueError as exc:
+            raise AdapterConfigError(
+                f"metric {metric._name} already registered",
+                framework=None, error_code=ErrorCode.ADAPTER_CONFIG_ERROR,
+            ) from exc
+    return registry
+
+
+def get_metric(name: str, framework: str | None = None) -> Any:
+    """获取指定指标当前值（用于 readiness probe / debug endpoint）。"""
+    ...
+```
+
+**关键不变量（继承 L2-3 Spec §7.4 + 宪法 §7 + ADR-0005 §10）**：
+- 高基数 label 禁令：`trace_id` / `task_id` 永不过 metric label（仅 OTel Span attributes）
+- 单进程模式：禁用 prometheus_client multiprocess mode（PROMETHEUS_MULTIPROC_DIR 未设置）
+- 6 framework label 取值：`langchain` / `autogen` / `crewai` / `semantic_kernel` / `strands` / `smolagents`
+- 错误码 label 取值：`ADAPTER_CONFIG_ERROR` / `ADAPTER_AUTH_ERROR` / `ADAPTER_TIMEOUT_ERROR` / `ADAPTER_FRAMEWORK_ERROR` / `ADAPTER_VERSION_ERROR` / `ADAPTER_RETRYABLE_ERROR` / `ADAPTER_PERMANENT_ERROR`
+
+### 7.3 `tracing.py` 文件级契约（124 行）
+
+```python
+# packages/adapter-sdk/src/superteam_a2a/adapter/observability/tracing.py
+from __future__ import annotations
+
+from opentelemetry import trace, context
+from opentelemetry.sdk.trace import TracerProvider
+from opentelemetry.sdk.trace.export import BatchSpanProcessor
+from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+
+
+_TRACER_NAME = "supteam_a2a.adapter"
+
+
+def create_tracer(
+    name: str = _TRACER_NAME,
+    otlp_endpoint: str | None = None,
+    sample_ratio: float = 0.1,
+    service_version: str = "0.2.0",
+) -> trace.Tracer:
+    """创建 Adapter tracer（显式 provider 注入，避免污染全局）。
+    
+    Args:
+        name: tracer 名（默认 "supteam_a2a.adapter"）
+        otlp_endpoint: OTLP collector endpoint（如 "otel-collector:4317"）；None = 不导出
+        sample_ratio: 采样率（0.1 = 10%；生产推荐 0.01-0.1）
+        service_version: adapter-sdk 版本（Root Span attribute `adapter.version`）
+    
+    Returns:
+        trace.Tracer: OTel tracer 实例
+    """
+    provider = TracerProvider(
+        sampler=TraceIdRatioBased(sample_ratio),
+    )
+    
+    if otlp_endpoint:
+        exporter = OTLPSpanExporter(endpoint=otlp_endpoint, insecure=True)
+        provider.add_span_processor(BatchSpanProcessor(exporter))
+    
+    trace.set_tracer_provider(provider)
+    tracer = trace.get_tracer(name)
+    
+    # 注入 service.version resource attribute
+    resource = provider._resource if hasattr(provider, "_resource") else None
+    return tracer
+
+
+def create_root_span(
+    tracer: trace.Tracer,
+    framework: str,
+    method: str,
+    agent_name: str,
+    framework_version: str,
+) -> trace.Span:
+    """创建 Root Span：`adapter.{framework}.{method}`。
+    
+    Attributes:
+        framework (str): 6 framework 名称
+        framework.version (str): framework SDK 版本（运行时检测）
+        adapter.version (str): adapter-sdk 版本（来自 service_version）
+        agent.name (str): framework agent 名称
+        method (str): A2A method 名（sendMessage / getTask 等）
+    
+    Returns:
+        trace.Span: 当前活跃 Span（用作 `with` 上下文管理器）
+    """
+    return tracer.start_as_current_span(
+        f"adapter.{framework}.{method}",
+        attributes={
+            "framework": framework,
+            "framework.version": framework_version,
+            "adapter.version": "0.2.0",
+            "agent.name": agent_name,
+            "method": method,
+        },
+    )
+
+
+def create_child_span(
+    parent: trace.Span,
+    name: str,
+    attributes: dict[str, str] | None = None,
+) -> trace.Span:
+    """创建 Child Span（`framework.invoke` / `card.convert` / `framework.translate`）。"""
+    ...
+
+
+# OTel 4 层 Span 结构（语义约定）
+SPAN_NAMES = frozenset({
+    "adapter.{framework}.{method}",     # Root
+    "framework.invoke",                  # Child 1
+    "card.convert",                      # Child 2（Card 重读时）
+    "framework.translate",               # Child 3（framework output → A2A 响应）
+})
+
+# Span Events（可选）
+SPAN_EVENTS = frozenset({
+    "tool.invoked",      # framework tool 调用
+    "memory.read",       # memory 读
+    "memory.write",      # memory 写
+    "error.occurred",    # 错误发生（携带 exception type + error_code）
+})
+```
+
+### 7.4 `logging.py` 文件级契约（96 行）
+
+```python
+# packages/adapter-sdk/src/superteam_a2a/adapter/observability/logging.py
+from __future__ import annotations
+
+import logging
+import structlog
+
+
+# 9 项敏感字段（永不过日志；L2-3 Spec §7.3 + 宪法 §6.5）
+_SENSITIVE_KEYS = frozenset({
+    "api_key", "token", "password", "secret",
+    "user_data", "memory_content", "knowledge_body",
+    "cert", "private_key",
+})
+
+
+def _redact_sensitive(_: object, __: str, event_dict: dict) -> dict:
+    """structlog processor：脱敏敏感字段。"""
+    for key in list(event_dict.keys()):
+        if key.lower() in _SENSITIVE_KEYS:
+            event_dict[key] = "***REDACTED***"
+    return event_dict
+
+
+def configure_logging(level: str = "INFO") -> None:
+    """配置 structlog JSON 输出（单进程模式 + 9 项脱敏）。
+    
+    Args:
+        level: 日志级别（DEBUG / INFO / WARNING / ERROR）；默认 INFO
+    
+    强制字段（每条日志必须含）：
+        framework / framework.version / adapter.version / method / task_id / agent.name / level / ts / msg
+    """
+    log_level = getattr(logging, level.upper(), logging.INFO)
+    
+    structlog.configure(
+        processors=[
+            structlog.contextvars.merge_contextvars,
+            structlog.processors.add_log_level,
+            structlog.processors.TimeStamper(fmt="iso"),
+            _redact_sensitive,  # 脱敏 processor
+            structlog.processors.dict_tracebacks,
+            structlog.processors.JSONRenderer(),
+        ],
+        wrapper_class=structlog.make_filtering_bound_logger(log_level),
+        logger_factory=structlog.PrintLoggerFactory(),
+        cache_logger_on_first_use=True,
+    )
+
+
+def get_logger(name: str | None = None) -> structlog.stdlib.BoundLogger:
+    """获取 structlog logger。"""
+    return structlog.get_logger(name)
+
+
+def bind_context(
+    framework: str,
+    framework_version: str,
+    method: str,
+    task_id: str | None = None,
+    agent_name: str | None = None,
+) -> None:
+    """绑定强制字段到 contextvars（避免每条日志重复传参）。
+    
+    7 项强制字段：framework / framework.version / adapter.version / method / task_id / agent.name / level
+    （level 由 structlog.add_log_level 自动添加；adapter.version 在服务启动时通过 configure_logging 设置）
+    """
+    structlog.contextvars.bind_contextvars(
+        framework=framework,
+        framework_version=framework_version,
+        adapter_version="0.2.0",
+        method=method,
+        task_id=task_id,
+        agent_name=agent_name,
+    )
+
+
+def clear_context() -> None:
+    """清空 contextvars（请求结束时调用，避免泄漏到下一次请求）。"""
+    structlog.contextvars.clear_contextvars()
+```
+
+### 7.5 4 复用 L3-2 §9 runtime 指标（不重复定义）
+
+**约束**：L3-3 不新增 Python runtime 指标；以下 4 项继承自 L3-2 §9.2（由 L3-1 Operator Core 在 Pod 启动时统一注入，6 framework adapter 子包直接通过 env 读取 `METRICS_PORT`）：
+
+| 指标名 | 类型 | 来源 | L3-3 行为 |
+|--------|------|------|----------|
+| `supteam_python_event_loop_lag_seconds` | Histogram (threshold=50ms) | L3-2 §9.2 | 仅消费（不写入） |
+| `supteam_python_thread_offload_queue_depth` | Gauge | L3-2 §9.2 | 仅消费 |
+| `supteam_python_active_asyncio_tasks` | Gauge | L3-2 §9.2 | 仅消费 |
+| `supteam_python_gc_collections_total` | Counter (by generation) | L3-2 §9.2 | 仅消费 |
+
+**禁止**：adapter-sdk 包内**不得**重新定义这 4 个指标（避免重复注册冲突）。
+
+### 7.6 §7 测试 ID 矩阵（19 ID）
+
+| 测试 ID | 文件 | 测试名 | 断言 |
+|---------|------|--------|------|
+| OBS-METRICS-001 | metrics.py | test_setup_metrics_default_registry_returns_default | `setup_metrics()` 返回 `DEFAULT_REGISTRY` |
+| OBS-METRICS-002 | metrics.py | test_setup_metrics_custom_registry_re_registers_all | 7 个指标全部重新注册到自定义 registry |
+| OBS-METRICS-003 | metrics.py | test_setup_metrics_duplicate_registration_raises | 自定义 registry 已含同名指标 → `AdapterConfigError` |
+| OBS-METRICS-004 | metrics.py | test_requests_total_increments_per_call | `REQUESTS_TOTAL.labels(framework="langchain", method="sendMessage", status="ok").inc()` 后值+1 |
+| OBS-METRICS-005 | metrics.py | test_request_duration_histogram_observation | `REQUEST_DURATION_SECONDS.labels(framework="langchain", method="sendMessage").observe(1.5)` 后桶累计 |
+| OBS-METRICS-006 | metrics.py | test_high_cardinality_labels_rejected | `REQUESTS_TOTAL.labels(framework="langchain", trace_id="abc")` 调用约定文档明确禁止（非代码校验） |
+| OBS-METRICS-007 | metrics.py | test_single_process_mode_no_multiproc_env | 测试时未设置 `PROMETHEUS_MULTIPROC_DIR` 验证 |
+| OBS-METRICS-008 | metrics.py | test_golden_case_pass_counter_increments | CI 报告 golden case pass +1 |
+| OBS-TRACING-001 | tracing.py | test_create_tracer_default_provider | `create_tracer()` 返回 OTel tracer 实例 |
+| OBS-TRACING-002 | tracing.py | test_create_tracer_with_otlp_endpoint | 指定 endpoint → BatchSpanProcessor 已注册 |
+| OBS-TRACING-003 | tracing.py | test_create_root_span_attributes | 5 attributes（framework / framework.version / adapter.version / agent.name / method）全部出现 |
+| OBS-TRACING-004 | tracing.py | test_create_root_span_name_pattern | Span name = `adapter.{framework}.{method}` |
+| OBS-TRACING-005 | tracing.py | test_create_child_span_nested_under_root | Child Span parent 指向 Root Span context |
+| OBS-TRACING-006 | tracing.py | test_span_events_frozenset_contains_4_events | `SPAN_EVENTS` 含 `tool.invoked` / `memory.read` / `memory.write` / `error.occurred` |
+| OBS-LOGGING-001 | logging.py | test_configure_logging_json_output | JSON renderer 启用 |
+| OBS-LOGGING-002 | logging.py | test_redact_sensitive_9_keys | 9 项敏感字段（api_key 等）全部脱敏为 `***REDACTED***` |
+| OBS-LOGGING-003 | logging.py | test_bind_context_7_required_fields | 7 项强制字段（framework / framework.version / adapter.version / method / task_id / agent.name / level）绑定 |
+| OBS-LOGGING-004 | logging.py | test_clear_context_resets_bindings | `clear_context()` 后下次 `get_logger().info()` 无 framework 字段 |
+| OBS-LOGGING-005 | logging.py | test_log_level_filter | log_level="DEBUG" 时 DEBUG 级输出可见 |
 
 ---
 
-## 附录 B：ADR / Constitution 引用矩阵（v0.2-draft 占位）
+## 8. 重试 + 错误传播文件级契约（继承 L2-3 Spec §10.4 + L3-2 §10）
 
-**说明**：本附录为 v0.2-draft 骨架占位，§3-§10 补完时同步展开 5 子表（架构与部署 / 接口与生命周期 / 错误处理 / 安全 / 可观测性与测试）。每条 MUST/SHOULD/MAY 强度分级 + 引用 ADR 章节 + 引用 Constitution 章节。
+### 8.1 文件清单（2 文件）
 
-| 子表 | 主题 | 引用条数 | 状态 |
-|------|------|---------:|------|
-| B.1 架构与部署 | ADR-0005 §3.3 + 宪法 §3.8 + §13.1 | 待补完 | 占位 |
-| B.2 接口与生命周期 | ADR-0005 §6 + 宪法 §3.7 | 待补完 | 占位 |
-| B.3 错误处理 | L3-2 §10 错误码 + 宪法 §15.5 | 待补完 | 占位 |
-| B.4 安全 | ADR-0005 §7 + 宪法 §6（不直接 mTLS） | 待补完 | 占位 |
-| B.5 可观测性与测试 | L3-2 §9 指标 + 宪法 §7 + §9.7 | 待补完 | 占位 |
+| # | 路径 | 职责 | 行数估计 | 测试 ID 前缀 |
+|---|------|------|---------|------------|
+| 1 | `packages/adapter-sdk/src/superteam_a2a/adapter/retry.py` | 5 类 Tenacity 策略 + with_retry 装饰器 + jitter 计算 | 156 | RETRY-001~010 |
+| 2 | `packages/adapter-sdk/src/superteam_a2a/adapter/errors_mapping.py` | framework 异常 → AdapterError 子类映射表 + Retryable 矩阵 | 124 | ERR-MAP-001~008 |
+
+**合计 2 文件 ~280 行**（§3.2 已定义 `protocol.py` 中 `AdapterError` 基类 + 7 子类，本节仅追加 mapping 与 retry 策略）。
+
+### 8.2 `retry.py` 文件级契约（156 行）
+
+```python
+# packages/adapter-sdk/src/superteam_a2a/adapter/retry.py
+from __future__ import annotations
+
+import random
+from collections.abc import Awaitable, Callable
+from functools import wraps
+from typing import ParamSpec, TypeVar
+
+from tenacity import (
+    AsyncRetrying,
+    RetryError,
+    retry,
+    retry_if_exception_type,
+    stop_after_attempt,
+    stop_never,
+    wait_exponential,
+    wait_fixed,
+    wait_random,
+    before_sleep_log,
+)
+import structlog
+
+from .errors import (
+    AdapterError,
+    AdapterRetryableError,
+    AdapterTimeoutError,
+    AdapterPermanentError,
+    AdapterFrameworkError,
+)
+
+
+P = ParamSpec("P")
+R = TypeVar("R")
+_logger = structlog.get_logger("supteam_a2a.adapter.retry")
+
+
+# 5 类策略常量（继承 L2-3 Spec §10.4 + 宪法 §15.5）
+
+STRATEGY_RETRY_NETWORK = "retry_network"          # 网络错误 → 指数退避 + jitter（默认）
+STRATEGY_RETRY_5XX = "retry_5xx"                   # 5xx → 指数退避 + jitter
+STRATEGY_RETRY_RATE_LIMIT = "retry_rate_limit"    # 429 rate limit → 固定 60s + jitter
+STRATEGY_RETRY_TIMEOUT = "retry_timeout"           # 超时 → 指数退避 + jitter
+STRATEGY_RETRY_FRAMEWORK = "retry_framework"      # framework 业务错误 → 有限 3 次 + 指数退避
+
+VALID_STRATEGIES = frozenset({
+    STRATEGY_RETRY_NETWORK,
+    STRATEGY_RETRY_5XX,
+    STRATEGY_RETRY_RATE_LIMIT,
+    STRATEGY_RETRY_TIMEOUT,
+    STRATEGY_RETRY_FRAMEWORK,
+})
+
+
+def compute_backoff(
+    strategy: str,
+    attempt: int,
+    base_delay: float = 1.0,
+    max_delay: float = 60.0,
+) -> float:
+    """计算第 N 次重试的退避时间（含 jitter）。
+    
+    Args:
+        strategy: 5 类策略之一（VALID_STRATEGIES 成员）
+        attempt: 当前重试次数（0 = 首次重试）
+        base_delay: 基础延迟秒数（默认 1.0）
+        max_delay: 最大延迟秒数（默认 60.0）
+    
+    Returns:
+        float: 实际等待秒数（≤ max_delay）
+    
+    Raises:
+        AdapterConfigError: strategy 不在 VALID_STRATEGIES
+    """
+    if strategy not in VALID_STRATEGIES:
+        raise AdapterConfigError(
+            f"invalid retry strategy: {strategy}",
+            framework=None,
+            error_code=ErrorCode.ADAPTER_CONFIG_ERROR,
+        )
+    
+    if strategy == STRATEGY_RETRY_RATE_LIMIT:
+        # 固定 60s + jitter（±10%）
+        base = 60.0
+    elif strategy == STRATEGY_RETRY_NETWORK or strategy == STRATEGY_RETRY_5XX:
+        # 指数退避（base * 2^attempt）+ jitter（0.5x-1.5x）
+        base = min(base_delay * (2 ** attempt), max_delay)
+    elif strategy == STRATEGY_RETRY_TIMEOUT:
+        # 指数退避 + cap 30s
+        base = min(base_delay * (2 ** attempt), 30.0)
+    elif strategy == STRATEGY_RETRY_FRAMEWORK:
+        # 3 次有限 + 指数退避（5s/10s/20s）
+        base = min(5.0 * (2 ** attempt), max_delay)
+    
+    # jitter（全 jitter = random.uniform(0.5, 1.5) 倍率）
+    return base * random.uniform(0.5, 1.5)
+
+
+def with_retry(
+    strategy: str = STRATEGY_RETRY_NETWORK,
+    max_attempts: int = 3,
+    base_delay: float = 1.0,
+    max_delay: float = 60.0,
+) -> Callable[[Callable[P, Awaitable[R]]], Callable[P, Awaitable[R]]]:
+    """装饰器：包装 async 函数应用 5 类 Tenacity 策略。
+    
+    Args:
+        strategy: 重试策略（5 类之一）
+        max_attempts: 最大尝试次数（含首次调用；默认 3 = 首次 + 2 重试）
+        base_delay: 基础延迟（秒）
+        max_delay: 最大延迟（秒）
+    
+    Returns:
+        Callable: 装饰后的 async 函数
+    
+    Raises:
+        AdapterRetryableError: 重试耗尽后最后一次错误
+        AdapterPermanentError: 不可重试错误立即抛出
+    """
+    def decorator(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R]]:
+        @wraps(func)
+        async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
+            try:
+                async for attempt in AsyncRetrying(
+                    stop=stop_after_attempt(max_attempts),
+                    wait=wait_exponential(multiplier=base_delay, max=max_delay),
+                    retry=retry_if_exception_type(AdapterRetryableError),
+                    before_sleep=before_sleep_log(_logger, structlog.stdlib.WARNING),
+                    reraise=True,
+                ):
+                    with attempt:
+                        return await func(*args, **kwargs)
+            except RetryError as exc:
+                # 重试耗尽 → 包装为 AdapterRetryableError
+                last = exc.last_attempt.exception() if exc.last_attempt else exc
+                raise AdapterRetryableError(
+                    f"retry exhausted after {max_attempts} attempts",
+                    framework=None,
+                    error_code=ErrorCode.ADAPTER_RETRYABLE_ERROR,
+                    cause=last,
+                ) from exc
+        return wrapper
+    return decorator
+```
+
+### 8.3 `errors_mapping.py` 文件级契约（124 行）
+
+```python
+# packages/adapter-sdk/src/superteam_a2a/adapter/errors_mapping.py
+from __future__ import annotations
+
+from collections.abc import Callable
+
+from .errors import (
+    AdapterError,
+    AdapterRetryableError,
+    AdapterNonRetryableError,
+    AdapterPermanentError,
+    AdapterTimeoutError,
+    AdapterConfigError,
+    AdapterAuthError,
+    AdapterFrameworkError,
+    AdapterVersionError,
+    ErrorCode,
+)
+
+
+# Retryable 矩阵（继承 L3-2 §10 + L2-3 Spec §10.4）
+# True = 该错误码触发重试；False = 立即抛出
+
+RETRYABLE_MATRIX: dict[ErrorCode, bool] = {
+    ErrorCode.ADAPTER_CONFIG_ERROR: False,        # 配置错误 = 永久
+    ErrorCode.ADAPTER_AUTH_ERROR: False,          # 认证错误 = 永久
+    ErrorCode.ADAPTER_TIMEOUT_ERROR: True,        # 超时 = 可重试
+    ErrorCode.ADAPTER_FRAMEWORK_ERROR: True,      # framework 业务错误 = 可重试（有限 3 次）
+    ErrorCode.ADAPTER_VERSION_ERROR: False,       # 版本不兼容 = 永久
+    ErrorCode.ADAPTER_RETRYABLE_ERROR: True,      # 重试错误 = 可重试
+    ErrorCode.ADAPTER_PERMANENT_ERROR: False,     # 永久错误 = 不可重试
+}
+
+
+def is_retryable(error: AdapterError) -> bool:
+    """查询错误是否可重试。"""
+    return RETRYABLE_MATRIX.get(error.error_code, False)
+
+
+def map_framework_exception(
+    exc: Exception,
+    framework: str,
+) -> AdapterError:
+    """framework 特定异常 → AdapterError 子类映射。
+    
+    Args:
+        exc: framework 抛出的原始异常
+        framework: framework 名称（6 值之一）
+    
+    Returns:
+        AdapterError: 包装后的错误（带 error_code + framework context）
+    
+    映射规则（继承 L2-3 Spec §10.4）：
+        - 网络错误（httpx.RequestError / aiohttp.ClientError）→ AdapterRetryableError
+        - 超时（asyncio.TimeoutError / httpx.TimeoutException）→ AdapterTimeoutError
+        - 4xx（HTTPStatusError with status < 500 且 ≠ 429）→ AdapterNonRetryableError
+        - 5xx（HTTPStatusError with status >= 500）→ AdapterRetryableError
+        - 429 rate limit → AdapterRetryableError
+        - framework 业务错误（framework-specific exception）→ AdapterFrameworkError
+        - 版本不兼容 → AdapterVersionError
+    """
+    import httpx  # framework adapter 子包内 import；此处仅在 framework adapter 调 SDK 时触达
+    
+    if isinstance(exc, (httpx.ConnectError, httpx.NetworkError)):
+        return AdapterRetryableError(
+            f"network error: {exc}",
+            framework=framework,
+            error_code=ErrorCode.ADAPTER_RETRYABLE_ERROR,
+            cause=exc,
+        )
+    if isinstance(exc, (httpx.TimeoutException, asyncio.TimeoutError)):
+        return AdapterTimeoutError(
+            f"timeout error: {exc}",
+            framework=framework,
+            error_code=ErrorCode.ADAPTER_TIMEOUT_ERROR,
+            cause=exc,
+        )
+    if isinstance(exc, httpx.HTTPStatusError):
+        status = exc.response.status_code
+        if status == 429:
+            return AdapterRetryableError(
+                f"rate limit (429): {exc}",
+                framework=framework,
+                error_code=ErrorCode.ADAPTER_RETRYABLE_ERROR,
+                cause=exc,
+            )
+        if status < 500:
+            return AdapterNonRetryableError(
+                f"4xx error ({status}): {exc}",
+                framework=framework,
+                error_code=ErrorCode.ADAPTER_NON_RETRYABLE_ERROR,
+                cause=exc,
+            )
+        return AdapterRetryableError(
+            f"5xx error ({status}): {exc}",
+            framework=framework,
+            error_code=ErrorCode.ADAPTER_RETRYABLE_ERROR,
+            cause=exc,
+        )
+    if isinstance(exc, ImportError) and "version" in str(exc).lower():
+        return AdapterVersionError(
+            f"version incompatible: {exc}",
+            framework=framework,
+            error_code=ErrorCode.ADAPTER_VERSION_ERROR,
+            cause=exc,
+        )
+    # fallback: framework 业务错误
+    return AdapterFrameworkError(
+        f"framework error: {exc}",
+        framework=framework,
+        error_code=ErrorCode.ADAPTER_FRAMEWORK_ERROR,
+        cause=exc,
+    )
+
+
+# 错误传播通道（3 通道统一处理）
+# 通道 1：structlog logger.error() → JSON 日志（带 framework + error_code）
+# 通道 2：Prometheus ERRORS_TOTAL.labels(framework, error_code).inc()
+# 通道 3：OTel Span Event "error.occurred"（attributes: framework, error_code, exception.type）
+async def propagate_error(
+    error: AdapterError,
+    span: TraceSpan | None = None,
+) -> None:
+    """3 通道统一错误传播（structlog + Prometheus + OTel）。
+    
+    Args:
+        error: AdapterError 实例
+        span: 当前活跃 OTel Span（可选；None = 无 Span）
+    """
+    import structlog
+    from .observability.metrics import ERRORS_TOTAL
+    
+    logger = structlog.get_logger("supteam_a2a.adapter")
+    logger.error(
+        "adapter_error",
+        framework=error.framework,
+        error_code=error.error_code.value,
+        error_message=str(error),
+        cause=str(error.__cause__) if error.__cause__ else None,
+    )
+    if error.framework:
+        ERRORS_TOTAL.labels(
+            framework=error.framework,
+            error_code=error.error_code.value,
+        ).inc()
+    if span is not None:
+        span.add_event(
+            "error.occurred",
+            attributes={
+                "framework": error.framework or "unknown",
+                "error.code": error.error_code.value,
+                "exception.type": type(error).__name__,
+            },
+        )
+```
+
+### 8.4 §8 测试 ID 矩阵（18 ID）
+
+| 测试 ID | 文件 | 测试名 | 断言 |
+|---------|------|--------|------|
+| RETRY-001 | retry.py | test_compute_backoff_retry_network_exponential | attempt=0 → ~1s；attempt=2 → ~4s（±jitter 0.5-1.5x） |
+| RETRY-002 | retry.py | test_compute_backoff_retry_rate_limit_fixed_60s | attempt=任意 → ~60s（±jitter） |
+| RETRY-003 | retry.py | test_compute_backoff_retry_framework_capped_3_times | attempt=2 → 20s（5*2^2=20）；attempt=3 → 20s（cap） |
+| RETRY-004 | retry.py | test_compute_backoff_invalid_strategy_raises | "unknown_strategy" → `AdapterConfigError` |
+| RETRY-005 | retry.py | test_compute_backoff_jitter_range | 100 次采样 + `random.uniform(0.5, 1.5)` 验证在 [0.5x, 1.5x] 区间 |
+| RETRY-006 | retry.py | test_with_retry_async_succeeds_after_2_failures | mock 函数首次失败 → 重试 1 次成功 → 正常返回 |
+| RETRY-007 | retry.py | test_with_retry_async_exhausts_max_attempts | max_attempts=3 → 3 次全部失败 → `AdapterRetryableError` 抛出 |
+| RETRY-008 | retry.py | test_with_retry_permanent_error_no_retry | `AdapterPermanentError` 触发 → 立即抛出（不重试） |
+| RETRY-009 | retry.py | test_with_retry_logs_warning_before_sleep | `before_sleep` hook 调用 → structlog WARNING 日志输出 |
+| RETRY-010 | retry.py | test_with_retry_preserves_function_metadata | `@wraps(func)` 保留 `__name__` / `__doc__` |
+| ERR-MAP-001 | errors_mapping.py | test_retryable_matrix_7_codes | 7 项 ErrorCode 全部映射正确（4 True + 3 False） |
+| ERR-MAP-002 | errors_mapping.py | test_is_retryable_known_code | `is_retryable(error_with_timeout_code)` → True |
+| ERR-MAP-003 | errors_mapping.py | test_is_retryable_unknown_code_defaults_false | 未知 ErrorCode → False（保守） |
+| ERR-MAP-004 | errors_mapping.py | test_map_network_error_to_retryable | `httpx.ConnectError` → `AdapterRetryableError` |
+| ERR-MAP-005 | errors_mapping.py | test_map_timeout_to_timeout_error | `httpx.TimeoutException` → `AdapterTimeoutError` |
+| ERR-MAP-006 | errors_mapping.py | test_map_429_rate_limit_to_retryable | `httpx.HTTPStatusError(429)` → `AdapterRetryableError` |
+| ERR-MAP-007 | errors_mapping.py | test_map_5xx_to_retryable_4xx_to_non_retryable | 500 → Retryable；404 → NonRetryable |
+| ERR-MAP-008 | errors_mapping.py | test_propagate_error_three_channels | mock logger + mock metrics + mock span → 3 通道均调用 |
+
+---
+
+## 9. Helm values 文件级契约（继承 L2-3 Spec §11 · 6 framework 独立 image override）
+
+### 9.1 文件清单（12 文件 · 6 framework × 2 文件）
+
+| # | 路径 | 职责 | 行数估计 | 测试 ID 前缀 |
+|---|------|------|---------|------------|
+| 1 | `helm/adapter-langchain/values.yaml` | LangChain adapter Helm values | 86 | HELM-LC-001~003 |
+| 2 | `helm/adapter-langchain/templates/deployment.yaml` | LangChain Deployment 模板（adapter sidecar） | 124 | HELM-LC-DEPLOY-001~003 |
+| 3 | `helm/adapter-autogen/values.yaml` | AutoGen adapter Helm values | 86 | HELM-AG-001~003 |
+| 4 | `helm/adapter-autogen/templates/deployment.yaml` | AutoGen Deployment 模板 | 124 | HELM-AG-DEPLOY-001~003 |
+| 5 | `helm/adapter-crewai/values.yaml` | CrewAI adapter Helm values | 86 | HELM-CR-001~003 |
+| 6 | `helm/adapter-crewai/templates/deployment.yaml` | CrewAI Deployment 模板 | 124 | HELM-CR-DEPLOY-001~003 |
+| 7 | `helm/adapter-semantic-kernel/values.yaml` | SK adapter Helm values | 86 | HELM-SK-001~003 |
+| 8 | `helm/adapter-semantic-kernel/templates/deployment.yaml` | SK Deployment 模板 | 124 | HELM-SK-DEPLOY-001~003 |
+| 9 | `helm/adapter-strands/values.yaml` | Strands adapter Helm values | 86 | HELM-ST-001~003 |
+| 10 | `helm/adapter-strands/templates/deployment.yaml` | Strands Deployment 模板 | 124 | HELM-ST-DEPLOY-001~003 |
+| 11 | `helm/adapter-smolagents/values.yaml` | Smolagents adapter Helm values | 86 | HELM-SM-001~003 |
+| 12 | `helm/adapter-smolagents/templates/deployment.yaml` | Smolagents Deployment 模板 | 124 | HELM-SM-DEPLOY-001~003 |
+
+**合计 12 文件 ~1232 行**（每 framework 2 文件 · values 86 行 + deployment 124 行；适配 Pod Security Standard: restricted）。
+
+### 9.2 通用 Helm 模板契约（每 framework values.yaml · 86 行）
+
+```yaml
+# helm/adapter-{framework}/values.yaml
+# 继承 L2-3 Spec §11.1-§11.2 通用 schema；仅 image/repository/tag/resources 随 framework 变化
+
+global:
+  imageRegistry: ghcr.io/superteam-a2a
+  imagePullPolicy: IfNotPresent
+  logLevel: INFO
+
+adapter:
+  # 6 framework 独立 image override（关键差异点）
+  image:
+    repository: ghcr.io/superteam-a2a/adapter-{framework}
+    tag: v0.2.0-{framework_version}-py3.12  # framework_version 由 §3.5 VERSION_MATRIX 决定
+    pullPolicy: IfNotPresent
+
+  # A2A Server 端口
+  port: 8080
+  host: 0.0.0.0
+
+  # Agent container 通信（sidecar 模式 · 同 Pod localhost）
+  agentServiceHost: localhost
+  agentServicePort: 7080
+
+  # 部署模式（v0.2+）
+  embedded: false  # true = 同进程 plugin；false = sidecar
+
+  # 健康检查
+  healthCheckPath: /healthz
+  readinessPath: /readyz
+
+  # framework 资源限制（framework 差异）
+  resources:
+    requests:
+      cpu: 200m      # CrewAI 提至 300m（详见 L2-3 Spec §11.2）
+      memory: 256Mi  # CrewAI 提至 384Mi
+    limits:
+      cpu: 1         # CrewAI 提至 2
+      memory: 512Mi  # CrewAI 提至 1Gi
+
+  # Pod Security Standard: restricted
+  securityContext:
+    runAsNonRoot: true
+    runAsUser: 1000
+    runAsGroup: 1000
+    readOnlyRootFilesystem: true
+    allowPrivilegeEscalation: false
+    capabilities:
+      drop: ["ALL"]
+    seccompProfile:
+      type: RuntimeDefault
+
+  # ConfigMap + Secret 引用
+  configMapRef: superteam-a2a-adapter-config
+  mtlsSecretRef: superteam-a2a-adapter-mtls
+
+  # 优雅停机
+  shutdownGracePeriodSeconds: 30
+```
+
+### 9.3 通用 Deployment 模板契约（每 framework · 124 行）
+
+```yaml
+# helm/adapter-{framework}/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "adapter-{framework}.fullname" . }}
+  labels:
+    {{- include "adapter-{framework}.labels" . | nindent 4 }}
+spec:
+  replicas: {{ .Values.adapter.replicas | default 1 }}
+  selector:
+    matchLabels:
+      {{- include "adapter-{framework}.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      labels:
+        {{- include "adapter-{framework}.selectorLabels" . | nindent 8 }}
+      annotations:
+        # ConfigMap 变化触发 reload（与 lifecycle.py §3.4 reload 协同）
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+    spec:
+      serviceAccountName: {{ include "adapter-{framework}.serviceAccountName" . }}
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        # Container 1: A2A Server (adapter)
+        - name: adapter
+          image: "{{ .Values.adapter.image.repository }}:{{ .Values.adapter.image.tag }}"
+          imagePullPolicy: {{ .Values.adapter.image.pullPolicy }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.adapter.port }}
+              protocol: TCP
+          env:
+            - name: SUPERTEAM_ADAPTER_FRAMEWORK
+              value: "{framework}"  # langchain / autogen / crewai / semantic_kernel / strands / smolagents
+            - name: SUPERTEAM_ADAPTER_PORT
+              value: "{{ .Values.adapter.port }}"
+            - name: SUPERTEAM_ADAPTER_EMBEDDED
+              value: "{{ .Values.adapter.embedded }}"
+            - name: SUPERTEAM_ADAPTER_CONFIG_PATH
+              value: "/etc/superteam-a2a/adapter-config.yaml"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector:4317"
+            - name: OTEL_TRACES_SAMPLER_ARG
+              value: "0.1"
+          envFrom:
+            - configMapRef:
+                name: {{ .Values.adapter.configMapRef }}
+          volumeMounts:
+            - name: adapter-config
+              mountPath: /etc/superteam-a2a
+              readOnly: true
+            - name: mtls-certs
+              mountPath: /etc/superteam-a2a/mtls
+              readOnly: true
+          livenessProbe:
+            httpGet:
+              path: {{ .Values.adapter.healthCheckPath }}
+              port: http
+            initialDelaySeconds: 30
+            periodSeconds: 10
+          readinessProbe:
+            httpGet:
+              path: {{ .Values.adapter.readinessPath }}
+              port: http
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          resources:
+            {{- toYaml .Values.adapter.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.adapter.securityContext | nindent 12 }}
+        # Container 2: Agent (framework runtime)
+        - name: agent
+          image: "{{ .Values.agent.image.repository }}:{{ .Values.agent.image.tag }}"
+          imagePullPolicy: {{ .Values.agent.image.pullPolicy | default "IfNotPresent" }}
+          ports:
+            - name: agent-http
+              containerPort: {{ .Values.adapter.agentServicePort }}
+          resources:
+            {{- toYaml .Values.agent.resources | nindent 12 }}
+      volumes:
+        - name: adapter-config
+          configMap:
+            name: {{ .Values.adapter.configMapRef }}
+        - name: mtls-certs
+          secret:
+            secretName: {{ .Values.adapter.mtlsSecretRef }}
+      terminationGracePeriodSeconds: {{ .Values.adapter.shutdownGracePeriodSeconds }}
+```
+
+### 9.4 6 framework 资源差异矩阵（继承 L2-3 Spec §11.2）
+
+| Framework | Image tag | CPU request | Memory request | CPU limit | Memory limit | 备注 |
+|-----------|-----------|-------------|----------------|----------|--------------|------|
+| LangChain | `v0.2.0-0.1.5-py3.12` | 200m | 256Mi | 1 | 512Mi | 标准 |
+| AutoGen | `v0.2.0-0.2.3-py3.12` | 200m | 256Mi | 1 | 512Mi | 标准 |
+| CrewAI | `v0.5.0-0.65.0-py3.12` | 300m | 384Mi | 2 | 1Gi | 独占最高 |
+| Semantic Kernel | `v0.5.0-1.15.0-py3.12` | 200m | 256Mi | 1 | 512Mi | 标准 |
+| Strands | `v0.2.0-0.1.0-py3.12` | 200m | 256Mi | 1 | 512Mi | 标准 |
+| Smolagents | `v0.2.0-1.0.0-py3.12` | 200m | 256Mi | 1 | 512Mi | 标准 |
+
+**说明**：framework version（0.1.5 / 0.2.3 / 等）由 §3.5 VERSION_MATRIX 决定；image tag 模板 `{adapter_version}-{framework_version}-py3.12`。
+
+### 9.5 RBAC + NetworkPolicy 共享模板（位于 `helm/adapter-shared/`）
+
+| # | 路径 | 职责 | 行数估计 | 测试 ID |
+|---|------|------|---------|--------|
+| 1 | `helm/adapter-shared/templates/clusterrole.yaml` | ClusterRole：adapters/events + adapters/status + leases（仅 Leader Election） | 42 | HELM-RBAC-001~003 |
+| 2 | `helm/adapter-shared/templates/clusterrolebinding.yaml` | ClusterRoleBinding → adapter ServiceAccount | 18 | HELM-RBAC-004 |
+| 3 | `helm/adapter-shared/templates/networkpolicy.yaml` | NetworkPolicy：ingress 8080 from namespace selector；egress K8s API + otel-collector + agent localhost | 64 | HELM-NP-001~004 |
+| 4 | `helm/adapter-shared/templates/servicemonitor.yaml` | ServiceMonitor：抓取 /metrics（每 30s）；6 framework 独立 label | 38 | HELM-SM-001~003 |
+
+### 9.6 §9 测试 ID 矩阵（36 ID）
+
+| 测试 ID | 文件 | 测试名 | 断言 |
+|---------|------|--------|------|
+| HELM-LC-001 | helm/adapter-langchain/values.yaml | test_helm_langchain_image_tag_format | tag = `v0.2.0-{0.1.5}-py3.12` 模板匹配 |
+| HELM-LC-002 | helm/adapter-langchain/values.yaml | test_helm_langchain_resources_standard | CPU request 200m / limit 1 |
+| HELM-LC-003 | helm/adapter-langchain/values.yaml | test_helm_langchain_security_context_restricted | Pod Security Standard: restricted 全部开启 |
+| HELM-LC-DEPLOY-001 | helm/adapter-langchain/templates/deployment.yaml | test_helm_langchain_two_container_pod | adapter + agent 两容器 |
+| HELM-LC-DEPLOY-002 | helm/adapter-langchain/templates/deployment.yaml | test_helm_langchain_env_var_superteam_adapter_framework | env `SUPERTEAM_ADAPTER_FRAMEWORK=langchain` |
+| HELM-LC-DEPLOY-003 | helm/adapter-langchain/templates/deployment.yaml | test_helm_langchain_termination_grace_30s | `terminationGracePeriodSeconds: 30` |
+| HELM-AG-001 ~ HELM-AG-DEPLOY-003 | autogen | 同上 pattern | autogen image + 标准 resources |
+| HELM-CR-001 | helm/adapter-crewai/values.yaml | test_helm_crewai_resources_highest | CPU request 300m / limit 2；memory request 384Mi / limit 1Gi |
+| HELM-CR-002 ~ HELM-CR-DEPLOY-003 | crewai | 同上 pattern | crewai image + 高 resources |
+| HELM-SK-001 ~ HELM-SK-DEPLOY-003 | semantic_kernel | 同上 pattern | SK image + 标准 resources |
+| HELM-ST-001 ~ HELM-ST-DEPLOY-003 | strands | 同上 pattern | strands image + 标准 resources |
+| HELM-SM-001 ~ HELM-SM-DEPLOY-003 | smolagents | 同上 pattern | smolagents image + 标准 resources |
+| HELM-RBAC-001 | helm/adapter-shared/templates/clusterrole.yaml | test_rbac_adapters_events_create | verbs: [get, list, watch, create, update, patch] |
+| HELM-RBAC-002 | helm/adapter-shared/templates/clusterrole.yaml | test_rbac_adapters_status_update | status subresource |
+| HELM-RBAC-003 | helm/adapter-shared/templates/clusterrole.yaml | test_rbac_leases_for_leader_election | coordination.k8s.io/leases |
+| HELM-RBAC-004 | helm/adapter-shared/templates/clusterrolebinding.yaml | test_rbac_binding_to_service_account | ClusterRoleBinding → adapter SA |
+| HELM-NP-001 | helm/adapter-shared/templates/networkpolicy.yaml | test_networkpolicy_ingress_8080_from_namespace_selector | port 8080 + namespaceSelector |
+| HELM-NP-002 | helm/adapter-shared/templates/networkpolicy.yaml | test_networkpolicy_egress_k8s_api | 443 to kube-dns |
+| HELM-NP-003 | helm/adapter-shared/templates/networkpolicy.yaml | test_networkpolicy_egress_otel_collector | 4317 to otel-collector |
+| HELM-NP-004 | helm/adapter-shared/templates/networkpolicy.yaml | test_networkpolicy_egress_localhost_agent | 7080 to localhost（agent 同 Pod） |
+| HELM-SM-001 | helm/adapter-shared/templates/servicemonitor.yaml | test_servicemonitor_interval_30s | interval: 30s |
+| HELM-SM-002 | helm/adapter-shared/templates/servicemonitor.yaml | test_servicemonitor_framework_label_present | label `framework: {name}` |
+| HELM-SM-003 | helm/adapter-shared/templates/servicemonitor.yaml | test_servicemonitor_metrics_path_/metrics | path: `/metrics` |
+
+---
+
+## 10. 测试策略 + 工具链文件级契约（继承 L2-3 Spec §12-§13 · 159 测试 ID + 6 重静态门禁）
+
+### 10.1 测试 ID 总计矩阵（继承 L2-3 Spec §12.8 · 81 v0.2 / 159 v1.0）
+
+| 层级 | v0.2 ID | v1.0 ID | L3-3 已落地（§1-§9） | L3-3 本节（§10） | 累计 |
+|------|--------:|--------:|----------------------:|-----------------:|------:|
+| UT（adapter-sdk） | 48 | 48 | SDK-PROT 12 + SDK-MOD 8 + SDK-CONV 10 + SDK-VER 4 + SDK-INT 3 = 37 | OBS-METRICS 8 + OBS-TRACING 6 + OBS-LOGGING 5 + RETRY 10 + ERR-MAP 8 = 37 | **74** |
+| UT（framework · 各 6 framework × 3 文件） | - | 24 | LC/AG/CR/SK/ST/SM × 9 = 54 | （已计入 §1.3.2） | **54** |
+| IT | 12 | 36 | LC 5 + AG 5 + CR 5 + SK 5 + ST 5 + SM 5 = 30 | SDK-CFG 8 + SDK-LOAD 6 = 14 | **44** |
+| Golden | 10 | 60 | - | - | **0**（待后续 §12 单独落地） |
+| Conformance | 5 | 5 | - | 5（CF-A2A-001~005 适配 §7 + §8） | **5** |
+| E2E | 2 | 6 | - | 6 framework × 1 = 6 | **6** |
+| Property | 4 | 4 | - | 4（PROP-ENV / PROP-FSM / PROP-CARD / PROP-RETRY） | **4** |
+| **合计** | **81** | **159** | **121** | **66** | **187** |
+
+**注**：L3-3 累计 **187 测试 ID**（已超过 v1.0 目标 159；多出的 28 来自 L3-3 文件级细化如 `test_redact_sensitive_9_keys` 等 9 项敏感字段单测）。
+
+### 10.2 6 重静态门禁（继承 L2-3 Spec §13.2）
+
+| # | 工具 | 用途 | 触发时机 | 失败行为 | 测试 ID |
+|---|------|------|----------|----------|--------|
+| 1 | **uv sync --frozen** | lockfile 一致性 | pre-commit + CI | CI 失败 | TOOL-001 |
+| 2 | **ruff format** | 代码格式化（line-length=100） | pre-commit + CI | CI 失败 | TOOL-002 |
+| 3 | **ruff check** | lint（含 ST-ADAPTER-BOUNDARY 自定义规则） | pre-commit + CI | CI 失败 | TOOL-003 |
+| 4 | **pyright --strict** | 类型检查（strict mode） | CI | CI 失败 | TOOL-004 |
+| 5 | **bandit** | Python 安全扫描 | CI | CI 失败（high severity） | TOOL-005 |
+| 6 | **pip-audit** | Python 依赖漏洞扫描 | CI（pre-build） | CI 失败（high CVSS） | TOOL-006 |
+
+**Ruff 自定义规则 `ST-ADAPTER-BOUNDARY`**（planned）：
+```python
+# ruff 自定义规则伪代码
+# 规则 ID: ST-ADAPTER-BOUNDARY
+# 检测范围：
+#   1. `packages/adapter-sdk/src/superteam_a2a/adapter/`（不含 `framework_adapters/`）禁 import framework SDK
+#      例外：`_internals.py` + `protocol.py` + `loader.py` 允许 `import importlib.metadata`
+#   2. `packages/operator-core/src/superteam_a2a/operator/` 禁 import `superteam_a2a.adapter`
+#   3. 6 framework 子包内允许 import 对应 framework SDK
+```
+
+### 10.3 测试工具链（继承 L2-3 Spec §13.3）
+
+```bash
+# adapter-sdk 单元测试（≥ 95% 覆盖）
+cd packages/adapter-sdk
+uv run pytest tests/unit/ -v \
+  --cov=supteam_a2a.adapter \
+  --cov-fail-under=95
+
+# framework adapter 集成测试（≥ 80% 覆盖）
+cd packages/adapter-{framework}
+uv run pytest tests/integration/ -v \
+  --cov=supteam_a2a.adapter_{framework} \
+  --cov-fail-under=80
+
+# Conformance 测试（依赖 a2a-python conformance 套件）
+uv run pytest tests/conformance/ -v --tb=short
+
+# E2E 测试（kind 集群 · 6 framework 各自）
+uv run pytest tests/e2e/ -v --cluster=kind --framework={framework}
+
+# Property 测试（Hypothesis · 4 ID）
+uv run pytest tests/property/ -v --hypothesis-seed=0
+```
+
+### 10.4 测试文件镜像清单（与 L3-1 70 文件镜像同级别）
+
+| 类别 | 文件数 | 路径模式 |
+|------|------:|---------|
+| `tests/unit/`（adapter-sdk 11 文件 SDK） | 11 | `packages/adapter-sdk/tests/unit/test_{protocol,models,converter,version,_internals,config,loader,observability/metrics,observability/tracing,observability/logging,retry,errors_mapping}.py` |
+| `tests/unit/`（framework · 6 × 3 文件） | 18 | `packages/adapter-{framework}/tests/unit/test_{adapter,converter,errors}.py` |
+| `tests/integration/`（6 framework） | 6 | `packages/adapter-{framework}/tests/integration/test_{framework}_e2e.py` |
+| `tests/conformance/` | 1 | `packages/adapter-sdk/tests/conformance/test_a2a_compat.py` |
+| `tests/e2e/`（6 framework） | 6 | `packages/adapter-{framework}/tests/e2e/test_k8s_e2e.py` |
+| `tests/property/` | 1 | `packages/adapter-sdk/tests/property/test_fuzz.py` |
+| `tests/helm/`（Helm template 渲染验证） | 1 | `packages/adapter-sdk/tests/helm/test_helm_render.py`（验证 §9 12 文件渲染合法） |
+| **合计** | **44** | （与 187 测试 ID 一一对应） |
+
+### 10.5 uv workspace 布局（继承 ADR-0005 §13.1）
+
+```
+superteam-a2a/
+├── packages/
+│   ├── adapter-sdk/                  # 本 L3-3 Spec 主体
+│   │   ├── pyproject.toml
+│   │   ├── src/superteam_a2a/adapter/
+│   │   │   ├── __init__.py
+│   │   │   ├── _internals.py
+│   │   │   ├── protocol.py
+│   │   │   ├── models.py
+│   │   │   ├── converter.py
+│   │   │   ├── version.py
+│   │   │   ├── config.py
+│   │   │   ├── loader.py
+│   │   │   ├── errors.py
+│   │   │   ├── observability/
+│   │   │   │   ├── __init__.py
+│   │   │   │   ├── metrics.py
+│   │   │   │   ├── tracing.py
+│   │   │   │   └── logging.py
+│   │   │   ├── retry.py
+│   │   │   └── errors_mapping.py
+│   │   └── tests/
+│   └── operator-core/                # L3-1（已 v0.2.0）
+├── adapters/                         # 6 framework 子包（独立仓库 + PyPI 发布）
+│   ├── adapter-langchain/
+│   ├── adapter-autogen/
+│   ├── adapter-crewai/
+│   ├── adapter-semantic-kernel/
+│   ├── adapter-strands/
+│   └── adapter-smolagents/
+├── helm/
+│   ├── adapter-langchain/
+│   ├── adapter-autogen/
+│   ├── adapter-crewai/
+│   ├── adapter-semantic-kernel/
+│   ├── adapter-strands/
+│   ├── adapter-smolagents/
+│   └── adapter-shared/               # RBAC + NetworkPolicy + ServiceMonitor
+├── pyproject.toml                    # uv workspace 根
+└── uv.lock
+```
+
+### 10.6 Dockerfile 多阶段模板（继承 L2-3 Spec §8 + ADR-0005 §2.2 + §9.3）
+
+```dockerfile
+# packages/adapter-{framework}/Dockerfile（每 framework 独立 base 镜像）
+# 继承 L2-3 Spec §8.1 策略 A：每 framework 独立 base 镜像（推荐）
+
+# Stage 1: builder（含 uv）
+FROM ghcr.io/astral-sh/uv:python3.12-bookworm-slim AS builder
+WORKDIR /app
+COPY pyproject.toml uv.lock ./
+COPY packages/adapter-sdk/ ./packages/adapter-sdk/
+COPY packages/adapter-{framework}/ ./packages/adapter-{framework}/
+RUN uv sync --frozen --no-dev --package superteam-a2a-adapter-{framework}
+
+# Stage 2: runtime（精简 · 仅 framework SDK + adapter-sdk）
+FROM python:3.12-slim-bookworm AS runtime
+RUN useradd --create-home --uid 1000 adapter
+WORKDIR /home/adapter
+
+# framework SDK 与 adapter-sdk 仅复制 site-packages（不复制源码）
+COPY --from=builder /app/.venv/lib/python3.12/site-packages/ /usr/local/lib/python3.12/site-packages/
+COPY --chown=adapter:adapter packages/adapter-{framework}/src/superteam_a2a/adapter_{framework}/ /home/adapter/app/
+
+USER 1000:1000
+EXPOSE 8080
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    SUPERTEAM_ADAPTER_FRAMEWORK={framework}
+
+ENTRYPOINT ["python", "-m", "supteam_a2a.adapter_{framework}"]
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "import httpx; httpx.get('http://localhost:8080/healthz', timeout=2).raise_for_status()" || exit 1
+```
+
+### 10.7 §10 测试 ID 矩阵（30 ID）
+
+| 测试 ID | 文件 | 测试名 | 断言 |
+|---------|------|--------|------|
+| TOOL-001 | pyproject.toml | test_uv_sync_frozen_succeeds | `uv sync --frozen` 退出码 0 |
+| TOOL-002 | ruff format | test_ruff_format_check_no_diff | `ruff format --check` 无 diff |
+| TOOL-003 | ruff check | test_ruff_check_passes_with_st_adapter_boundary | 自定义规则检测业务层无 framework SDK import |
+| TOOL-004 | pyright | test_pyright_strict_no_errors | `pyright --strict` 退出码 0 |
+| TOOL-005 | bandit | test_bandit_no_high_severity | high severity 漏洞 = 0 |
+| TOOL-006 | pip-audit | test_pip_audit_no_high_cvss | CVSS ≥ 7.0 漏洞 = 0 |
+| HELM-RENDER-001 | tests/helm/test_helm_render.py | test_helm_render_all_6_frameworks | 6 framework Deployment 模板 `helm template` 渲染成功 |
+| HELM-RENDER-002 | tests/helm/test_helm_render.py | test_helm_render_validates_kubernetes_schema | 渲染输出符合 K8s 1.28+ schema |
+| HELM-RENDER-003 | tests/helm/test_helm_render.py | test_helm_render_no_unresolved_placeholders | 无 `{{ ... }}` 未解析占位符 |
+| CF-A2A-001 | tests/conformance/test_a2a_compat.py | test_conformance_with_google_a2a_conformance_suite | 与 google-a2a/conformance 100% 兼容 |
+| CF-A2A-002 | tests/conformance/test_a2a_compat.py | test_agent_card_schema_matches_l2_1 | 6 framework Card 符合 L2-1 AgentCard schema |
+| CF-A2A-003 | tests/conformance/test_a2a_compat.py | test_jsonrpc_2_0_wire_compat | JSON-RPC 2.0 wire format 一致 |
+| CF-A2A-004 | tests/conformance/test_a2a_compat.py | test_error_codes_minus_32001_to_minus_32007 | 7 错误码常量值与 L3-2 §10 一致 |
+| CF-A2A-005 | tests/conformance/test_a2a_compat.py | test_agent_card_path_well_known | `/.well-known/agent.json` 路径返回 AgentCard |
+| PROP-ENV-001 | tests/property/test_fuzz.py | test_envelope_schema_round_trip | hypothesis 生成 1000 个 envelope 异常字段应被拒绝 |
+| PROP-FSM-001 | tests/property/test_fuzz.py | test_task_state_machine_invariant | 任意状态转换序列合法 |
+| PROP-CARD-001 | tests/property/test_fuzz.py | test_card_introspection_fuzz_does_not_crash | framework introspection fuzz 输入不导致 SDK 崩溃 |
+| PROP-RETRY-001 | tests/property/test_fuzz.py | test_retry_count_within_bounds | 任意错误码序列重试次数与延迟在 [min, max] 区间 |
+| E2E-FW-001 ~ E2E-FW-006 | tests/e2e/test_k8s_e2e.py（6 文件） | test_e2e_kind_{framework}_hello_world | 6 framework × kind 集群 hello-world 端到端 |
+| COV-001 | pytest-cov | test_adapter_sdk_coverage_ge_95 | `pytest-cov` 报告 ≥ 95% |
+| COV-002 | pytest-cov | test_framework_adapter_coverage_ge_80 | 6 framework 子包覆盖率 ≥ 80% |
+| TOOL-CHAIN-001 | - | test_pre_commit_runs_all_6_tools | pre-commit 钩子串行执行 6 门禁 |
+| TOOL-CHAIN-002 | - | test_ci_workflow_sequential_6_steps | `.github/workflows/ci.yml` 含 6 步骤且均 must-pass |
+| TOOL-CHAIN-003 | Dockerfile | test_dockerfile_multi_stage_two_stage | builder + runtime 2 stage |
+| TOOL-CHAIN-004 | Dockerfile | test_dockerfile_non_root_user_uid_1000 | `USER 1000:1000` 存在 |
+| TOOL-CHAIN-005 | Dockerfile | test_dockerfile_healthcheck_command | `HEALTHCHECK` 含 `http://localhost:8080/healthz` |
+| TOOL-CHAIN-006 | pyproject.toml | test_pyproject_python_version_3_12 | `requires-python = ">=3.12,<3.13"` |
+| TOOL-CHAIN-007 | pyproject.toml | test_pyproject_hatchling_backend | build-backend = `hatchling` |
+| TOOL-CHAIN-008 | uv.lock | test_uv_lock_present_and_committed | `uv.lock` 在仓库 + git tracked |
+
+---
+
+## 附录 A：跨模块引用清单（v0.2-draft-full 完整版）
+
+**说明**：本附录覆盖 L3-3 Spec v0.2-draft-full 全部 §0-§10 + 附录 B 引用的 6 子表 30 行；每条 = 文档路径 + 章节 + 引用类型（MUST/SHOULD/MAY）+ 同步状态。
+
+### A.1 L1 Architecture + Spec
+
+| # | 文档路径 | 章节 | 引用类型 | 同步状态 |
+|---|----------|------|----------|----------|
+| 1 | `docs/design/L1-architecture.md` | §3.5 适配层 | MUST | ✅ v0.2.0 已对齐 |
+| 2 | `docs/design/L1-architecture.md` | §4.3 C-3 模块 ID | MUST | ✅ v0.2.0 已对齐 |
+| 3 | `docs/spec/L1-system-spec.md` | §16 验收清单 | SHOULD | ✅ v0.2.0 已对齐 |
+
+### A.2 L2-3 Adapter 模块 Spec
+
+| # | 文档路径 | 章节 | 引用类型 | 同步状态 |
+|---|----------|------|----------|----------|
+| 4 | `docs/design/L2-modules/L2-adapter.md` | §3-§14 Design v0.2.0（上游权威） | MUST | ✅ v0.2.0 已对齐（#35 评审通过） |
+| 5 | `docs/spec/L2-module-specs/L2-adapter.md` | §3-§15 Spec v0.2.0（上游权威） | MUST | ✅ v0.2.0 已对齐（#37 评审通过） |
+| 6 | `docs/spec/L2-module-specs/L2-adapter.md` | §7 可观测性 | MUST | ✅ v0.2.0 → L3-3 §7 落地 |
+| 7 | `docs/spec/L2-module-specs/L2-adapter.md` | §10.4 错误模型 + Retryable 矩阵 | MUST | ✅ v0.2.0 → L3-3 §8 落地 |
+| 8 | `docs/spec/L2-module-specs/L2-adapter.md` | §11 Helm values | MUST | ✅ v0.2.0 → L3-3 §9 落地 |
+| 9 | `docs/spec/L2-module-specs/L2-adapter.md` | §12 测试策略 | MUST | ✅ v0.2.0 → L3-3 §10 落地 |
+| 10 | `docs/spec/L2-module-specs/L2-adapter.md` | §13 工具链与部署 | MUST | ✅ v0.2.0 → L3-3 §10.2-§10.6 落地 |
+
+### A.3 ADR
+
+| # | 文档路径 | 章节 | 引用类型 | 同步状态 |
+|---|----------|------|----------|----------|
+| 11 | `docs/adr/0005-python-first-technology-stack.md` | §3.3 Adapter SDK 模块映射 | MUST | ✅ v0.5.0 已对齐 |
+| 12 | `docs/adr/0005-python-first-technology-stack.md` | §6 接口与生命周期 | MUST | ✅ v0.5.0 已对齐 |
+| 13 | `docs/adr/0005-python-first-technology-stack.md` | §7 安全 | MUST | ✅ v0.5.0 已对齐 |
+| 14 | `docs/adr/0005-python-first-technology-stack.md` | §9.3 容器镜像策略 A | MUST | ✅ v0.5.0 → L3-3 §10.6 Dockerfile |
+| 15 | `docs/adr/0005-python-first-technology-stack.md` | §10 可观测性 | MUST | ✅ v0.5.0 → L3-3 §7 |
+| 16 | `docs/adr/0005-python-first-technology-stack.md` | §13.1 uv workspace 布局 | MUST | ✅ v0.5.0 → L3-3 §10.5 |
+
+### A.4 Constitution
+
+| # | 文档路径 | 章节 | 引用类型 | 同步状态 |
+|---|----------|------|----------|----------|
+| 17 | `docs/CONSTITUTION.md` | §3.8 Adapter SDK 边界 | MUST | ✅ v0.5.0 已对齐 |
+| 18 | `docs/CONSTITUTION.md` | §6 安全（不直接 mTLS，由 L3-1 admission 拦截） | MUST | ✅ v0.5.0 已对齐 |
+| 19 | `docs/CONSTITUTION.md` | §7 可观测性约束 | MUST | ✅ v0.5.0 → L3-3 §7 |
+| 20 | `docs/CONSTITUTION.md` | §9.7 测试覆盖率 ≥ 95% / ≥ 80% | MUST | ✅ v0.5.0 → L3-3 §10.1 |
+| 21 | `docs/CONSTITUTION.md` | §13.1 uv workspace | MUST | ✅ v0.5.0 → L3-3 §10.5 |
+| 22 | `docs/CONSTITUTION.md` | §13.6 6 framework 矩阵 | MUST | ✅ v0.5.0 → L3-3 §1.3 / §5 |
+| 23 | `docs/CONSTITUTION.md` | §15.5 错误传播 3 通道 | MUST | ✅ v0.5.0 → L3-3 §8.3 propagate_error |
+
+### A.5 配套 L3 Spec
+
+| # | 文档路径 | 章节 | 引用类型 | 同步状态 |
+|---|----------|------|----------|----------|
+| 24 | `docs/spec/L3-file-specs/L3-operator-core.md` | v0.2.0 Operator Core 文件级 Spec | MUST | ✅ v0.2.0 已对齐（#56 评审通过） |
+| 25 | `docs/spec/L3-file-specs/L3-a2a-core.md` | v0.2.0 A2A Core 文件级 Spec §6 A2AClient | MUST | ✅ v0.2.0 已对齐（#54 评审通过） |
+| 26 | `docs/spec/L3-file-specs/L3-a2a-core.md` | §9 15 Prometheus 指标 | MUST | ✅ v0.2.0 → L3-3 §7.5 4 复用 |
+| 27 | `docs/spec/L3-file-specs/L3-a2a-core.md` | §10 24 错误码 enum | MUST | ✅ v0.2.0 → L3-3 §8.3 RETRYABLE_MATRIX |
+| 28 | `docs/spec/L3-file-specs/L3-hello-agent.md` | （待起草 · L4 实施前完成） | SHOULD | ⏳ 下一会话启动 |
+
+### A.6 归档基线
+
+| # | 文档路径 | 章节 | 引用类型 | 同步状态 |
+|---|----------|------|----------|----------|
+| 29 | `docs/archive/pre-python-2026-07-24/L2-adapter-spec-v0.1.0-go-baseline.md` | 完整 Go baseline（已归档 · 2026-07-24） | REFERENCE | ✅ 归档完成（README 备注覆盖丢失） |
+| 30 | `docs/archive/pre-python-2026-07-24/README.md` | 归档元数据登记 | REFERENCE | ✅ #57 L3-3 启动 + #35 L2-3 评审 + #21 L2-1 评审 三次覆盖事件登记 |
+
+---
+
+## 附录 B：ADR / Constitution 引用矩阵（v0.2-draft-full 完整版 · 5 子表 49 行）
+
+**说明**：本附录对 L3-3 Spec 全部 MUST / SHOULD / MAY 强度分级约束 + ADR 章节 + Constitution 章节进行追溯矩阵化，确保每条规范有出处。
+
+### B.1 架构与部署（11 条）
+
+| # | 主题 | 强度 | ADR 章节 | Constitution 章节 |
+|---|------|------|----------|-------------------|
+| 1 | 单 SDK + 6 framework 子包形态 | MUST | ADR-0005 §3.3 | §3.8 + §13.6 |
+| 2 | uv workspace 布局 | MUST | ADR-0005 §13.1 | §13.1 |
+| 3 | Python 3.12 strict | MUST | ADR-0005 §2.1 | §13.1 |
+| 4 | pyright --strict 类型检查 | MUST | ADR-0005 §13.2 | §13.2 |
+| 5 | ruff 自定义规则 ST-ADAPTER-BOUNDARY | MUST | ADR-0005 §13.2 | §13.2 + §3.7 |
+| 6 | Pod Security Standard: restricted | MUST | ADR-0005 §7 | §6 |
+| 7 | 6 framework 独立 base 镜像（策略 A） | MUST | ADR-0005 §9.3 | §9.3 |
+| 8 | Dockerfile 多阶段（builder + runtime） | MUST | ADR-0005 §9.3 | §9.3 |
+| 9 | USER 1000:1000 non-root | MUST | ADR-0005 §7 | §6 |
+| 10 | ConfigMap + Secret 引用（不内嵌） | MUST | ADR-0005 §7 | §6 |
+| 11 | 同进程 plugin / sidecar 双拓扑（embedded 切换） | MUST | ADR-0005 §6 | §3.7 + §9.3 |
+
+### B.2 接口与生命周期（10 条）
+
+| # | 主题 | 强度 | ADR 章节 | Constitution 章节 |
+|---|------|------|----------|-------------------|
+| 12 | FrameworkAdapter Protocol 5 方法（list_agents / get_agent_card / send_message / get_task / cancel_task） | MUST | ADR-0005 §6 | §3.7 |
+| 13 | AgentCardConverter Protocol 1 方法（convert） | MUST | ADR-0005 §6 | §3.7 |
+| 14 | entry_points 动态加载 6 framework | MUST | ADR-0005 §3.3 | §3.7 |
+| 15 | runtime_checkable Protocol 校验 | MUST | ADR-0005 §6 | §3.7 |
+| 16 | A2AClient 复用 L3-2 §6（不重写 wire contract） | MUST | ADR-0005 §3.1 | §3.7 |
+| 17 | Lifecycle 11 步启动序列 | MUST | ADR-0005 §6 | §3.7 |
+| 18 | Lifecycle.stop 30s grace period | MUST | ADR-0005 §6 | §9.3 |
+| 19 | readiness probe 5 周期 | SHOULD | ADR-0005 §6 | §3.7 |
+| 20 | lifespan 单进程模式（httpx 进程级单例） | MUST | ADR-0005 §6 | §3.7 |
+| 21 | mTLS cert 热更新（与 L3-1 协同） | MUST | ADR-0005 §7 | §6 |
+
+### B.3 错误处理（10 条）
+
+| # | 主题 | 强度 | ADR 章节 | Constitution 章节 |
+|---|------|------|----------|-------------------|
+| 22 | 7 错误码 enum（-32001 ~ -32007 · L3-2 §10 继承） | MUST | ADR-0005 §10 | §15.5 |
+| 23 | AdapterError 基类 + 7 子类（Retryable/NonRetryable/Permanent/Config/Auth/Timeout/Framework/Version） | MUST | ADR-0005 §10 | §15.5 |
+| 24 | Retryable 矩阵 4 True + 3 False | MUST | ADR-0005 §10 | §15.5 |
+| 25 | 5 类 Tenacity 策略（network/5xx/rate_limit/timeout/framework） | MUST | ADR-0005 §10 | §15.5 |
+| 26 | jitter 全随机 0.5x-1.5x | SHOULD | ADR-0005 §10 | §15.5 |
+| 27 | 错误传播 3 通道（structlog + Prometheus + OTel） | MUST | ADR-0005 §10 | §15.5 |
+| 28 | framework 异常 → AdapterError 映射表（map_framework_exception） | MUST | ADR-0005 §10 | §15.5 |
+| 29 | 永久错误不重试（is_retryable=False） | MUST | ADR-0005 §10 | §15.5 |
+| 30 | 重试耗尽包装为 AdapterRetryableError | MUST | ADR-0005 §10 | §15.5 |
+| 31 | AdapterError.to_jsonrpc_error 含 framework_error | MUST | ADR-0005 §10 | §15.5 |
+
+### B.4 安全（10 条）
+
+| # | 主题 | 强度 | ADR 章节 | Constitution 章节 |
+|---|------|------|----------|-------------------|
+| 32 | 不直接处理 mTLS（由 L3-1 admission 拦截） | MUST | ADR-0005 §7 | §6 |
+| 33 | 9 项敏感字段脱敏（api_key 等） | MUST | ADR-0005 §7 | §6.5 |
+| 34 | Memory / Knowledge content 永不过普通日志 | MUST | ADR-0005 §7 | §6.5 |
+| 35 | USER 1000:1000 + readOnlyRootFilesystem | MUST | ADR-0005 §7 | §6 |
+| 36 | seccompProfile: RuntimeDefault | MUST | ADR-0005 §7 | §6 |
+| 37 | capabilities drop ALL | MUST | ADR-0005 §7 | §6 |
+| 38 | NetworkPolicy ingress/egress 限制 | MUST | ADR-0005 §7 | §6 |
+| 39 | RBAC ClusterRole 最小权限（仅 adapters/events + status + leases） | MUST | ADR-0005 §7 | §6 |
+| 40 | ConfigMap 热加载 checksum annotation | SHOULD | ADR-0005 §7 | §6 |
+| 41 | Secret 引用 + readOnly mount | MUST | ADR-0005 §7 | §6 |
+
+### B.5 可观测性与测试（8 条）
+
+| # | 主题 | 强度 | ADR 章节 | Constitution 章节 |
+|---|------|------|----------|-------------------|
+| 42 | 6 framework 独立 Prometheus 指标（Counter/Histogram/Gauge） | MUST | ADR-0005 §10 | §7 |
+| 43 | 4 复用 L3-2 §9 runtime 指标（不重复定义） | MUST | ADR-0005 §10 | §7 |
+| 44 | OTel 4 层 Span 结构 | SHOULD | ADR-0005 §10 | §7 |
+| 45 | structlog JSON + 7 强制字段 | MUST | ADR-0005 §10 | §7 |
+| 46 | 单进程 mode（无 prometheus multiprocess） | MUST | ADR-0005 §10 | §7 |
+| 47 | 187 测试 ID（UT 128 + IT 44 + CF 5 + E2E 6 + PROP 4） | MUST | ADR-0005 §13.2 | §9.7 |
+| 48 | adapter-sdk ≥ 95% / framework ≥ 80% 覆盖率 | MUST | ADR-0005 §13.2 | §9.7 |
+| 49 | 6 重静态门禁（uv sync + ruff + pyright + bandit + pip-audit + ST-ADAPTER-BOUNDARY） | MUST | ADR-0005 §13.2 | §9.7 + §13.2 |
 
 ---
 
@@ -1168,13 +2400,13 @@ def _check_version_compatibility(name: FrameworkName, version: str) -> None:
 
 | 字段 | 值 |
 |---|---|
-| 版本 | **v0.2-draft** |
-| 状态 | ✅ §0-§2 + 附录 A/B 占位 完整；§3-§10 + 附录 A 完整版 + 附录 B 5 子表 **待补完** |
-| 上游 | L2-3 Adapter Design + Spec v0.2.0 |
+| 版本 | **v0.2-draft-full** |
+| 状态 | ✅ **完整版**（#56 骨架 + #57 §3-§6 + 本次会话 §7-§10 + 完整附录 A/B）—— §0-§10 + 附录 A（30 行 6 子表）+ 附录 B（49 行 5 子表）全部落地；累计 187 测试 ID / 44 文件镜像清单 |
+| 上游 | L2-3 Adapter Design + Spec v0.2.0（#35 + #37 评审通过） |
 | 同级已通过 | L3-1 Operator Core v0.2.0 (#56) + L3-2 A2A Core v0.2.0 (#54) |
 | supersedes | L2-3 v0.1.0 Go baseline 实现条款；L3-2 wire 引用继续有效 |
 | 评审报告 | `docs/reviews/l3-3-adapter-sdk-spec-review.md`（下一会话创建） |
-| 当前变更边界 | 仅本 Spec v0.2-draft；独立评审前不进入 L4 实施 |
+| 当前变更边界 | 仅本 Spec v0.2-draft-full；独立评审通过 → v0.2.0 后方可进入 L4 实施 |
 
 ### M.2 落地记录
 
@@ -1182,21 +2414,16 @@ def _check_version_compatibility(name: FrameworkName, version: str) -> None:
 |---|---|---|
 | 2026-07-28 #56 | L3-1 v0.2.0 通过 + L3-3 启动 | L3 阶段 1/4 完成 |
 | 2026-07-28 #57 | L3-3 v0.2-draft 骨架稿 + 13 边界规则 + 6 框架独立 metrics + 11 文件 SDK + 24 framework 子包文件清单 | §0-§2 + 附录 A/B 占位 |
-| 2026-07-28 #57（本会话） | L3-3 §3-§6 补完：FrameworkAdapter Protocol（466 行 · 5 生命周期方法）+ AgentCardConverter（322 行 · 6 框架字段映射）+ 6 framework 子包 24 文件级契约 + 4 层配置优先级 + 6 framework 动态加载 + 累计 1206 行 / 68KB / 84 测试 ID（SDK-PROT 12 + SDK-MOD 8 + SDK-CONV 10 + SDK-VER 4 + SDK-INT 3 + SDK-CFG 8 + SDK-LOAD 6 + 6 framework × 3 = 18 + 6 IT = 15） | §3-§6 完整版 + §1.3 文件清单 22 → 24；§7-§10 + 完整附录 A/B 待补完 → v0.2-draft-full |
+| 2026-07-28 #57（本会话 #2） | L3-3 §3-§6 补完：FrameworkAdapter Protocol（466 行 · 5 生命周期方法）+ AgentCardConverter（322 行 · 6 框架字段映射）+ 6 framework 子包 24 文件级契约 + 4 层配置优先级 + 6 framework 动态加载 + 累计 1206 行 / 68KB / 84 测试 ID | §3-§6 完整版 + §1.3 文件清单 22 → 24 |
+| **2026-07-28（本会话 #3）** | **L3-3 §7-§10 + 完整附录 A/B 补完**：§7 observability 4 文件（metrics.py 178 + tracing.py 124 + logging.py 96 + __init__.py 12）+ 19 OBS-* 测试 ID + §8 retry + errors 2 文件（retry.py 156 + errors_mapping.py 124）+ 18 RETRY/ERR-MAP 测试 ID + §9 Helm values 12 文件（6 framework × values.yaml 86 + deployment.yaml 124）+ 4 共享模板 + 36 HELM-* 测试 ID + §10 testing + toolchain 6 重静态门禁 + Dockerfile 多阶段 + uv workspace + 30 TOOL/HELM-RENDER/CF/PROP/E2E/COV 测试 ID + 附录 A 6 子表 30 行 + 附录 B 5 子表 49 行 + 累计 **187 测试 ID / 44 文件镜像清单 / 5 文件类型 / 6 静态门禁** | **v0.2-draft-full 完整版**；下一会话：独立评审 §A-§P 10 维度 → v0.2.0 → §F 6 步同步 → git commit → L3-4 Hello Agent 启动 |
 
 ### M.3 下一会话固定入口
 
-1. **补完 L3-3 §7-§10 + 完整附录 A + 附录 B**（建议单会话完成，避免 §16.1 双会话通讯成本）：
-   - §7 6 Prometheus 指标 + OTel + structlog（6 框架独立 + 4 复用 L3-2 §9）
-   - §8 5 类 Tenacity 策略 + 7 错误码 enum + 错误传播通道
-   - §9 Helm values 11.1-11.6（6 framework 子包各自 Helm 模板 + RBAC + NetworkPolicy + HELM-006~010）
-   - §10 测试策略 + 工具链（159 测试 ID 矩阵 + 6 重静态门禁 + uv workspace + Dockerfile）
-   - 附录 A 6 子表（30 行）
-   - 附录 B 5 子表（49 行）
-2. **升级 v0.2-draft-full**（完整版升级）：头部版本 v0.2-draft-skeleton → v0.2-draft-full + 状态行 + 落地记录新增 + 入口更新。
-3. **独立评审 L3-3 v0.2-draft-full**：创建 `docs/reviews/l3-3-adapter-sdk-spec-review.md`，按 §A-§P / 10 维度核验 §9 的 159 测试 ID + 41 文件级契约 + 附录 B 五表（参照 L3-2 #54 评审模板 18KB / 217 行）。
-4. **评审通过 + §F 6 步同步 + git commit**（参照 L3-1 #56 + L3-2 #54 commit 模板）。
-5. **L3-4 Hello Agent 启动**：基于 L3-2 v0.2.0 + L3-1 v0.2.0 + L3-3 v0.2.0（不依赖 framework adapter，纯 A2A ping/pong 10 行代码）。
+1. **独立评审 L3-3 v0.2-draft-full**：创建 `docs/reviews/l3-3-adapter-sdk-spec-review.md`，按 §A-§P / 10 维度核验 §0-§10 + 附录 A/B 完整版 + 187 测试 ID + 44 文件镜像清单 + 6 静态门禁（参照 L3-2 #54 评审模板 18KB / 217 行 / §A-§P 16 节 / 10 维度 PASS 模板）。
+2. **评审通过 + 升级 v0.2.0**：头部版本 v0.2-draft-full → v0.2.0 + 状态行 + 落地记录新增 + 配套 Spec 引用 v0.2.0。
+3. **§F 6 步跨文档同步**：F.1 L1 Architecture + L1 Spec；F.2 L2-3 Spec/D appendix A；F.3 L3-1 + L3-2 appendix A；F.4 ROADMAP + README；F.5 CONSTITUTION-CHANGELOG；F.6 archive/README.md（参照 #56 L3-1 + #54 L3-2 同步模板）。
+4. **git commit**：`feat(L3-3): 升级 v0.2.0 + §A-§P 评审通过 + §F 6 步跨文档同步`（参照 #56 + #54 commit 模板）。
+5. **L3-4 Hello Agent 启动**：基于 L3-2 v0.2.0 + L3-1 v0.2.0 + L3-3 v0.2.0（不依赖 framework adapter，纯 A2A ping/pong 10 行代码；独立会话）。
 
 ---
 
