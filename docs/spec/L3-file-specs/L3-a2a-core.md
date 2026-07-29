@@ -14,7 +14,7 @@
 > **wire contract 不变性**（与 v0.1.0 Go baseline + L2-1 Spec v0.2.0 完全一致，contract test 锁定）：JSON 字段名 / camelCase / RFC 3339 时间 / Agent Card 路径 / 错误码 / 任务状态机 / metric name
 > **上游约束**：[`docs/spec/L2-module-specs/L2-a2a-protocol.md`](../../spec/L2-module-specs/L2-a2a-protocol.md) **v0.2.0**（2026-07-24 评审通过 · 72KB / 1919 行 / 16 节 + 2 附录 / 14 错误码 / 100 测试 ID / 4 时序图 / 15 开放问题 / 80% 收敛率）
 > **本 Spec 目的**：将 L2-1 A2A Protocol Spec v0.2.0 中的 **7 个子包 + 6 method + 4 endpoint + 24 error code + 15 Prometheus 指标 + ExtensionRouter Protocol** 落地为 **文件级 Python 代码契约**——每个文件列明**绝对路径（基于 uv workspace 布局）**、**职责一句话**、**完整 import 列表**、**exported 符号签名（type hints + docstring 一行）**、**内部 helper 列表**、**关联测试文件路径 + 测试 ID 前缀**。是 L4 实施阶段（开发者打开 IDE 即可对照写代码）的直接输入。
-> **配套 Spec**：[L3-1 Operator Core 文件级 Spec v0.2-draft](./L3-operator-core.md)（2026-07-27 #49 §9 补完稿；70 文件清单 + 4 Controller）/ [L3-3 Adapter SDK](./L3-adapter-sdk.md)（待起草）/ [L3-4 Hello Agent](./L3-hello-agent.md)（待起草）/ [L3-5 Knowledge Service](./L3-knowledge-service.md)（待起草）/ [L3-6 Memory backend](./L3-memory-backend.md)（待起草）
+> **配套 Spec**：[L3-1 Operator Core 文件级 Spec v0.2.0](./L3-operator-core.md)（2026-07-28 #56 评审通过）/ [L3-3 Adapter SDK 文件级 Spec v0.2.0](./L3-adapter-sdk.md)（2026-07-29 #58 评审通过）/ [L3-4 Hello Agent 文件级 Spec v0.2.0](./L3-hello-agent.md)（2026-07-29 #61 评审通过）/ [L3-5 Knowledge Service 文件级 Spec v0.2.0](./L3-knowledge-service.md)（2026-07-29 #63.5 评审通过）/ [L3-6 Memory backend 文件级 Spec](./L3-memory-backend.md)（待 #64 起草）
 
 ---
 
