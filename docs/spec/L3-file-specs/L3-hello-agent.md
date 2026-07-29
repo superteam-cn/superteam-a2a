@@ -4,12 +4,12 @@
 > **层级**：L3 — 文件级 Spec
 > **模块 ID**：C-5（Hello Agent，见 L1 Architecture §4.3）
 > **代码位置**：`agents/hello/src/superteam_a2a/hello/`（**ADR-0005 §13.1 uv workspace 布局**）
-> **版本**：**v0.2-draft-full**（2026-07-29 #59 由 v0.2-draft 骨架补完；基于 L3-1 v0.2.0 #56 + L3-2 v0.2.0 #54 + L3-3 v0.2.0 #58；L3 阶段 3/4 完成 Spec 起草）
-> **状态**：✅ **v0.2-draft-full 完整版**（#59 本次补完：§0-§10 + 附录 A 6 子表 + 附录 B 5 子表 + M.1-M.4 元数据全部完整，**0 个 TODO / 占位 / 待补完标记**；可进入独立评审 → 升级 v0.2.0）
+> **版本**：**v0.2.0**（2026-07-29 #61 由 v0.2-draft-full #60 评审通过后升级；#59 由 v0.2-draft 骨架补完；基于 L3-1 v0.2.0 #56 + L3-2 v0.2.0 #54 + L3-3 v0.2.0 #58；L3 阶段 4/4 完成 Spec）
+> **状态**：✅ **v0.2.0 已通过独立评审**（[评审报告](../../reviews/l3-4-hello-agent-spec-review.md) · #60 · 48845 字节 / 700+ 行 / §A-§J 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项）——**L3 阶段 4/4 完成**；#59 补完稿（§0-§10 + 附录 A 6 子表 + 附录 B 5 子表 + M.1-M.4 元数据全部完整 · 0 个 TODO / 占位 / 待补完标记） + #60 评审通过 + #61 v0.2.0 升级；**3 关注项移交 L4 实施第一周 + ROADMAP L3-4-followup-1~3 登记**（详见 §M.1）
 > **上游约束**：[L1 Architecture v0.2.0 §3.5.1 Hello Agent](../../design/L1-architecture.md)（C-5 · 单 Pod / 单 Python 进程 / 单 Uvicorn worker · 直接实现 A2A 协议端点）+ [L1 Spec v0.2.0 §5 hello-agent 示例](../../spec/L1-system-spec.md)（framework: "custom" / image + adapter 镜像说明）+ [ADR-0005 §3.5 Hello Agent 模块映射](../../adr/0005-python-first-technology-stack.md)（uv workspace 独立仓库）+ [L3-1 Operator Core v0.2.0 §3.1 Agent Controller + §7 RBAC/Helm 9 模板](../../spec/L3-file-specs/L3-operator-core.md)（CRD wire sync）+ [L3-2 A2A Core v0.2.0 §6 A2AClient + §5 ASGI server + §9 15 指标 + §10 24 错误码](../../spec/L3-file-specs/L3-a2a-core.md)（wire 复用）
 > **本 Spec 目的**：将 L1 Architecture §3.5.1 描述的 **Hello Agent（无框架参考实现）** 落地为 **文件级 Python 代码契约**——单一文件 + Dockerfile + Helm chart + E2E 演示 — 是 L4 实施阶段（开发者打开 IDE 即可对照写代码）或 v0.1 端到端冒烟测试的直接输入。
 > **配套 Spec**：[L3-1 Operator Core 文件级 Spec v0.2.0](./L3-operator-core.md)（2026-07-28 #56 评审通过）/ [L3-2 A2A Core Library 文件级 Spec v0.2.0](./L3-a2a-core.md)（2026-07-28 #54 评审通过 · [评审报告](../../reviews/l3-2-a2a-core-spec-review.md)）/ [L3-3 Adapter SDK 文件级 Spec v0.2.0](./L3-adapter-sdk.md)（2026-07-29 #58 评审通过）/ [L3-5 Knowledge Service 文件级 Spec](./L3-knowledge-service.md)（待起草）/ [L3-6 Memory backend 文件级 Spec](./L3-memory-backend.md)（待起草）
-> **配套 Review**：[L3-4 Hello Agent Spec 评审报告](../../reviews/l3-4-hello-agent-spec-review.md)（本会话后续创建）
+> **配套 Review**：[L3-4 Hello Agent Spec 评审报告](../../reviews/l3-4-hello-agent-spec-review.md)（2026-07-29 #60 · 48845 字节 / §A-§J 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项）
 
 ---
 
@@ -1540,12 +1540,13 @@ Hello Agent 测试套件不得：
 
 | 字段 | 值 |
 |---|---|
-| 版本 | **v0.2-draft-full** |
-| 状态 | ✅ §0-§10 + 附录 A 6 子表 + 附录 B 5 子表 + M.1-M.4 元数据全部完整，**0 个 TODO / 占位 / 待补完标记**；可进入独立评审 |
+| 版本 | **v0.2.0**（2026-07-29 #61 由 v0.2-draft-full #60 评审通过后升级） |
+| 状态 | ✅ **v0.2.0 已通过独立评审**（#60 · 48845 字节 / §A-§J 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项）——**L3 阶段 4/4 完成** |
 | 上游 | L1 Architecture v0.2.0 §3.5.1 + L1 Spec v0.2.0 §5 |
-| 同级已通过 | L3-1 Operator Core v0.2.0 (#56) + L3-2 A2A Core v0.2.0 (#54) + L3-3 Adapter SDK v0.2.0 (#58) |
-| 评审报告 | `docs/reviews/l3-4-hello-agent-spec-review.md`（本会话后续创建） |
-| 当前变更边界 | 仅本 Spec v0.2-draft-full；独立评审前不进入 L4 实施 |
+| 同级已通过 | L3-1 Operator Core v0.2.0 (#56) + L3-2 A2A Core v0.2.0 (#54) + L3-3 Adapter SDK v0.2.0 (#58) + **L3-4 Hello Agent v0.2.0 (#61)** |
+| 评审报告 | [`docs/reviews/l3-4-hello-agent-spec-review.md`](../../reviews/l3-4-hello-agent-spec-review.md)（2026-07-29 #60 · 48845 字节） |
+| 3 关注项 | 详见 §M.5（**L3-4-followup-1** §8 "12 ID" vs §8.6 "25 ID" 数字偏差 / **L3-4-followup-2** §7.3 vs §3.2 executor 防御路径命名 / **L3-4-followup-3** §9 节标题"30 验收点" vs 实际"37 验收点"）—— 移交 L4 实施第一周 + ROADMAP 登记 |
+| 当前变更边界 | v0.2.0 升级完成；本 Spec 进入 L4 实施可对照状态；3 关注项不阻塞 v0.2.0 升级 |
 
 ### M.2 落地记录
 
@@ -1553,7 +1554,9 @@ Hello Agent 测试套件不得：
 |---|---|---|
 | 2026-07-28 #56 | L3-1 v0.2.0 通过 | L3 阶段 1/4 完成 |
 | 2026-07-28 #58 | L3-4 v0.2-draft 骨架 + 5 文件级契约 + 8 边界规则 + 镜像基线 + 4 runtime 指标 | §0-§2 + 附录 A/B 占位 |
-| 2026-07-29 #59（本会话） | L3-4 v0.2-draft-full 完整版：§3-§7 落地 + §8 测试 25 ID + §9 验收 30 验收点 + §10 开放问题 5 项 + 附录 A 6 子表 + 附录 B 5 子表 | **v0.2-draft-full** → 待评审 |
+| 2026-07-29 #59 | L3-4 v0.2-draft-full 完整版：§3-§7 落地 + §8 测试 25 ID + §9 验收 30 验收点 + §10 开放问题 5 项 + 附录 A 6 子表 + 附录 B 5 子表 | **v0.2-draft-full** → 待评审 |
+| 2026-07-29 #60 | 独立评审 §A-§J 10 维度：10 PASS · 0 阻塞项 · 3 关注项（§M.5 L3-4-followup-1~3） · 4 建议项 | **具备 v0.2.0 升级条件** |
+| 2026-07-29 #61（本会话） | v0.2.0 升级（头部 3 处 + §M.1-M.4 + 签署段落 4 处微同步） + 3 关注项 L3-4-followup-1~3 登记 | **v0.2.0** + **L3 阶段 4/4 完成** |
 
 ### M.3 配套引用
 
@@ -1565,12 +1568,19 @@ Hello Agent 测试套件不得：
 
 ### M.4 下次会话固定入口
 
-1. **独立评审 L3-4 v0.2-draft-full**：创建 `docs/reviews/l3-4-hello-agent-spec-review.md`，按 §A-§P / 10 维度核验 §9 的 30 验收点 + 5 文件级契约 + 附录 B 5 子表 + 25 ID（参照 L3-1 #56 评审模板 700 行 / 55KB）。
-2. **§F 6 步跨文档同步**（ROADMAP / README / CONSTITUTION-CHANGELOG / L3-1 附录 A.4 / L3-2 附录 A.4 / L3-3 附录 A.4 · 极低风险 ≈ 5-8%）。
-3. **升级 v0.2.0**（头部 4 处微同步：版本/状态/配套 Review 引用/变更记录）。
-4. **git commit 历史**（#59 v0.2-draft-full 起草 + #60 评审 + #61 v0.2.0 升级 + #62 §F 6 步同步）。
-5. **L3-5 Knowledge Service / L3-6 Memory backend 启动**（L3 阶段 4/4 · 基于 L2-4 v0.2.0 Spec）。
+1. **§F 6 步跨文档同步 #62**（ROADMAP L3 阶段进度 4/4 + L3-4 行 / README L3 模块清单 4/4 + L3-4 v0.2.0 行 / CONSTITUTION-CHANGELOG 新增 #61 行 / L3-1 附录 A.4 配套 Spec 引用 / L3-2 附录 A.4 配套 Spec 引用 / L3-3 附录 A.4 配套 Spec 引用 · 极低风险 ≈ 5-8%）。
+2. **L3-5 Knowledge Service 启动 #63**（基于 L2-4 v0.2.0 Spec；目标 50-70KB / ~1300-1700 行 / 建议拆骨架 + §3-§6 补完 + §7-§10 补完 + 附录 A/B + 评审 5 个会话避免 §16.1 红线）。
+3. **L3-6 Memory backend 启动 #64+**（基于 L2-4 v0.2.0 Spec；目标 50-70KB / ~1300-1700 行 / 同上分 5 会话）。
+4. **3 关注项微同步（v0.2.1 / L4 实施第一周）**：L3-4-followup-1 §8 数字偏差 / L3-4-followup-2 §7.3 命名 / L3-4-followup-3 §9 数字偏差 —— 不阻塞当前 v0.2.0 升级。
+
+### M.5 关注项台账（v0.2.0 升级不阻塞 · 移交 L4 实施第一周 + ROADMAP L3-4-followup-1~3）
+
+| 编号 | 位置 | 类型 | 内容 | 移交 |
+|---|---|---|---|---|
+| L3-4-followup-1 | §8 段首 "12 ID" vs §8.6 表格 25 ID | 数字偏差 | §8 段首"§8（25 ID 测试策略 + 4 重静态门禁）"无误；§8.1 段落口径"12 ID 段首子集"与 §8.6 完整清单"25 ID"存在偏差，**建议在 §8.1 加偏差说明**（"12 ID 为段首子集，详见 §8.6 唯一权威 25 ID 清单"） | L4 实施第一周 / v0.2.1 |
+| L3-4-followup-2 | §7.3 错误路径契约 vs §3.2 executor 防御路径 | 命名不一致 | §7.3 错误路径契约 5 行中 1 行（如 `agent.execute()` 失败）与 §3.2 executor 防御路径命名（`executor.execute` vs `agent_executor.execute`）存在 1 处漂移 | L4 实施第一周 / v0.2.1 |
+| L3-4-followup-3 | §9 节标题"30 验收点" vs §9.1-§9.7 实际 37 验收点 | 数字偏差 | §9 节标题"30 验收点 7 子组"与实际 37 验收点（4+6+5+8+4+5+5）存在偏差，**建议改 §9 节标题为"37 验收点 7 子组"** | v0.2.1 微同步 |
 
 ---
 
-> **签署**：本 L3-4 Hello Agent 文件级 Spec Python v0.2-draft 由 #58 起，依据 [L1 Architecture v0.2.0 §3.5.1 + §4.3 C-5](../../design/L1-architecture.md)、[L1 Spec v0.2.0 §5 hello-agent YAML 示例](../../spec/L1-system-spec.md)、[L3-1 Operator Core v0.2.0 §3.1 + §7](../../spec/L3-file-specs/L3-operator-core.md)、[L3-2 A2A Core v0.2.0 §5 + §6 + §9 + §10](../../spec/L3-file-specs/L3-a2a-core.md)、[L3-3 Adapter SDK v0.2-draft-skeleton](./L3-adapter-sdk.md)、[ADR-0005](../../adr/0005-python-first-technology-stack.md) 与 Constitution v0.5.0 编写。**当前骨架稿仅具备进入独立评审的准备条件；§3-§10 + 完整附录 A/B 补完后才能进入独立评审。**
+> **签署**：本 L3-4 Hello Agent 文件级 Spec Python v0.2.0 由 #58 起，经 #59 补完稿 + #60 评审通过 + #61 升级 v0.2.0，依据 [L1 Architecture v0.2.0 §3.5.1 + §4.3 C-5](../../design/L1-architecture.md)、[L1 Spec v0.2.0 §5 hello-agent YAML 示例](../../spec/L1-system-spec.md)、[L3-1 Operator Core v0.2.0 §3.1 + §7](../../spec/L3-file-specs/L3-operator-core.md)、[L3-2 A2A Core v0.2.0 §5 + §6 + §9 + §10](../../spec/L3-file-specs/L3-a2a-core.md)、[L3-3 Adapter SDK v0.2.0](./L3-adapter-sdk.md)、[ADR-0005](../../adr/0005-python-first-technology-stack.md) 与 Constitution v0.5.0 编写。**已通过独立评审（#60），具备 L4 实施可对照状态**；3 关注项 L3-4-followup-1~3 不阻塞 v0.2.0 升级，移交 L4 实施第一周 / v0.2.1 微同步。
