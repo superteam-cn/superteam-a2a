@@ -31,7 +31,7 @@
 
 This repository was created on 2026-07-08. Scope is locked per [ADR-0001](./docs/adr/0001-v1-scope-statement.md) and [ADR-0004](./docs/adr/0004-v01-scope-extension-knowledge-and-memory.md): **5 base capabilities** (discovery / communication / observability / orchestration / **knowledge management**), **6 CRDs** (Agent / AgentSet / Workflow / KnowledgeScope / KnowledgeItem / Memory), 4-phase delivery (`v0.1.0-alpha` → `beta` → `rc` → `v0.1.0`).
 
-Constitution is at v0.5.0; L1 architecture has been reviewed and accepted. **The current focus is Python-first full-stack migration (ADR-0005)** — L1 v0.2.0 + L2-1 v0.2.0 + L2-2 v0.2.0 + L2-3 v0.2.0 + **L2-4 v0.2.0** Python all passed review (2026-07-24 → 2026-07-27). **L2 阶段 4/4 全部完成**（Python 化 100%）。**L3 阶段 1/4 ~ 2/4 进行中**：L3-1 Operator Core v0.2.0（2026-07-28 #56）+ L3-2 A2A Core v0.2.0（2026-07-28 #54）文件级 Spec 均通过评审。No production code yet — check [ROADMAP.md](./ROADMAP.md) for the full timeline.
+Constitution is at v0.5.0; L1 architecture has been reviewed and accepted. **The current focus is Python-first full-stack migration (ADR-0005)** — L1 v0.2.0 + L2-1 v0.2.0 + L2-2 v0.2.0 + L2-3 v0.2.0 + **L2-4 v0.2.0** Python all passed review (2026-07-24 → 2026-07-27). **L2 阶段 4/4 全部完成**（Python 化 100%）。**L3 阶段 4/4 全部完成**（文件级 Spec 100% 通过评审）：L3-1 Operator Core v0.2.0（#56）+ L3-2 A2A Core v0.2.0（#54）+ L3-3 Adapter SDK v0.2.0（#58）+ **L3-4 Hello Agent v0.2.0（#61）** 文件级 Spec 均通过评审。No production code yet — check [ROADMAP.md](./ROADMAP.md) for the full timeline.
 
 ### L2 模块矩阵（2026-07-27 · L2 阶段 4/4 完成）
 
@@ -41,6 +41,16 @@ Constitution is at v0.5.0; L1 architecture has been reviewed and accepted. **The
 | **L2-2** | Operator Core | ✅ v0.2.0 Python | ✅ 已通过（2026-07-25 · [评审](docs/reviews/l2-2-operator-core-python-review.md) · §A-§G 10 维度全 PASS · 103KB / 1890 行） |
 | **L2-3** | Adapter | ✅ v0.2.0 Python | ✅ 已通过（2026-07-26 · [评审](docs/reviews/l2-3-adapter-spec-python-review.md) · §A-§P 16 节 · 114KB / 2705 行） |
 | **L2-4** | Knowledge / Memory | ✅ **v0.2.0 Python** | ✅ **已通过**（2026-07-27 #43 · [评审](docs/reviews/l2-4-knowledge-memory-spec-python-review.md) · §A-§P 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项 · 194.6KB / 4152 行 / 60 测试 ID + 30 验收点 + 22 开放问题） |
+
+### L3 文件级 Spec 矩阵（2026-07-29 · L3 阶段 4/4 完成）
+
+| 模块 | 名称 | 状态 | Python v0.2 进度 |
+|------|------|------|------------------|
+| **L3-1** | Operator Core（文件级） | ✅ v0.2.0 Python | ✅ 已通过（2026-07-28 #56 · [评审](docs/reviews/l3-1-operator-core-spec-review.md) · §A-§P 10 维度全 PASS · 245KB / 3925 行 / 162 文件 + 277 测试 ID） |
+| **L3-2** | A2A Core Library（文件级） | ✅ v0.2.0 Python | ✅ 已通过（2026-07-28 #54 · [评审](docs/reviews/l3-2-a2a-core-spec-review.md) · §A-§P 10 维度全 PASS · 160KB / 2852 行 / 30 文件 + 9 Helm + 30 测试 / 276 测试 ID / 24 错误码 / 15 指标） |
+| **L3-3** | Adapter SDK（文件级） | ✅ v0.2.0 Python | ✅ 已通过（2026-07-29 #58 · [评审](docs/reviews/l3-3-adapter-sdk-spec-review.md) · §A-§P 10 维度全 PASS · 148KB / ~2400 行 / 12 SDK + 22 framework + 200 测试 ID + 45 文件镜像清单） |
+| **L3-4** | Hello Agent（参考实现 · 文件级） | ✅ **v0.2.0 Python** | ✅ **已通过**（2026-07-29 #61 · [评审](docs/reviews/l3-4-hello-agent-spec-review.md) · §A-§J 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项 · 75KB / 1576 行 / 5 文件级契约 + 7 Helm 模板 + 1 Dockerfile + 25 测试 ID） |
+
 
 ## 🚀 Quickstart (planned)
 

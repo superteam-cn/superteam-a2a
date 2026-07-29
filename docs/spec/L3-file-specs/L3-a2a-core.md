@@ -2694,9 +2694,9 @@ subjects:
 
 | L3 文档 | 引用章节 | 用途 |
 |---------|----------|------|
-| [L3-1 Operator Core 文件级 Spec v0.2-draft](./L3-operator-core.md) | §1.3 文件清单 + §2 包结构 | A2A Core 与 Operator 同 Pod 部署 + 4 Controller reconcile A2A Core 生命周期 |
-| L3-3 Adapter SDK 文件级 Spec | (待起草) | Adapter SDK 通过 A2AClient 调用 6 method |
-| L3-4 Hello Agent 文件级 Spec | (待起草) | Hello Agent 实现 4 extension router + Adapter 集成 |
+| [L3-1 Operator Core 文件级 Spec v0.2.0](./L3-operator-core.md) | §1.3 文件清单 + §2 包结构 + §7.1 observability + §7.2 Helm 9 模板 | A2A Core 与 Operator 同 Pod 部署 + 4 Controller reconcile A2A Core 生命周期 + 双探针 + 9 Helm 模板 + ServiceMonitor |
+| [L3-3 Adapter SDK 文件级 Spec v0.2.0](./L3-adapter-sdk.md) | §3 FrameworkAdapter Protocol + §6 A2AClient 复用 | Adapter SDK 通过 A2AClient 调用 6 method（[评审](../../reviews/l3-3-adapter-sdk-spec-review.md) 2026-07-29 #58） |
+| [L3-4 Hello Agent 文件级 Spec v0.2.0](./L3-hello-agent.md) | §3.2 HelloAgentExecutor + §5 ASGI server 复用 + §6.9 25 ID 测试 | Hello Agent 复用 L3-2 ASGI server + A2AClient + 4 runtime 指标 + 24 错误码（[评审](../../reviews/l3-4-hello-agent-spec-review.md) 2026-07-29 #61） |
 | L3-5 Knowledge Service 文件级 Spec | (待起草) | Knowledge Service 实现 2 extension router（queryKnowledge + getKnowledgeItem）|
 | L3-6 Memory backend 文件级 Spec | (待起草) | Memory backend 实现 2 extension router（recordMemory + queryMemory）|
 

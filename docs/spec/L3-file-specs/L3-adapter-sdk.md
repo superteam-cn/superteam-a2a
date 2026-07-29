@@ -2628,7 +2628,7 @@ HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
 | 25 | `docs/spec/L3-file-specs/L3-a2a-core.md` | v0.2.0 A2A Core 文件级 Spec §6 A2AClient | MUST | ✅ v0.2.0 已对齐（#54 评审通过） |
 | 26 | `docs/spec/L3-file-specs/L3-a2a-core.md` | §9 15 Prometheus 指标 | MUST | ✅ v0.2.0 → L3-3 §7.5 4 复用 |
 | 27 | `docs/spec/L3-file-specs/L3-a2a-core.md` | §10 24 错误码 enum | MUST | ✅ v0.2.0 → L3-3 §8.3 RETRYABLE_MATRIX |
-| 28 | `docs/spec/L3-file-specs/L3-hello-agent.md` | （待起草 · L4 实施前完成） | SHOULD | ⏳ 下一会话启动 |
+| 28 | `docs/spec/L3-file-specs/L3-hello-agent.md` | v0.2.0 Hello Agent 文件级 Spec §3-§7 + 25 ID | SHOULD | ✅ v0.2.0 已对齐（#61 评审通过 · [评审报告](../../reviews/l3-4-hello-agent-spec-review.md) §A-§J 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项） |
 
 ### A.6 归档基线
 

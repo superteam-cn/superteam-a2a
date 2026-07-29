@@ -3793,6 +3793,8 @@ Pod 启动:
 | L3 配套 | 状态 | L3-1 引用位置 |
 |---|---|---|
 | `docs/spec/L3-file-specs/L3-a2a-core.md` | **v0.2.0 已通过评审**（2026-07-28 · 2852 行 / 160KB / 16 节 + 2 附录 / 30 文件 + 9 Helm + 30 测试 / 276 测试 ID / 24 错误码 / 15 指标；[评审报告](../../reviews/l3-2-a2a-core-spec-review.md) §A-§P 10 维度全 PASS）| §0 阅读指南 + 头部 frontmatter + 附录 A.4 |
+| `docs/spec/L3-file-specs/L3-adapter-sdk.md` | **v0.2.0 已通过评审**（2026-07-29 #58 · 148KB / ~2400 行 / 16 节 + 2 附录 / 12 SDK + 22 framework + 200 测试 ID / [评审报告](../../reviews/l3-3-adapter-sdk-spec-review.md) §A-§P 10 维度全 PASS · 0 阻塞项 · 9 关注项 · 4 建议项）| §0 阅读指南 + 头部 frontmatter |
+| `docs/spec/L3-file-specs/L3-hello-agent.md` | **v0.2.0 已通过评审**（2026-07-29 #61 · 75KB / 1576 行 / 11 主章节 §0-§10 + 2 附录 / 5 文件级契约 + 7 Helm + 1 Dockerfile + 2 CRD / 25 测试 ID + 30/37 验收点 / [评审报告](../../reviews/l3-4-hello-agent-spec-review.md) §A-§J 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项）| §0 阅读指南 + 头部 frontmatter |
 | `docs/spec/L3-file-specs/L3-knowledge-service.md` | **待起草**（L3-5） | §3.4 + §10.2 B.1 边界决议 |
 | `docs/spec/L3-file-specs/L3-memory-backend.md` | **待起草**(L3-6)| §3.4 + §6 |
 
