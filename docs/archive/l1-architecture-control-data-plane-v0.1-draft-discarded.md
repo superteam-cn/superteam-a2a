@@ -1,6 +1,31 @@
-# superteam-a2a — L1 架构候选：控制平面 / 数据平面 / 横切 三段视角（v0.1-draft）
+# superteam-a2a — L1 架构候选：控制平面 / 数据平面 / 横切 三段视角（v0.1-draft · **已归档**）
 
-> **状态**：🟡 **v0.1-draft 候选草案**（**非现行 L1**；现行 L1 仍为 [`L1-architecture.md`](./L1-architecture.md) v0.2.0 / 2026-07-24 评审通过；本草案为 v0.3 候选讨论稿）
+> ## ⚠️ 归档标记（2026-07-30 · 会话 #68）
+>
+> **状态变更**：🟡 v0.1-draft 候选草案 → 🗄️ **已归档（不合并）**
+>
+> **决策路径**：用户选择 **路径 B：最小化 L4 启动门禁**（2026-07-30 #68 AskUserQuestion）
+>
+> **决策理由**：
+> 1. L4 实施层启动时间紧迫，本草案升级 L1 v0.3 需 4-6 session（§F 6 步 + 独立评审 + ADR 流程），延迟过大
+> 2. L3-5 + L3-6 共享 Deployment 的唯一架构门禁是 OPEN-MEMORY-001（跨 container transport spike），与本草案的"三段视图"无强依赖
+> 3. T1/T2/T3 三个内在张力虽显式标注但未关闭，合并 L1 v0.3 风险高于收益
+> 4. 沿用 L1 v0.2.0 §2.2 旧图启动 L4 实施层；待 L4 实战验证后再决定是否重新激活本草案（OPEN-L1-004 / OPEN-L1-005）
+>
+> **未来重新激活条件**（任一满足可重启评审）：
+> - L4 实施第一周实战发现 L1 v0.2.0 §2.2 旧图 3 个内在张力阻碍开发
+> - OPEN-MEMORY-001 spike 结论反向影响 L1 架构视图
+> - L4 中期（Phase 1 MVP Core 完成后）回顾触发
+>
+> **配套现行 L1 不变**：[`docs/design/L1-architecture.md`](../../docs/design/L1-architecture.md) v0.2.0（2026-07-24 评审通过）
+>
+> **关联 ADR-0006**：OPEN-MEMORY-001 跨 container transport spike（UDS / 共享 runtime / 共享 mmap / 同进程 / HTTP loopback 五选一）独立起草，不依赖本草案
+>
+> **关联归档 pointer**：[`docs/design/l1-architecture-control-data-plane-archived.md`](../../docs/design/l1-architecture-control-data-plane-archived.md)
+>
+> ---
+
+> **状态**：🟡 **v0.1-draft 候选草案**（**非现行 L1**；现行 L1 仍为 [`L1-architecture.md`](../../docs/design/L1-architecture.md) v0.2.0 / 2026-07-24 评审通过；本草案为 v0.3 候选讨论稿）
 > **目的**：把现行 L1 §2.2 的「5 层请求流」视图（① 接入 / ② 编排 / ③ 资源模型 / ④ 通信 / ⑤ 运行时）改写为「控制平面 / 数据平面 / 横切」三段视图，**解决原视图的 3 个内在张力**（CRD 跨 ②/③、MemoryReconciler 错位、A2A ④ 主体不清），并为 L4 实施层提供更清晰的入口。
 > **变更来源**：2026-07-30 #67.x 会话讨论（与项目发起人当面）；L1 阶段 6/6 全部 v0.2.0 文件级 Spec 通过后的下一阶段规划
 > **决策窗口**：L4 实施层启动前必须决定是否合并到 L1 v0.3；不合并则 L4 沿用 L1 v0.2.0 §2.2 旧图
