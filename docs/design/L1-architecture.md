@@ -464,13 +464,13 @@ Pod:
 | C-3 | Adapter SDK | ④ | **Python 3.12+** | `packages/adapter-sdk/src/superteam_a2a/adapter/` |
 | C-4 | Framework Adapters | ④ | **Python 3.12+** | `adapters/{langchain,autogen,crewai,sk,strands,smolagents}/` |
 | C-5 | Hello Agent | ⑤ | **Python 3.12+** | `agents/hello/src/superteam_a2a/hello/` |
-| C-6 | Knowledge Service | ⑤ | **Python 3.12+** | `services/knowledge-service/src/superteam_a2a/knowledge/` |
-| C-7 | Memory backend (共享 Deployment) | ⑤ | **Python 3.12+** | `services/memory-backend/src/superteam_a2a/memory/` |
+| **C-6** | **Knowledge-Memory Service**（D 方案 · 单进程 · ADR-0006 v1.0 Accepted · v0.2.1） | ⑤ | **Python 3.12+** | `services/knowledge-memory-service/src/superteam_a2a/knowledge_memory/` |
+| ~~C-7~~ | ~~Memory backend（独立进程）~~ | ~~⑤~~ | ~~Python 3.12+~~ | ~~`services/memory-backend/src/superteam_a2a/memory/`~~（D 方案合并到 C-6） |
 | C-8 | Helm Chart | 横切 | YAML | `helm/` |
 | C-9 | Grafana Dashboards | 横切 | JSON | `dashboards/` |
 | C-10 | Examples | ① | YAML | `examples/` |
 
-**uv workspace 布局**（ADR-0005 §13）：
+**uv workspace 布局**（ADR-0005 §13 + **ADR-0006 v1.0 Accepted D 方案调整 · 2026-07-30 #71**）：
 
 ```
 pyproject.toml          # 根工作区配置（统一工具链版本）
@@ -480,8 +480,9 @@ packages/
   operator/src/superteam_a2a/operator/
   adapter-sdk/src/superteam_a2a/adapter/
 services/
-  knowledge-service/src/superteam_a2a/knowledge/
-  memory-backend/src/superteam_a2a/memory/
+  knowledge-memory-service/src/superteam_a2a/knowledge_memory/   # D 方案合并 C-6 + 原 C-7
+  # ~~knowledge-service/src/superteam_a2a/knowledge/~~ D 方案合并到 knowledge-memory-service
+  # ~~memory-backend/src/superteam_a2a/memory/~~ D 方案合并到 knowledge-memory-service
 agents/
   hello/src/superteam_a2a/hello/
 adapters/
