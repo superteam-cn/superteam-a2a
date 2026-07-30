@@ -1481,99 +1481,68 @@ async def validate_memory(spec, **kwargs): ...
 
 **L3-5 Leader Election 协调**：L3-5 **不参与** Leader Election（无 `@kopf.timer` 装饰器）；L3-6 独占 Leader Election Lease，L3-5 与 L3-6 共享 Deployment 同 Pod 内协作。
 
-### 6.2 与 L3-6 共享 Deployment 的 in-process function reference（Python 进程间调用契约）
+### 6.2 与 L3-6 单进程架构（同 ADR-0006 D 方案 · v0.2.1 · 2026-07-30 #71）
 
-**共享 Deployment 拓扑**（同 Pod 内两个独立 Python 进程 · 与 L3-6 Spec §6 严格一致）：
+**架构决策**（[ADR-0006 v1.0 Accepted · D 方案](../../adr/0006-memory-transport.md)）：取消 L3-5 + L3-6 双进程架构，**合并为单 Python 进程**（L3-5 + L3-6 同一 Python runtime），消除 IPC 边界 + 50ms admission deadline 零风险 + Card-driven 单实例天然适合。
+
+**单进程架构**（同 Pod 内一个 Python 进程 · 合并 services/knowledge-service + services/memory-backend → services/knowledge-memory-service）：
 
 ```
-Knowledge Service Pod (replicaCount: 1)
-├── Container 1: knowledge-service (port 8080 · gRPC/HTTP)
-│   ├── ASGI server (L3-2 §5 复用 · Uvicorn 单 worker)
-│   ├── 4 A2A method handler (L3-5 §4)
-│   │   ├── queryKnowledge (L3-5 实现 · BM25 倒排索引)
-│   │   ├── getKnowledgeItem (L3-5 实现 · K8s API 拉取)
-│   │   ├── recordMemory (委托 L3-6 · in-process call)
-│   │   └── queryMemory (委托 L3-6 · in-process call)
-│   ├── admission webhook (L3-5 §5 · Kopf @kopf.validation)
-│   └── import l3_6_in_process.record_memory_async / query_memory_async
-│       (in-process function reference · 同一 Pod 内 Python 进程间调用)
-└── Container 2: memory-backend (port 8081 · 仅内部通信)
-    ├── 60s kopf.timer reconcile (L3-6 §6.1 详细落地)
-    │   └── decay / reinforce / GC / promotion
-    ├── Leader Election Lease (L3-6 §7.6)
-    ├── Clock Protocol + RealClock + FakeClock (D-4)
-    └── export l3_6_in_process.record_memory_async / query_memory_async
-        (供 Container 1 调用 · 同一 Pod 内 Python in-process call)
+Knowledge-Memory Service Pod (replicaCount: 1)
+└── Container 1: knowledge-memory-service (port 8080 · gRPC/HTTP)
+    ├── ASGI server (L3-2 §5 复用 · Uvicorn 单 worker)
+    ├── 4 A2A method handler (L3-5 §4)
+    │   ├── queryKnowledge (L3-5 实现 · BM25 倒排索引)
+    │   ├── getKnowledgeItem (L3-5 实现 · K8s API 拉取)
+    │   ├── recordMemory (L3-5 admission + L3-6 委托 · 同进程直接调用)
+    │   └── queryMemory (L3-5 admission + L3-6 委托 · 同进程直接调用)
+    ├── admission webhook (L3-5 §5 · Kopf @kopf.validation · 50ms fail-closed)
+    ├── MemoryReconciler 60s @kopf.timer (L3-6 §6.1 详细落地 · decay / reinforce / GC / promotion)
+    ├── Leader Election Lease (L3-6 §7.6 · 30s grace + 3x renew fail)
+    ├── Clock Protocol + RealClock + FakeClock (L3-6 §5.1)
+    ├── BM25 启动期全量重建 + watch 增量 (L3-6 §4.2)
+    └── import memory_backend.record_memory_async / query_memory_async
+        (in-process function reference · 同进程直接 import + 调用)
 ```
 
-**进程间通信机制**：**同一 Pod 内两个独立 Python 进程，通过共享内存或 in-process call 通信**（**不通过 HTTP**）。
+**进程内调用机制**（**单进程 · 无 IPC 边界 · 无序列化**）：
 
-- **方式 1（推荐）**：**Python in-process call**（同 Pod 内直接 `import` + 调用 `async def` 函数）
-  - 优势：零网络延迟 + 零序列化开销 + 强类型（Protocol 约束）
-  - 限制：仅同 Pod 内有效；Container 1 与 Container 2 通过共享卷（emptyDir）共享 Python module 路径
-- **方式 2（备用）**：**gRPC（localhost:8081）**（如 in-process call 不可用；同一 Pod 内 loopback 网络）
-  - 优势：解耦 Container 1 与 Container 2 进程边界
-  - 限制：需 protobuf 定义 + 序列化开销（仅 v0.5+ 考虑）
-
-**in-process function reference 契约**（**与 L3-6 Spec §6.2 严格一致**）：
-
-```python
-# services/knowledge-service/src/supteam_a2a/knowledge_service/l3_6_in_process.py
-# L3-5 委托 L3-6 的 in-process function reference 契约
-# 协议：async def + exception propagation + 不走 HTTP
-from typing import Protocol, runtime_checkable
-from superteam_a2a.knowledge.crd.memory_schema import Memory
-from superteam_a2a.knowledge.crd.knowledgeitem import KnowledgeItem
-
-
-@runtime_checkable
-class MemoryBackendInProcessService(Protocol):
-    """L3-6 export 的 in-process service Protocol（L3-5 调用契约）。"""
-    async def record_memory_async(self, mem: Memory) -> MemoryRecordResult: ...
-    async def query_memory_async(self, req: QueryMemoryRequest) -> QueryMemoryResult: ...
-
-
-# L3-5 端调用契约：
-# from services.memory_backend.src.supteam_a2a.memory_backend.svc import (
-#     record_memory_async, query_memory_async,
-# )
-#
-# 调用模式：
-#   result = await record_memory_async(mem)
-#   # L3-6 抛出异常 → L3-5 透传（不 catch & 改 error code）
-#   # L3-6 返回值 → L3-5 包装为 wire envelope
-```
+- **调用方式**：同进程内 `from superteam_a2a.memory_backend.svc import record_memory_async, query_memory_async` + `result = await record_memory_async(mem, context=context)`
+- **优势**：<1μs 直接函数调用（vs UDS ~10μs · vs HTTP ~2ms p99）+ 强类型（Protocol 约束）+ 25 指标同进程聚合
+- **限制**：未来扩展 sidecar / DaemonSet 需重新设计（但 v0.1 单实例已锁定，OPEN-MEMORY-002 推迟到 v0.5+）
 
 **调用契约 3 项规则**（防止破坏 L3-5 ↔ L3-6 边界）：
 1. **`async def` 全异步**：所有 L3-6 export 函数均为 `async def`；L3-5 调用必须 `await`
 2. **异常透传**：L3-6 抛出的 `A2AError` / `AdmissionTimeoutError` 等异常直接传播到 L3-5；L3-5 **不 catch 并改 error code**（避免双重映射）
-3. **不走 HTTP**：L3-5 ↔ L3-6 仅同 Pod 内 Python in-process call（共享 emptyDir 卷挂载 `/app/memory_backend` 路径）；**禁止 HTTP loopback**
+3. **单调时钟**：deadline/timeout/idempotency window 使用同一 `Clock.monotonic()`（L3-6 §5.1 暴露到 InProcessContext.clock）；**禁止 `asyncio.get_event_loop().time()` 或本地 `time.monotonic()` 独立计算**
 
-**与 L3-6 共享 Deployment 的 Helm 部署形态**（与 §9 deployment.yaml 一致）：
-- **共享 Deployment**：`Deployment` 名称 `knowledge-service` 包含两个 Container（同 Pod）
-- **共享 Service**：port 8080（HTTP/mTLS）对外暴露；port 8081（memory-backend）仅 cluster-internal
-- **共享 ServiceMonitor**：port 8080 scrape 15+5 指标（L3-5 5 + L3-6 10）
-- **共享 RBAC**：ClusterRole 同时包含 `knowledgescopes` + `knowledgeitems` + `memories` 3 类 CRD read/write
-- **共享 NetworkPolicy**：ingress 仅允许 operator namespace + cert-manager；egress K8s API + Prometheus + cert-manager
-- **共享 cert-manager**：mTLS TLSConfig + HotReloader（与 L3-1 §7.1.2 同模式）
+**Clock 边界**（与 L3-6 §6.1 一致）：L3-6 在 `record_memory_async` / `query_memory_async` handler 入口将 `Clock.monotonic()` 通过 `InProcessContext` 暴露给 L3-5 调用方（用于 deadline/timeout/idempotency window 一致性）；L3-5 必须读取 `context.clock.monotonic()`，不得使用 `asyncio.get_event_loop().time()` 或本地 `time.monotonic()` 独立计算 deadline。
 
-**关联测试 ID（L3-5 ↔ L3-6 边界 · 8 ID）**：
-- `MTLS-IT-001` 共享 Deployment 双 Container 启动顺序（knowledge-service 等待 memory-backend 就绪）
-- `MTLS-IT-002` in-process function reference 调用契约（async def + exception propagation）
-- `MTLS-IT-003` 共享 ServiceMonitor scrape（port 8080 · interval 30s · 15+5 指标）
-- `MTLS-IT-004` 共享 RBAC ClusterRole（knowledgescopes + knowledgeitems + memories）
+**单 container Deployment 的 Helm 部署形态**（与 §9 deployment.yaml 一致）：
+- **单 Deployment**：`Deployment` 名称 `knowledge-memory-service` 包含一个 Container（同 Pod）
+- **单 Service**：port 8080（HTTP/mTLS）对外暴露
+- **单 ServiceMonitor**：port 8080 scrape 15+5+5=25 指标（L3-5 5 + L3-6 10 + shared 10）
+- **单 RBAC**：ClusterRole 同时包含 `knowledgescopes` + `knowledgeitems` + `memories` 3 类 CRD read/write + admissionregistration/authn/authz 扩展
+- **单 NetworkPolicy**：ingress 仅允许 operator namespace + cert-manager；egress K8s API + Prometheus + cert-manager
+- **单 cert-manager**：mTLS TLSConfig + HotReloader（与 L3-1 §7.1.2 同模式）
+
+**关联测试 ID（L3-5 ↔ L3-6 边界 · 8 ID · D 方案调整）**：
+- `MTLS-IT-001` ~~共享 Deployment 双 Container 启动顺序~~ → 已废弃（D 方案单进程）
+- `MTLS-IT-002` in-process function reference 调用契约（async def + exception propagation）· 同进程直接 import
+- `MTLS-IT-003` 共享 ServiceMonitor scrape（port 8080 · interval 30s · 25 指标）
+- `MTLS-IT-004` 共享 RBAC ClusterRole（knowledgescopes + knowledgeitems + memories + admissionregistration/authn/authz）
 - `MTLS-IT-005` 共享 NetworkPolicy ingress/egress（operator namespace + cert-manager）
-- `E2E-WIRE-IT-001` wire contract 端到端（CRD apply → L3-6 in-process → L3-5 A2A response · wire 一致性）
-- `E2E-WIRE-IT-002` recordMemory 委托链（recordMemory A2A call → L3-5 admission → L3-6 record_memory_async → K8s API apply → effective_confidence 计算 → response）
-- `E2E-WIRE-IT-003` queryMemory 委托链（queryMemory A2A call → L3-5 min_confidence 默认 0.01 → L3-6 query_memory_async → 5 维 visibility 过滤 → effective_confidence 阈值过滤 → response）
+- `E2E-WIRE-IT-001` wire contract 端到端（CRD apply → L3-6 同进程 → L3-5 A2A response · wire 一致性）
+- `E2E-WIRE-IT-002` recordMemory 委托链（recordMemory A2A call → L3-5 admission → L3-6 record_memory_async 同进程 → K8s API apply → effective_confidence 计算 → response）
+- `E2E-WIRE-IT-003` queryMemory 委托链（queryMemory A2A call → L3-5 min_confidence 默认 0.01 → L3-6 query_memory_async 同进程 → 5 维 visibility 过滤 → effective_confidence 阈值过滤 → response）
 
 **上游引用**：
 - [L2-4 Spec v0.2.0 §7 MemoryReconciler reconcile 流程](../../spec/L2-module-specs/L2-knowledge-memory.md)（详细算法）
-- [L2-4 Spec v0.2.0 §6.6 4 handler 部署形态（共享 Deployment）](../../spec/L2-module-specs/L2-knowledge-memory.md)
 - [L2-4 Design v0.2.0 §3 D-3 MemoryReconciler timer 决策 + D-4 Clock Protocol 决策](../../design/L2-modules/L2-knowledge-memory.md)
-- [L3-6 Memory backend v0.2-draft §6 MemoryReconciler 60s kopf.timer 详细落地](./L3-memory-backend.md)（待 #64 起草）
+- [L3-6 Memory backend v0.2.1 §6 MemoryReconciler 60s kopf.timer 详细落地](./L3-memory-backend.md)
 - [L3-1 Operator Core v0.2.0 §3.4 MemoryReconciler 协调](../../spec/L3-file-specs/L3-operator-core.md)
 - [ADR-0005 §6.2 单进程原则 + §13.1 uv workspace 双仓库](../../adr/0005-python-first-technology-stack.md)
+- **[ADR-0006 v1.0 Accepted · D 方案（合并 L3-5 + L3-6 单进程）](../../adr/0006-memory-transport.md) · 2026-07-30 #71**
 
 ---
 
