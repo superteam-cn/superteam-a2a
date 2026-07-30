@@ -12,11 +12,11 @@
 |---|---|
 | **编号** | ADR-0006 |
 | **标题** | L3-5 + L3-6 跨 container transport 选型（OPEN-MEMORY-001 关闭） |
-| **状态** | 🟢 **v1.0 推荐**（Accepted 候选 · 待 2026-07-30 #70 用户最终审批） |
+| **状态** | 🟢 **Accepted**（D 方案 · 项目发起人 2026-07-30 #71 审批通过） |
 | **日期** | 2026-07-30 |
-| **决策者** | 项目发起人（CoderZhangfujiang） |
+| **决策者** | 项目发起人（CoderZhangfujiang）· 2026-07-30 #71 决策 D（同进程 · 合并 L3-5 + L3-6） |
 | **Reviewers** | 主 Agent（依据宪法 v0.5.0 §14.5 MVP 例外窗口 · 单点评审 · 与 ADR-0005 同模式） |
-| **关联会话** | #68（v0.1-draft 候选）+ #70（主 Agent 验收 + v1.0 推荐） |
+| **关联会话** | #68（v0.1-draft 候选）+ #70（主 Agent 验收 + v1.0 推荐）+ #71（项目发起人 D 方案决策 + Accepted） |
 | **上游约束** | L3-5 v0.2.0 §6.2 line 1488-1577 + L3-6 v0.2.0 §6.1+§6.4+§9.10+§13.5 + L1 v0.2.0 + 宪法 v0.5.0 |
 | **supersede** | L3-5 v0.2.0 §6.2 共享 Deployment in-process function reference 假设 + L3-6 v0.2.0 §6.1+§6.3+§9.10 双进程拓扑（仅部署形态，不变更 wire contract） |
 | **Superseded by** | 无 |
@@ -472,9 +472,9 @@ L3-6 v0.2.0 §1.2 + L3-5 v0.2.0 §1.2 共同锁定的 5 项关键不变量全部
 |---|---|---|
 | 起草 Subagent 1 | ab4dc815b07b450ac | 2026-07-30 #68 · 116 秒 / 28.7KB |
 | 主 Agent（§14.5 单点评审） | 验收 10 维度全 PASS · 0 关注项 · 0 建议项 | 2026-07-30 #70 |
-| 项目发起人（最终审批） | 待 #70 用户最终审批 D vs A | 2026-07-30 |
+| **项目发起人（最终审批）** | **✅ 决策 D（同进程 · 合并 L3-5 + L3-6）· 状态升级 Accepted** | **2026-07-30 #71** |
 
-**执行门禁**：本 ADR v1.0 推荐提交项目发起人最终审批。审批通过后（状态 Accepted）：
+**执行门禁**：本 ADR 状态升级 Accepted（D 方案 · 2026-07-30 #71）。D 方案决策后：
 - v0.2.1 微同步：L3-5 + L3-6 + L1 + Helm + uv workspace 按 §4.4 8 步顺序执行
 - L4 实施层 kind spike 验证 transport 选型
 - OPEN-MEMORY-001 + OPEN-L1-003 + OPEN-ADR-0006-001 全部关闭
@@ -487,12 +487,12 @@ L3-6 v0.2.0 §1.2 + L3-5 v0.2.0 §1.2 共同锁定的 5 项关键不变量全部
 
 | 字段 | 值 |
 |---|---|
-| 版本 | **v1.0 推荐**（#70 · 2026-07-30 · §14.5 MVP 例外单点评审通过） |
-| 状态 | 🟢 v1.0 推荐（Accepted 候选 · 待项目发起人最终审批 OPEN-ADR-0006-001） |
+| 版本 | **Accepted**（#71 · 2026-07-30 · 项目发起人决策 D） |
+| 状态 | 🟢 Accepted（D 方案 · 同进程 · 合并 L3-5 + L3-6） |
 | 上游约束 | L3-5 v0.2.0 §6.2 line 1488-1577 + L3-6 v0.2.0 §6.1+§6.3+§9.10+§13.5 + L1 v0.2.0 + 宪法 v0.5.0 |
 | supersede | L3-5 §6.2 + L3-6 §6.1/§6.3/§9.10 双进程拓扑假设（仅部署形态） |
 | wire contract | 12 MEMORY_* 错误码 / 12 字段完整版 / 4 纯函数 / 60s timer / Leader Election 不变 |
-| Reviewers | 主 Agent（§14.5 MVP 例外单点评审） |
+| Reviewers | 主 Agent（§14.5 MVP 例外单点评审） + 项目发起人（D 方案最终审批） |
 | 验收报告 | §7 主 Agent 验收报告 · 10 维度全 PASS · 0 关注项 · 0 建议项 |
 
 ### M.2 落地记录
@@ -503,7 +503,8 @@ L3-6 v0.2.0 §1.2 + L3-5 v0.2.0 §1.2 共同锁定的 5 项关键不变量全部
 | 2026-07-30 #66 | L3-6 v0.2.0 §6.1 三条运行时规则 + §6.3 拓扑 + §9.10 HELM-DEPLOY-002 IPC volume + env 三项预留 | L3-6 上游就绪 |
 | 2026-07-30 #67 | L3-6 v0.2.0 独立评审通过 · OPEN-MEMORY-001 标注为 L4 前唯一架构门禁 | OPEN-MEMORY-001 显式登记 |
 | 2026-07-30 #68 | ADR-0006 v0.1-draft 候选稿：5 方案决策矩阵 + 主推荐 D + 次推荐 A + 影响表 9 文件 + 7 开放问题 | 候选稿提交评审 |
-| **2026-07-30 #70** | **ADR-0006 v0.1-draft → v1.0 推荐升级：§0 元数据状态升级 + §4 决策结论 v1.0 推荐标记 + §7 主 Agent 验收报告（10 维度全 PASS · 0 关注项 · 0 建议项）+ 关键不变量保持验证（6 项 100% 保持）+ M.1-M.6 元数据更新** | **v1.0 推荐提交项目发起人最终审批** |
+| 2026-07-30 #70 | ADR-0006 v0.1-draft → v1.0 推荐升级：§0 元数据状态升级 + §4 决策结论 v1.0 推荐标记 + §7 主 Agent 验收报告（10 维度全 PASS · 0 关注项 · 0 建议项）+ 关键不变量保持验证（6 项 100% 保持）+ M.1-M.6 元数据更新 | v1.0 推荐提交项目发起人最终审批 |
+| **2026-07-30 #71** | **项目发起人决策 D（同进程 · 合并 L3-5 + L3-6）· ADR-0006 状态升级 Accepted · §0 状态 Accepted + 决策者 + 关联会话 + 签署段更新 · M.1-M.6 元数据 Accepted 标记** | **D 方案 Accepted · 进入 v0.2.1 微同步 + OPEN-MEMORY-001 关闭 + L4 实施层启动** |
 
 ### M.3 配套引用
 
@@ -520,37 +521,38 @@ L3-6 v0.2.0 §1.2 + L3-5 v0.2.0 §1.2 共同锁定的 5 项关键不变量全部
 
 ### M.4 下次会话固定入口
 
-1. **ADR-0006 用户审批**（OPEN-ADR-0006-001）：D 方案确认后，进入 v0.2 → Accepted
+1. ✅ **ADR-0006 用户最终审批**（OPEN-ADR-0006-001）：D 方案决策通过 · 状态 Accepted · #71
 2. **L3-5 v0.2.1 微同步**：删除 §6.2 line 1488-1577 共享 Deployment 协调点，改为单进程架构描述
 3. **L3-6 v0.2.1 微同步**：删除 §6.1+§6.3 双进程拓扑；§9.10 Helm values 删除 IPC volume + env 三项；保留 12 MEMORY_* 错误码 + §9.5 read/write 双 Role + §9.7 PrometheusRule
 4. **L1 v0.2.0 微同步**：§4.3 C-6 + C-7 合并为新 C-6
 5. **Helm values 调整**：单 container deployment
 6. **uv workspace 重构**：ADR-0005 §13.1 布局调整（packages/knowledge-memory + services/knowledge-memory-service）
 7. **L4 kind spike**：单进程 deployment + 60s timer + Leader Election + 50ms admission deadline + 12 错误码透传验证
-8. **OPEN-MEMORY-001 关闭**
+8. **OPEN-MEMORY-001 + OPEN-L1-003 关闭**
 
-### M.5 关注项台账（v1.0 推荐 · 0 关注项）
+### M.5 关注项台账（Accepted · D 方案 · 0 阻塞）
 
 | 编号 | 关注项 | 状态 | 解决位置 |
 |---|---|---|---|
-| ADR-0006-followup-1 | ADR-0006 用户最终审批（D vs A） | 🟡 | OPEN-ADR-0006-001 · 待 #70 |
-| ADR-0006-followup-2 | L3-5 v0.2.1 §6.2 微同步（删除共享 Deployment 协调点） | 🟡 | #71（D 方案审批后） |
-| ADR-0006-followup-3 | L3-6 v0.2.1 §6.1/§6.3/§9.10 微同步（删除双进程拓扑 + IPC 配置） | 🟡 | #71（D 方案审批后） |
-| ADR-0006-followup-4 | L1 v0.2.0 §4.3 微同步（C-6 + C-7 合并） | 🟡 | #71（D 方案审批后） |
-| ADR-0006-followup-5 | Helm values 调整（单 container deployment） | 🟡 | #71（D 方案审批后） |
-| ADR-0006-followup-6 | uv workspace 重构（ADR-0005 §13.1 调整） | 🟡 | #71（D 方案审批后） |
-| ADR-0006-followup-7 | L4 kind spike 验证（单进程 transport） | 🟡 | L4 实施第一周 |
+| ADR-0006-followup-1 | ADR-0006 用户最终审批（D vs A） | ✅ 关闭 | D 方案决策 · #71 |
+| ADR-0006-followup-2 | L3-5 v0.2.1 §6.2 微同步（删除共享 Deployment 协调点） | 🟡 进行中 | #71 |
+| ADR-0006-followup-3 | L3-6 v0.2.1 §6.1/§6.3/§9.10 微同步（删除双进程拓扑 + IPC 配置） | 🟡 进行中 | #71 |
+| ADR-0006-followup-4 | L1 v0.2.0 §4.3 微同步（C-6 + C-7 合并） | 🟡 进行中 | #71 |
+| ADR-0006-followup-5 | Helm values 调整（单 container deployment） | 🟡 进行中 | #71 |
+| ADR-0006-followup-6 | uv workspace 重构（ADR-0005 §13.1 调整） | 🟡 进行中 | #71 |
+| ADR-0006-followup-7 | L4 kind spike 验证（单进程 transport） | 🟡 进行中 | L4 实施第一周 |
+| ADR-0006-followup-8 | OPEN-MEMORY-001 + OPEN-L1-003 + OPEN-ADR-0006-001 全部关闭 | 🟡 进行中 | #71 |
 
-**关注项台账状态**：✅ 0 阻塞 · 0 关注项（除 ADR-0006 用户最终审批外，所有 followup 都是 D 方案审批后的执行项，不属于关注项）
+**关注项台账状态**：✅ 0 阻塞 · 0 关注项（所有 followup 都是 D 方案 Accepted 后的执行项，#71 进行中）
 
 ### M.6 文档元数据
 
 - **创建日期**：2026-07-30 #68（v0.1-draft 候选）
-- **最后更新**：2026-07-30 #70（v1.0 推荐 · 主 Agent 验收通过）
-- **下次更新**：用户最终审批后 v1.0 → Accepted；L3-5 v0.2.1 + L3-6 v0.2.1 + L1 v0.2.0 + Helm + uv workspace 微同步（D 方案）
+- **最后更新**：2026-07-30 #71（Accepted · D 方案 · 项目发起人最终审批通过）
+- **下次更新**：v0.2.1 微同步（L3-5 + L3-6 + L1 + Helm + uv workspace）+ OPEN-MEMORY-001 关闭 + L4 实施层 kind spike 验证
 - **依赖完整性**：上游 L3-5 v0.2.0 + L3-6 v0.2.0 + L1 v0.2.0 + 宪法 v0.5.0 全部就绪
 - **评审模式**：宪法 v0.5.0 §14.5 MVP 例外单点评审（与 ADR-0005 Accepted 同模式）
-- **总评审记录**：Subagent 1 起草（#68 · 13 tool uses / 116 秒 / 28.7KB）+ 主 Agent 验收（#70 · 10 维度全 PASS / 0 关注项 / 0 建议项）+ 项目发起人最终审批（D vs A · 待 #70）
+- **总评审记录**：Subagent 1 起草（#68 · 13 tool uses / 116 秒 / 28.7KB）+ 主 Agent 验收（#70 · 10 维度全 PASS / 0 关注项 / 0 建议项）+ 项目发起人最终审批（D 方案 · #71 Accepted）
 - **下游影响**：L3-5 v0.2.1 + L3-6 v0.2.1 + L1 v0.2.0 + Helm values + uv workspace（ADR-0005 §13.1）+ L4 实施层（packages/knowledge-memory + services/knowledge-memory-service）+ OPEN-MEMORY-001 关闭
 
 ---
