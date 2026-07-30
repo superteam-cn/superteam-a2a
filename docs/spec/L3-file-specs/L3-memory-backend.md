@@ -1720,7 +1720,7 @@ Collector 仅接收 localhost OTLP 并 TLS 转发；其为基础设施进程，�
 
 | ID | 问题 | 状态 | 决策窗口 | 退出条件 |
 |---|---|---|---|---|
-| OPEN-MEMORY-001 | 跨 container “function reference” transport | 🟡 | L4 前 | UDS/共享 runtime spike + ADR；保持 async DTO/异常/取消/幂等 |
+| OPEN-MEMORY-001 | 跨 container "function reference" transport | ✅ 关闭 | ADR-0006 v1.0 Accepted（D 方案 · 单进程）· 2026-07-30 #71 | D 方案：L3-5 + L3-6 合并为单 Python 进程（services/knowledge-memory-service），<1μs 直接函数调用，无 IPC 边界；保持 async DTO/异常透传/单调时钟/取消/幂等语义 |
 | OPEN-MEMORY-002 | 水平扩展与同 Pod 单实例冲突 | 🔵 | v0.5+ | shard/Lease/一致性设计通过 |
 | OPEN-MEMORY-003 | Vector DB backend 选型 | 🔵 | v0.5+ | Chroma/Qdrant/pgvector/Milvus 基准 + ADR |
 | OPEN-MEMORY-004 | Memory PII 字段加密 | 🔵 | 安全评审 | KMS/key rotation/threat model ADR |
@@ -1892,7 +1892,7 @@ L1 §5.2.3 是 v1alpha1 唯一性校核源；L3-6 仅添加 Python alias/validat
 
 ### M.4 下次会话固定入口
 
-1. **L4 前架构门禁**：关闭 OPEN-MEMORY-001，完成跨 container UDS/共享 runtime transport spike 并记录 ADR；kind 验证 read/write 双 Role（含 admissionregistration/authentication/authorization 扩展）、webhook 50ms、Lease/readiness。
+1. ✅ **L4 前架构门禁**（**2026-07-30 #71 已关闭**）：OPEN-MEMORY-001 + OPEN-L1-003 + OPEN-ADR-0006-001 全部关闭 · ADR-0006 v1.0 Accepted（D 方案 · 同进程 · 合并 L3-5 + L3-6）· L3-5 v0.2.1 + L3-6 v0.2.1 + L1 v0.2.0 微同步已落地 · kind 验证移交 L4 实施第一周（read/write 双 Role（含 admissionregistration/authentication/authorization 扩展）+ webhook 50ms + Lease/readiness）。
 2. **L3-5 v0.2.1 微同步**：将 §9.5 read-only Role 与本 Spec §9.5 write Role 对齐（确认 admissionregistration/authn/authz 不进入 read-only Role）；附录 B B.5 明确性能 artifact 行。
 3. **v0.2.1 微同步**：关注项台账 4 建议项（§M-2.1 BackendBindingSpec 派生映射 / §M-2.2 收敛率说明 / §M-2.3 9 关键模块覆盖率映射 / §M-2.4 EventReason 白名单继承说明）。
 4. **L4 实施启动**：Phase 1 MVP Core 实施层落地（L3-5-followup-2 性能门禁验证 / L3-5-followup-3 kind webhook 真实环境验证 / L3-5-followup-4 _SCOPE_CACHE / BM25 rebuild 策略）。
@@ -1918,11 +1918,11 @@ L1 §5.2.3 是 v1alpha1 唯一性校核源；L3-6 仅添加 Python alias/validat
 
 - **创建日期**：2026-07-29 #64
 - **最后更新**：2026-07-30 #67.x（v0.2.0 升级 + 5 关注项全关闭 + §F 9 步跨文档同步）
-- **下次更新**：L4 前架构门禁（OPEN-MEMORY-001 transport spike）/ v0.2.1 微同步（4 建议项）
+- **下次更新**：L4 实施层启动（Phase 1 MVP Core · uv workspace + 6 CRD Pydantic v2 schema）· kind spike 验证（webhook 50ms + read/write 双 Role + Lease/readiness）· v0.2.1 微同步 4 建议项（§M-2.1~2.4）
 - **依赖完整性**：上游 L1 v0.2.0 + L2-4 v0.2.0 + L3-1/2/3/4/5 v0.2.0 全部就绪
 - **下游影响**：L4 实施 Memory backend 工程师 + RBAC write Role 含 admissionregistration/authn/authz（L3-6-followup-4 kind 验证）+ Leader Election 实施 + 性能门禁验证（L3-5-followup-2）+ _SCOPE_CACHE / BM25 rebuild 策略（L3-5-followup-4）+ 跨 container transport spike（OPEN-MEMORY-001）
 - **本次变更摘要**：v0.2-draft-full → v0.2.0；头部 4 处微同步（版本/状态/配套 Review 引用/supersede 描述）；M.1 状态 ✅ + 评审引用 #67；M.2 增 #67 + #67.x 两行；M.4 重写为 L4 前门禁 + v0.2.1 微同步 + 评审修正历史；M.5 关注项台账 5 项 L3-6-followup-1~5 全部 ✅ + 4 建议项 v0.2.1；M.6 更新；§8.1 TEST-MEM-051 静态断言代码块新增；§9.5 role_write 补 3 条规则；§9.7 完整 PrometheusRule YAML；§9.10 HELM-DEPLOY-002 描述补全；§6.1 Clock 边界 + InProcessContext.clock 显式；§6.4 admission 示例改用 `monotonic_deadline`
 
 ---
 
-> **签署**：本 L3-6 Memory backend 文件级 Spec Python v0.2.0 由 #64 起草、#65 补完 §3-§6、#66 补完 §7-§13 与附录 A/B、#67 独立评审通过（10 维度全 PASS / 0 阻塞 / 5 关注项 / 4 建议项）、#67.x 5 关注项同步修正（TEST-MEM-051 集合相等静态断言 + §9.7 PrometheusRule 完整 YAML + HELM-DEPLOY-002 描述补全 + role_write 扩展 admissionregistration/authn/authz + Clock.monotonic() 暴露到 handler 边界）+ §F 9 步跨文档同步。依据 [L1 Architecture v0.2.0 §3.5.3 + §4.3 C-7](../../design/L1-architecture.md)、[L1 Spec v0.2.0 §5.2.3 Memory YAML](../../spec/L1-system-spec.md)、[L2-4 Knowledge/Memory Spec v0.2.0 §3-§15](../../spec/L2-module-specs/L2-knowledge-memory.md)、[L2-4 Knowledge/Memory Design v0.2.0 §3-§14](../../design/L2-modules/L2-knowledge-memory.md)、[L3-1 Operator Core v0.2.0 §3.4 + §7](../../spec/L3-file-specs/L3-operator-core.md)、[L3-2 A2A Core v0.2.0 §5 + §6 + §9 + §10](../../spec/L3-file-specs/L3-a2a-core.md)、[L3-3 Adapter SDK v0.2.0 §3](../../spec/L3-file-specs/L3-adapter-sdk.md)、[L3-4 Hello Agent v0.2.0 §3.2 + §5](../../spec/L3-file-specs/L3-hello-agent.md)、**[L3-5 Knowledge Service v0.2.0 §3.3 Memory 5+5 简化 schema + §5 admission + §6.2 共享 Deployment 协调点（line 1488-1577）+ §9.9 共享 Helm chart 段落 + §8.2 12 MEMORY_* 错误码权威名](../../spec/L3-file-specs/L3-knowledge-service.md)**、[ADR-0003 Memory 设计](../../adr/0003-memory-design.md)、[ADR-0005 Python-first §3.4 + §6.2 + §6.3 + §10 + §13.1](../../adr/0005-python-first-technology-stack.md) 与 Constitution v0.5.0 编写。**当前 v0.2.0 已具备进入 L4 实施（Phase 1 MVP Core）的条件；L4 前架构门禁 OPEN-MEMORY-001（跨 container transport spike + ADR）必须先关闭，4 建议项（§M-2.1~2.4）移交 v0.2.1 微同步**。
+> **签署**：本 L3-6 Memory backend 文件级 Spec Python v0.2.0 由 #64 起草、#65 补完 §3-§6、#66 补完 §7-§13 与附录 A/B、#67 独立评审通过（10 维度全 PASS / 0 阻塞 / 5 关注项 / 4 建议项）、#67.x 5 关注项同步修正（TEST-MEM-051 集合相等静态断言 + §9.7 PrometheusRule 完整 YAML + HELM-DEPLOY-002 描述补全 + role_write 扩展 admissionregistration/authn/authz + Clock.monotonic() 暴露到 handler 边界）+ §F 9 步跨文档同步。依据 [L1 Architecture v0.2.0 §3.5.3 + §4.3 C-6（已合并 C-6 + C-7 为 Knowledge-Memory Service）](../../design/L1-architecture.md)、[L1 Spec v0.2.0 §5.2.3 Memory YAML](../../spec/L1-system-spec.md)、[L2-4 Knowledge/Memory Spec v0.2.0 §3-§15](../../spec/L2-module-specs/L2-knowledge-memory.md)、[L2-4 Knowledge/Memory Design v0.2.0 §3-§14](../../design/L2-modules/L2-knowledge-memory.md)、[L3-1 Operator Core v0.2.0 §3.4 + §7](../../spec/L3-file-specs/L3-operator-core.md)、[L3-2 A2A Core v0.2.0 §5 + §6 + §9 + §10](../../spec/L3-file-specs/L3-a2a-core.md)、[L3-3 Adapter SDK v0.2.0 §3](../../spec/L3-file-specs/L3-adapter-sdk.md)、[L3-4 Hello Agent v0.2.0 §3.2 + §5](../../spec/L3-file-specs/L3-hello-agent.md)、**[L3-5 Knowledge Service v0.2.1 §3.3 Memory 5+5 简化 schema + §5 admission + §6.2 单进程架构（ADR-0006 D 方案 · v0.2.1 · line 1488-1577 已删除共享 Deployment 协调点）+ §9.9 共享 Helm chart 段落 + §8.2 12 MEMORY_* 错误码权威名](../../spec/L3-file-specs/L3-knowledge-service.md)**、[ADR-0003 Memory 设计](../../adr/0003-memory-design.md)、[ADR-0005 Python-first §3.4 + §6.2 + §6.3 + §10 + §13.1](../../adr/0005-python-first-technology-stack.md)、**[ADR-0006 v1.0 Accepted（D 方案 · 合并 L3-5 + L3-6 单进程） · 2026-07-30 #71](../../adr/0006-memory-transport.md)** 与 Constitution v0.5.0 编写。**当前 v0.2.0 + v0.2.1 已具备进入 L4 实施（Phase 1 MVP Core）的全部条件；L4 前架构门禁 OPEN-MEMORY-001 + OPEN-L1-003 + OPEN-ADR-0006-001 已全部关闭（ADR-0006 v1.0 Accepted · D 方案 · 2026-07-30 #71）；4 建议项（§M-2.1~2.4）移交 v0.2.1 微同步（与 ADR-0006 决策后 v0.2.1 微同步合并执行）**。
