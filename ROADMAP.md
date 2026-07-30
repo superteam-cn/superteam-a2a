@@ -1,6 +1,6 @@
 # superteam-a2a — Roadmap
 
-> 📅 Last updated: **2026-07-30**（同步至 ADR-0001 / 0004 / 0005 + 宪法 v0.5.0 + L1 v0.2.0 + L2-1/L2-2/L2-3/L2-4 v0.2.0 Python 通过 + **L3-1 Operator Core v0.2.0 #56** + **L3-2 A2A Core v0.2.0 #54** + **L3-3 Adapter SDK v0.2.0 #58** + **L3-4 Hello Agent v0.2.0 #61** + **L3-5 Knowledge Service v0.2.0 #63.5** + **L3-6 Memory backend v0.2.0 #67**；**L3 阶段 6/6 全部完成** · L4 实施层待启动）
+> 📅 Last updated: **2026-07-30**（同步至 ADR-0001 / 0004 / 0005 / **0006 v1.0 Accepted (D 方案 · 同进程 · 合并 L3-5 + L3-6)** + 宪法 v0.5.0 + L1 v0.2.0 + L2-1/L2-2/L2-3/L2-4 v0.2.0 Python 通过 + **L3-1 Operator Core v0.2.0 #56** + **L3-2 A2A Core v0.2.0 #54** + **L3-3 Adapter SDK v0.2.0 #58** + **L3-4 Hello Agent v0.2.0 #61** + **L3-5 Knowledge Service v0.2.0 + v0.2.1 #63.5/#71** + **L3-6 Memory backend v0.2.0 + v0.2.1 #67/#71**；**L3 阶段 6/6 全部完成** · **L4 实施层已解锁（ADR-0006 v1.0 Accepted · 2026-07-30 #71）**）
 > 👤 Maintainer: [@CoderZhangfujiang](https://github.com/CoderZhangfujiang)
 > 🎯 Goal: ≥3,000 GitHub stars within 18 months (by **2027-09**)
 
@@ -92,7 +92,7 @@ This roadmap is a living document, kept in sync with the authoritative [ADR-0001
 - [x] **L3-4 Hello Agent v0.2.0**（[Spec](docs/spec/L3-file-specs/L3-hello-agent.md) · 1576 行 / 75KB / 11 主章节 §0-§10 + 2 附录 / 5 文件级契约 + 7 Helm 模板 + 1 Dockerfile + 2 CRD / 25 测试 ID + 30/37 验收点 / [评审](docs/reviews/l3-4-hello-agent-spec-review.md) 700+ 行 / 48.8KB · §A-§J 10 维度全 PASS · 0 阻塞项 · 3 关注项 · 4 建议项；L3 阶段 4/4 完成 · 3 关注项 L3-4-followup-1~3 移交 L4 实施第一周 / v0.2.1）✅ 2026-07-29 #61
 - [x] **L3-5 Knowledge Service v0.2.0**（[Spec](docs/spec/L3-file-specs/L3-knowledge-service.md) · 2467 行 / 154KB / 16 节 + 2 附录 / 30 文件级契约 + 7 Helm 模板 + 1 Dockerfile + 2 CRD / 60 测试 ID + 30/30 验收点 / [评审](docs/reviews/l3-5-knowledge-service-spec-review.md) 552 行 / 57KB · §A-§Q 17 节 / 10 维度全 PASS · 0 阻塞项 · 4 关注项 · 4 建议项；L3 阶段 5/5 完成 · 5 关注项 L3-5-followup-1~5 移交 v0.2.1 / L3-6 / L4 实施第一周）✅ 2026-07-29 #63.5
 - [x] **L3-6 Memory backend v0.2.0**（[Spec](docs/spec/L3-file-specs/L3-memory-backend.md) · ~1850 行 / 122KB / §0-§13 + 附录 A/B + M.1-M.6 / 28 文件级契约 + 60 测试 ID + 30/30 验收点 + 5 关键不变量 / 12 MEMORY_* 错误码零漂移 + MemoryBackend 抽象层 / [评审](docs/reviews/l3-6-memory-backend-spec-review.md) 525 行 / 67.9KB · §A-§Q 17 节 / 10 维度全 PASS · 0 阻塞项 · 5 关注项 · 4 建议项；L3 阶段 6/6 完成 · 5 关注项 L3-6-followup-1~5 全部关闭（TEST-MEM-051 集合相等静态断言 + §9.7 PrometheusRule 完整 YAML + HELM-DEPLOY-002 IPC/env/Recreate 描述 + role_write admissionregistration+authn+authz + Clock.monotonic() 暴露到 handler 边界）· 4 建议项 L3-6-followup-M-2.1~2.4 移交 v0.2.1 微同步）✅ 2026-07-30 #67
-- [ ] **L4 Python 实现启动**（uv workspace + packages/operator + packages/a2a-core + packages/adapter-sdk + packages/knowledge + packages/memory + packages/hello-agent）
+- [ ] **L4 Python 实现启动**（✅ **已解锁 · ADR-0006 v1.0 Accepted (D 方案 · 2026-07-30 #71)** · uv workspace + packages/operator + packages/a2a-core + packages/adapter-sdk + **packages/knowledge-memory（D 方案合并 packages/knowledge + packages/memory）** + packages/hello-agent + services/knowledge-memory-service）
 
 **Done when**：L2 Python 设计 + Spec + 评审全 4 模块通过；L3 Python 文件级 Spec 全模块通过；uv workspace 初始化；L4 至少 1 个 Python 包可 `uv sync` 安装并 `pytest` 通过
 
