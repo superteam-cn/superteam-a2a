@@ -1,4 +1,4 @@
-# L3 文件级 Spec：Memory backend（Card-driven Memory 服务 · Python-first · 同 Pod 第二 Python 进程 · #64-#66 起草）
+# L3 文件级 Spec：Memory backend（Card-driven Memory 服务 · Python-first · 同 Pod 第二 Python 进程 · #64-#67.x 起草）
 
 > **模块定位**：C-7 Memory backend（Card-driven Memory 服务 · v0.1 · 同 Pod 第二 Python 进程 / 单 Uvicorn worker / 端口 8081 cluster-internal / 与 L3-5 Knowledge Service 共享 Deployment / 独占 MemoryReconciler 60s @kopf.timer + Leader Election Lease + 4 纯函数 decay/reinforce/GC/promotion + Clock Protocol + BM25 启动期全量重建）
 > **层级**：L3 — 文件级 Spec
@@ -8,9 +8,9 @@
 > - **A2A/Business 部署**：`services/memory-backend/src/supteam_a2a/memory_backend/`（ASGI 单进程 + 4 纯函数 + 60s kopf.timer + Leader Election + Clock Protocol + BM25 启动期全量重建 + Helm 7 模板与 L3-5 共享）
 > - **部署共享**：`services/memory-backend/` 与 `services/knowledge-service/` 共享同 Deployment（同 Pod 内两个独立 Python 进程；详见 L3-5 §6.2 + 本 Spec §6）
 > - **uv workspace 布局**：ADR-0005 §13.1
-> **版本**：**v0.2-draft-full**（2026-07-29 #64 骨架 + #65 §3-§6 + 2026-07-30 #66 §7-§13/附录 A/B；待 #67 独立评审 → 升级 v0.2.0）
-> **状态**：🟡 **v0.2-draft-full 已补完，待独立评审**（§0-§13 + 附录 A/B + M.1-M.6 完整；Memory CRD 12 字段、60s reconciler、4 纯函数、MemoryBackend Protocol、10 指标、12 个零漂移错误码、共享 Helm chart、read/write 双 Role、60 测试 ID、30 验收点全部形成文件级契约）
-> **supersede / 归档标记（2026-07-29）**：本 v0.2-draft Spec 文档**仅 supersede Go reconciler / Go BM25 sync.Map / Go controller-runtime Reconcile() / Go k8s.io/utils/clock 实现条款**；wire contract（Memory CRD 12 spec 字段 / 4 纯函数公式 / 5 维 visibility 矩阵 / 4 级 scope 继承 / Leader Election Lease / 60s 周期 / decay 公式 `effectiveConfidence = confidence × exp(-elapsed_days / decayDays)` / 12 个 MEMORY_* 错误码 / Helm values）与 L2-4 v0.2.0 Spec 业务语义**完全继续有效**。L2-4 v0.1.0 Go baseline 已在 L2-4 Spec v0.2.0 起草时覆盖丢失（与 L2-1/L2-3/L3-1/L3-2/L3-3/L3-4/L3-5 同模式；建议 #64.x 后续会话追溯 v0.1.0 Go 归档登记）
+> **版本**：**v0.2.0**（2026-07-29 #64 骨架 + #65 §3-§6 + 2026-07-30 #66 §7-§13/附录 A/B + 2026-07-30 #67 独立评审通过 + #67.x 5 关注项同步修正 + §F 9 步跨文档同步）
+> **状态**：✅ **v0.2.0 已通过独立评审**（§A-§Q 17 节 / 10 维度全 PASS · 0 阻塞项 · 5 关注项全关闭 · 4 建议项移交 v0.2.1 / L4 实施；Memory CRD 12 字段、60s reconciler、4 纯函数、MemoryBackend Protocol、10 指标、12 个零漂移错误码、共享 Helm chart、read/write 双 Role + admissionregistration/authentication/authorization 扩展、60 测试 ID + 集合相等静态断言、30 验收点全部形成文件级契约）
+> **supersede / 归档标记（2026-07-29）**：本 v0.2.0 Spec 文档**仅 supersede Go reconciler / Go BM25 sync.Map / Go controller-runtime Reconcile() / Go k8s.io/utils/clock 实现条款**；wire contract（Memory CRD 12 spec 字段 / 4 纯函数公式 / 5 维 visibility 矩阵 / 4 级 scope 继承 / Leader Election Lease / 60s 周期 / decay 公式 `effectiveConfidence = confidence × exp(-elapsed_days / decayDays)` / 12 个 MEMORY_* 错误码 / Helm values）与 L2-4 v0.2.0 Spec 业务语义**完全继续有效**。L2-4 v0.1.0 Go baseline 已在 L2-4 Spec v0.2.0 起草时覆盖丢失（与 L2-1/L2-3/L3-1/L3-2/L3-3/L3-4/L3-5 同模式；建议 #64.x 后续会话追溯 v0.1.0 Go 归档登记）
 > **Python 重写入口**：依据 L1 v0.2.0 Architecture §3.5.3 + §4.3 C-7 + ADR-0005 §3.4 + §6.2 + §6.3 + §10 + §13.1 + L2-4 v0.2.0 Spec §7 MemoryReconciler + §6.6 共享 Deployment + L2-4 v0.2.0 Design §3-§14，Memory CRD Go struct → **Pydantic v2 BaseModel + Field(...) + populate_by_name + alias（与 L3-5 §3.3 5+5 简化版 wire 一致的 12 spec 字段完整版）**；Go controller-runtime Reconcile() → **Kopf `@kopf.timer(interval=60.0, id="memory-reconciler")` + 独立 async reconciler service + Leader Election via coordination.k8s.io/v1 Lease（renew 失败 3 次让位 + 30s grace period）**；Go sync.Map BM25 → **Python `dict[str, set[str]]` + anyio.to_thread.run_sync 启动期全量重建 + watch 增量**；Go k8s.io/utils/clock → **`Clock` Protocol + `RealClock` + `FakeClock`（测试用 freezegun 替代）**；Go 4 纯函数（apply_decay / apply_reinforce / gc_expired / is_eligible_for_promotion）→ **Python 同步 pure function + async wrapper（lru_cache 缓存 + 不阻塞 event loop）**；recordMemory/queryMemory → **Python ASGI handler + L3-5 逻辑 function-reference Protocol 委托；跨 container transport 在 L4 spike 中从 UDS/共享 runtime 选择，禁止 HTTP loopback**
 > **上游约束**：
 > - [`docs/design/L2-modules/L2-knowledge-memory.md`](../../design/L2-modules/L2-knowledge-memory.md) **v0.2.0**（2026-07-27 #39 评审通过 · 1920 行 / 97KB / 14 节 + 2 附录 / 5 项 Python 化关键决策 + 9 维度 Go→Python 对照表 + 22 项开放问题三层模式）
@@ -26,7 +26,7 @@
 > - [L3-5 Knowledge Service v0.2.0 §3.3 Memory 5+5 简化 schema（5 spec 字段 + 5 status 字段 · wire 与 L3-6 §3 12 spec 字段完整版完全一致）+ §6.2 共享 Deployment in-process function reference 契约 + §9.9 共享 Helm chart 段落](../../spec/L3-file-specs/L3-knowledge-service.md)（**L3-6 与 L3-5 共享 Deployment + 4 A2A method 委托 + 12 MEMORY_* 错误码与 L3-6 §8 完全一致**）
 > **本 Spec 目的**：将 L2-4 Spec v0.2.0 中的 **MemoryReconciler 60s @kopf.timer + Leader Election Lease + 4 纯函数（apply_decay / apply_reinforce / gc_expired / is_eligible_for_promotion）+ Clock Protocol + BM25 启动期全量重建 + 12 个 MEMORY_* 错误码 + Helm 7 模板（与 L3-5 共享 chart）** 落地为 **文件级 Python 代码契约**——每个文件列明**绝对路径（基于 uv workspace 布局）**、**职责一句话**、**完整 import 列表**、**exported 符号签名（type hints + docstring 一行）**、**内部 helper 列表**、**关联测试文件路径 + 测试 ID 前缀**。是 L4 实施阶段（开发者打开 IDE 即可对照写代码）的直接输入。
 > **配套 Spec**：[L3-1 Operator Core 文件级 Spec v0.2.0](./L3-operator-core.md)（2026-07-28 #56 评审通过 · CRD wire sync + MemoryReconciler 60s 周期 + §7 Helm 9 模板 + §7.3 RBAC）/ [L3-2 A2A Core Library 文件级 Spec v0.2.0](./L3-a2a-core.md)（2026-07-28 #54 评审通过 · ASGI + A2AClient + 15 指标 + 24 错误码）/ [L3-3 Adapter SDK 文件级 Spec v0.2.0](./L3-adapter-sdk.md)（2026-07-29 #58 评审通过 · L3-6 不依赖 Adapter SDK）/ [L3-4 Hello Agent 文件级 Spec v0.2.0](./L3-hello-agent.md)（2026-07-29 #61 评审通过）/ [L3-5 Knowledge Service 文件级 Spec v0.2.0](./L3-knowledge-service.md)（2026-07-29 #63.5 评审通过 · **关键引用 · §3.3 Memory 5+5 简化 schema + §5 admission 互斥 + §6.2 共享 Deployment in-process 契约 + §9.9 共享 Helm chart 段落 + §8.2 12 MEMORY_* 错误码权威名**）
-> **配套 Review**：待 #67 独立评审（目标 550-650 行 / 50-60KB / §A-§Q 17 节 / 10 维度全 PASS）
+> **配套 Review**：[`docs/reviews/l3-6-memory-backend-spec-review.md`](../../reviews/l3-6-memory-backend-spec-review.md) **v0.2.0**（2026-07-30 #67 · 525 行 / 67.9KB / §A-§Q 17 节 / 10 维度全 PASS · 0 阻塞项 · 5 关注项全关闭 · 4 建议项）
 
 ---
 
@@ -871,6 +871,8 @@ class MemoryBackendInProcessService(Protocol):
     async def query_memory_async(self, request: QueryMemoryRequest, *, context: InProcessContext) -> QueryMemoryResult: ...
 ```
 
+**Clock 边界**：L3-6 在 `record_memory_async` / `query_memory_async` handler 入口将 `Clock.monotonic()` 通过 `InProcessContext` 暴露给 L3-5 调用方（用于 deadline/timeout/idempotency window 一致性）；L3-5 不得使用 `asyncio.get_event_loop().time()` 或本地 `time.monotonic()` 独立计算 deadline，必须读取 `context.clock.monotonic()`。`InProcessContext` 必须携带与 L3-6 §5.1 `Clock` 协议同源的 `clock` 字段（`RealClock` / `FakeClock`），且为 frozen 不可变。
+
 禁止 HTTP loopback。共享 emptyDir 只提供模块 artifact；两个独立 Python 进程不能共享对象内存，因此实际跨 container transport 若无法 direct import，必须在 L4 spike 前将部署修正为同进程或使用明确 IPC，并保持本 Protocol 语义。
 
 ### 6.2 8 个边界测试（PUT/GET/DELETE/LIST 各 2 项）
@@ -920,7 +922,16 @@ L3-5 独占四个 A2A method 与 admission；L3-6 独占 timer、Lease、后端 
 ```python
 async def admitted_record_memory(req: RecordMemoryRequest, context: InProcessContext) -> MemoryRecordResult:
     memory = Memory.model_validate(req.memory).model_copy(deep=True)
-    await asyncio.wait_for(admission_validator.validate_memory(memory), timeout=0.050)
+    # 50ms admission deadline 必须以 L3-6 暴露的 Clock.monotonic() 为基准，与 handler
+    # 内部 deadline/timeout/idempotency window 保持同一时间源。
+    monotonic_deadline = context.clock.monotonic() + 0.050
+    try:
+        await asyncio.wait_for(
+            admission_validator.validate_memory(memory),
+            timeout=max(0.0, monotonic_deadline - context.clock.monotonic()),
+        )
+    except asyncio.TimeoutError as exc:
+        raise AdmissionTimeoutError("MEMORY_ADMISSION_TIMEOUT") from exc
     await admission_validator.validate_ki_memory_mutex(memory)
     return await memory_service.record_memory_async(memory, context=context)
 ```
@@ -1046,7 +1057,29 @@ L3-5 的 `MemoryConflictDetected/Resolved` 仍归 admission owner，不在 L3-6 
 | `MEMORY_AGENT_NOT_FOUND` | -32111 | admission / SA 不存在 | 400 | `Memory agentRef.name {agent} (SA) was not found` | No |
 | `MEMORY_ADMISSION_TIMEOUT` | -32112 | admission / 超过 50ms | 503 | `Memory admission exceeded 50ms` | Yes |
 
-权威源为 [L2-4 v0.2.0 §9.1](../L2-module-specs/L2-knowledge-memory.md)；L3-5 §8.2 是同一 wire 镜像。`ERR-MEM-CF-001` 对三处 name/code 做集合相等比较，不接受子集。
+权威源为 [L2-4 v0.2.0 §9.1](../L2-module-specs/L2-knowledge-memory.md)；L3-5 §8.2 是同一 wire 镜像。`ERR-MEM-CF-001` 对三处 name/code 做集合相等比较，不接受子集。`TEST-MEM-051` 必须在 `tests/conformance/test_errors.py` 落地以下静态断言（与 L2-4 §9.1 + L3-5 §8.2 100% 集合相等）：
+
+```python
+# tests/conformance/test_errors.py
+from superteam_a2a.memory_backend.errors import MemoryErrorCode
+from superteam_a2a.knowledge_service.errors import MemoryErrorCode as KsMemoryErrorCode
+
+L2_4_AUTHORITATIVE_NAMES: frozenset[str] = frozenset({
+    "MEMORY_SCOPE_NOT_FOUND", "MEMORY_INVALID_CONTENT", "MEMORY_FORBIDDEN",
+    "MEMORY_RATE_LIMIT", "MEMORY_INTERNAL_ERROR", "MEMORY_QUERY_TOO_BROAD",
+    "MEMORY_SOURCE_KI_NOT_FOUND", "MEMORY_SOURCE_KI_SCOPE_MISMATCH",
+    "MEMORY_AGENT_PRIVATE_REQUIRES_NAME", "MEMORY_DECAY_DAYS_EXCEEDED",
+    "MEMORY_AGENT_NOT_FOUND", "MEMORY_ADMISSION_TIMEOUT",
+})
+L2_4_AUTHORITATIVE_CODES: frozenset[int] = frozenset(range(-32101, -32112 + 1))
+
+def test_test_mem_051_memory_error_codes_match_l2_4_authoritative() -> None:
+    assert {m.name for m in MemoryErrorCode} == L2_4_AUTHORITATIVE_NAMES
+    assert {m.value for m in MemoryErrorCode} == L2_4_AUTHORITATIVE_CODES
+    assert {m.name for m in MemoryErrorCode} == {m.name for m in KsMemoryErrorCode}
+```
+
+CI 门禁顺序（§11.6）将 `conformance → errors exact set` 列为强制步骤，集合不等即拒绝合并。
 
 ### 8.2 `MemoryErrorCode` 与 helper
 
@@ -1219,6 +1252,9 @@ rules:
 - {apiGroups: [superteam-a2a.io], resources: [memories], verbs: [get, list, watch, delete]}
 - {apiGroups: [coordination.k8s.io], resources: [leases], resourceNames: [memory-reconciler], verbs: [get, create, update, patch]}
 - {apiGroups: [""], resources: [events], verbs: [create, patch]}
+- {apiGroups: [admissionregistration.k8s.io], resources: [validatingwebhookconfigurations], verbs: [get, list, watch]}
+- {apiGroups: [authentication.k8s.io], resources: [tokenreviews], verbs: [create]}
+- {apiGroups: [authorization.k8s.io], resources: [subjectaccessreviews], verbs: [create]}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
@@ -1267,6 +1303,96 @@ spec:
 | MemoryReconcileDeadlineRisk | `histogram_quantile(0.99,sum by(le)(rate(superteam_memory_reconcile_duration_seconds_bucket[10m]))) > 50` | 5m |
 | MemoryBackendNotReady | `up{job="knowledge-service"} == 1 and absent(superteam_memory_reconcile_total)` | 2m |
 
+完整 PrometheusRule 模板（含 `apiVersion: monitoring.coreos.com/v1` + `metadata` + `spec.groups` + 8 条告警的 `alert/expr/for/labels/annotations`）：
+
+```yaml
+# helm/knowledge-service/templates/prometheusrule.yaml
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: knowledge-service
+  labels:
+    app.kubernetes.io/name: knowledge-service
+    app.kubernetes.io/component: observability
+spec:
+  groups:
+  - name: knowledge-service.rules
+    interval: 30s
+    rules:
+    - alert: KnowledgeQueryLatencyP99
+      expr: histogram_quantile(0.99, sum by (le) (rate(superteam_knowledge_query_latency_seconds_bucket[5m]))) > 0.1
+      for: 10m
+      labels:
+        severity: warning
+        service: knowledge-service
+      annotations:
+        summary: "Knowledge query p99 latency above 100ms for 10m"
+        runbook_url: "https://runbooks.example.invalid/knowledge-service/query-latency"
+    - alert: KnowledgeBM25IndexStale
+      expr: increase(superteam_knowledge_query_total[10m]) > 0 and max(superteam_knowledge_bm25_index_size) == 0
+      for: 5m
+      labels:
+        severity: critical
+        service: knowledge-service
+      annotations:
+        summary: "BM25 index empty while queries are served"
+        runbook_url: "https://runbooks.example.invalid/knowledge-service/bm25-stale"
+    - alert: KnowledgeMemoryConflictRate
+      expr: sum(rate(superteam_knowledge_memory_conflict_total[5m])) > 0.1
+      for: 10m
+      labels:
+        severity: warning
+        service: knowledge-service
+      annotations:
+        summary: "Knowledge/Memory conflict rate above 0.1/s for 10m"
+        runbook_url: "https://runbooks.example.invalid/knowledge-service/memory-conflict"
+    - alert: KnowledgeAdmissionFailureRate
+      expr: histogram_quantile(0.99, sum by (le) (rate(superteam_knowledge_admission_duration_seconds_bucket[5m]))) > 0.05
+      for: 5m
+      labels:
+        severity: critical
+        service: knowledge-service
+      annotations:
+        summary: "Admission p99 above 50ms for 5m"
+        runbook_url: "https://runbooks.example.invalid/knowledge-service/admission-fail"
+    - alert: KnowledgeServiceDown
+      expr: up{job="knowledge-service"} == 0
+      for: 2m
+      labels:
+        severity: critical
+        service: knowledge-service
+      annotations:
+        summary: "Knowledge Service scrape target down for 2m"
+        runbook_url: "https://runbooks.example.invalid/knowledge-service/down"
+    - alert: KnowledgeMemoryReconcileErrorRate
+      expr: sum(rate(superteam_memory_reconcile_total{result="error"}[5m])) > 0.05
+      for: 10m
+      labels:
+        severity: warning
+        service: memory-backend
+      annotations:
+        summary: "Memory reconcile error rate above 0.05/s for 10m"
+        runbook_url: "https://runbooks.example.invalid/memory-backend/reconcile-error"
+    - alert: MemoryReconcileDeadlineRisk
+      expr: histogram_quantile(0.99, sum by (le) (rate(superteam_memory_reconcile_duration_seconds_bucket[10m]))) > 50
+      for: 5m
+      labels:
+        severity: critical
+        service: memory-backend
+      annotations:
+        summary: "Memory reconcile p99 above 50s for 5m"
+        runbook_url: "https://runbooks.example.invalid/memory-backend/reconcile-deadline"
+    - alert: MemoryBackendNotReady
+      expr: up{job="knowledge-service"} == 1 and absent(superteam_memory_reconcile_total)
+      for: 2m
+      labels:
+        severity: critical
+        service: memory-backend
+      annotations:
+        summary: "Memory backend scrape present but no reconcile metric emitted"
+        runbook_url: "https://runbooks.example.invalid/memory-backend/not-ready"
+```
+
 全部模板含 severity/summary/runbook URL，并通过 `promtool check rules`。告警不得使用对象名 label。
 
 ### 9.8 `servicemonitor.yaml`
@@ -1297,7 +1423,7 @@ Deployment 固定 `replicaCount=1`，包含 `knowledge-service` 与 `memory-back
 | ID | 验证 |
 |---|---|
 | HELM-DEPLOY-001 | helpers/values schema 与 const=1/60 |
-| HELM-DEPLOY-002 | 双 container、双 probe、restricted SecurityContext |
+| HELM-DEPLOY-002 | 双 container、双 probe、restricted SecurityContext、IPC volume（emptyDir medium: Memory sizeLimit: 16Mi mounted to /var/run/superteam）、memory-backend env 三项（MEMORY_RECONCILER_INTERVAL=60 / LEASE_NAME=memory-reconciler / IPC_SOCKET=/var/run/superteam/memory.sock）、Recreate strategy、`securityContext: *restricted` YAML anchor |
 | HELM-DEPLOY-003 | Service 不暴露 8081 |
 | HELM-DEPLOY-004 | 专用 SA + read/write 双 Role 最小权限 |
 | HELM-DEPLOY-005 | default-deny NetworkPolicy + UDS mode |
@@ -1364,7 +1490,7 @@ Deployment 固定 `replicaCount=1`，包含 `knowledge-service` 与 `memory-back
 | TEST-MEM-048 | UT | BackendHealth schema | `tests/unit/backend/test_health.py` |
 | TEST-MEM-049 | UT | K8s 5xx mapping | `tests/unit/backend/test_errors.py` |
 | TEST-MEM-050 | UT | not-found mapping | `tests/unit/backend/test_errors.py` |
-| TEST-MEM-051 | CF | 12 errors exact set | `tests/conformance/test_errors.py` |
+| TEST-MEM-051 | CF | 12 errors exact set + 集合相等静态断言 | `tests/conformance/test_errors.py` |
 | TEST-MEM-052 | PERF | 50K filter p95<50ms | `tests/performance/test_memory_filter.py` |
 | TEST-MEM-053 | IT | Protocol DTO round-trip | `tests/integration/test_inprocess.py` |
 | TEST-MEM-054 | IT | error passthrough | `tests/integration/test_inprocess.py` |
@@ -1737,12 +1863,12 @@ L1 §5.2.3 是 v1alpha1 唯一性校核源；L3-6 仅添加 Python alias/validat
 
 | 字段 | 值 |
 |---|---|
-| 版本 | **v0.2-draft-full**（#64 骨架 + #65 §3-§6 + #66 §7-§13/附录 A/B） |
-| 状态 | 🟡 文件级 Spec 已补完，待 #67 独立评审 → 修正关注项 → 升级 v0.2.0 |
+| 版本 | **v0.2.0**（#64 骨架 + #65 §3-§6 + #66 §7-§13/附录 A/B + #67 独立评审通过 + #67.x 5 关注项同步修正 + §F 9 步跨文档同步） |
+| 状态 | ✅ 评审通过 · 5 关注项全关闭 · 4 建议项移交 v0.2.1 / L4 实施 |
 | 上游 | L1 Architecture v0.2.0 §3.5.3 + L1 Spec v0.2.0 §5.2.3 + L2-4 Spec v0.2.0 + L2-4 Design v0.2.0 + L3-5 §6.2 协调点 |
 | 同级已通过 | L3-1 v0.2.0 (#56) + L3-2 v0.2.0 (#54) + L3-3 v0.2.0 (#58) + L3-4 v0.2.0 (#61) + L3-5 v0.2.0 (#63.5) |
-| 评审报告 | 待 #67 独立评审（目标 §A-§Q 17 节 / 10 维度 / 独立关注项台账） |
-| 当前变更边界 | §0-§13 + 附录 A/B 已完整；本次未实施 L4 代码、未运行 kind/PERF、未升级 v0.2.0、未做 §F 跨文档同步 |
+| 评审报告 | [l3-6-memory-backend-spec-review.md](../../reviews/l3-6-memory-backend-spec-review.md) #67 · 525 行 / 67.9KB / §A-§Q 17 节 / 10 维度全 PASS / 5 关注项全关闭 / 4 建议项 |
+| 当前变更边界 | §0-§13 + 附录 A/B 已完整；本次未实施 L4 代码、未运行 kind/PERF |
 
 ### M.2 落地记录
 
@@ -1750,9 +1876,11 @@ L1 §5.2.3 是 v1alpha1 唯一性校核源；L3-6 仅添加 Python alias/validat
 |---|---|---|
 | 2026-07-27 #43 | L2-4 Knowledge/Memory Spec v0.2.0 评审通过 | L2-4 上游就绪 |
 | 2026-07-29 #63.5 | L3-5 Knowledge Service Spec v0.2.0 评审通过 + 错误码 23 处漂移修正 | L3-5 上游就绪 |
-| **2026-07-29 #64** | **L3-6 Memory backend Spec v0.2-draft 骨架稿：头部 11 段 + §0-§13 占位 + 附录 A/B + M.1-M.6** | **v0.2-draft 骨架稿** |
-| **2026-07-29 #65** | **§3-§6：Memory 12 字段、60s reconciler、4 纯函数、Clock/MemoryBackend Protocol、function-reference 边界** | **60 测试 ID 映射 + 错误码零漂移** |
-| **2026-07-30 #66** | **§7-§13 + 附录 A/B：10 指标、12 错误码、共享 Helm/RBAC 双 Role、60 ID、30 验收、22+5 开放问题、五项移交关注点闭环** | **v0.2-draft-full 已补完，待 #67 独立评审** |
+| 2026-07-29 #64 | L3-6 Memory backend Spec v0.2-draft 骨架稿：头部 11 段 + §0-§13 占位 + 附录 A/B + M.1-M.6 | v0.2-draft 骨架稿 |
+| 2026-07-29 #65 | §3-§6：Memory 12 字段、60s reconciler、4 纯函数、Clock/MemoryBackend Protocol、function-reference 边界 | 60 测试 ID 映射 + 错误码零漂移 |
+| 2026-07-30 #66 | §7-§13 + 附录 A/B：10 指标、12 错误码、共享 Helm/RBAC 双 Role、60 ID、30 验收、22+5 开放问题、五项移交关注点闭环 | v0.2-draft-full 已补完，待 #67 独立评审 |
+| **2026-07-30 #67** | **L3-6 独立评审 #67：10 维度全 PASS · 0 阻塞项 · 5 关注项全关闭 · 4 建议项移交 v0.2.1 / L4 实施** | **评审通过，5 关注项 / 4 建议项台账建立** |
+| **2026-07-30 #67.x** | **5 关注项同步修正：TEST-MEM-051 集合相等静态断言 + §9.7 PrometheusRule 完整 YAML + HELM-DEPLOY-002 IPC/env/Recreate 补全 + role_write 补 admissionregistration/authn/authz + Clock.monotonic() 暴露到 handler 边界 + §F 9 步跨文档同步** | **v0.2.0 升级落地** |
 
 ### M.3 配套引用
 
@@ -1771,27 +1899,37 @@ L1 §5.2.3 是 v1alpha1 唯一性校核源；L3-6 仅添加 Python alias/validat
 
 ### M.4 下次会话固定入口
 
-1. **#67 L3-6 独立评审**：生成 `docs/reviews/l3-6-memory-backend-spec-review.md`，按 §A-§Q 17 节、10 维度审查完整性/一致性/可实施性/安全/性能，重点挑战 transport、CAS、RBAC、wire 唯一性与双 phase 分层。
-2. **#67.x 关注项修正**：仅在独立评审给出证据后修改，不预设 PASS；重新执行 12 错误码集合相等、60 ID 唯一与链接/Markdown 检查。
-3. **#67.x v0.2.0 升级**：头部 + M.1-M.6 微同步，创建评审引用，完成 §F 6 步跨文档同步（ROADMAP 5/5→6/6、README、CONSTITUTION-CHANGELOG、L3-1~L3-5 附录 A）。
-4. **L4 前架构门禁**：关闭 OPEN-MEMORY-001，完成跨 container UDS/共享 runtime transport spike 并记录 ADR；kind 验证 read/write 双 Role、webhook 50ms、Lease/readiness。
-5. **L3-5 v0.2.1 微同步**：将 §9.5 read-only Role 与本 Spec §9.5 write Role 对齐；附录 B B.5 明确性能 artifact 行。
+1. **L4 前架构门禁**：关闭 OPEN-MEMORY-001，完成跨 container UDS/共享 runtime transport spike 并记录 ADR；kind 验证 read/write 双 Role（含 admissionregistration/authentication/authorization 扩展）、webhook 50ms、Lease/readiness。
+2. **L3-5 v0.2.1 微同步**：将 §9.5 read-only Role 与本 Spec §9.5 write Role 对齐（确认 admissionregistration/authn/authz 不进入 read-only Role）；附录 B B.5 明确性能 artifact 行。
+3. **v0.2.1 微同步**：关注项台账 4 建议项（§M-2.1 BackendBindingSpec 派生映射 / §M-2.2 收敛率说明 / §M-2.3 9 关键模块覆盖率映射 / §M-2.4 EventReason 白名单继承说明）。
+4. **L4 实施启动**：Phase 1 MVP Core 实施层落地（L3-5-followup-2 性能门禁验证 / L3-5-followup-3 kind webhook 真实环境验证 / L3-5-followup-4 _SCOPE_CACHE / BM25 rebuild 策略）。
+5. **#67.x 关注项修正**（已落地于 v0.2.0 PR）：TEST-MEM-051 集合相等静态断言 / §9.7 PrometheusRule 完整 YAML / HELM-DEPLOY-002 IPC+env+Recreate 描述 / role_write admissionregistration+authn+authz / Clock.monotonic() 暴露到 handler 边界。
 
-### M.5 关注项台账（v0.2-draft 骨架稿待补完）
+### M.5 关注项台账（v0.2.0 评审 + 升级落地后）
 
-```
-- 暂无（v0.2-draft-full 文件级 Spec 已完整，尚未进入 #67 独立评审；M.4 已更新到评审 + 升级 + 跨文档同步路径）
-```
+| 编号 | 关注项 | 状态 | 解决位置 | 移交 |
+|---|---|---|---|---|
+| L3-6-followup-1 | TEST-MEM-051 集合相等静态断言（与 L2-4 §9.1 + L3-5 §8.2 集合相等；CI 强制） | ✅ 关闭 | §8.1 + §10.1 TEST-MEM-051 + §11.6 CI | — |
+| L3-6-followup-2 | §9.7 PrometheusRule 完整 YAML 渲染（8 alert + labels/annotations/runbook） | ✅ 关闭 | §9.7 | — |
+| L3-6-followup-3 | HELM-DEPLOY-002 描述补 IPC volume + env 三项 + Recreate + `*restricted` anchor | ✅ 关闭 | §9.10 + §9.2 | — |
+| L3-6-followup-4 | role_write 补 admissionregistration.k8s.io / authentication.k8s.io / authorization.k8s.io 规则 | ✅ 关闭 | §9.5 role_write.yaml | kind 验证移交 L4 |
+| L3-6-followup-5 | Clock.monotonic() 暴露到 record_memory_async / query_memory_async handler 边界（InProcessContext.clock） | ✅ 关闭 | §6.1 + §6.4 | — |
+
+**建议项（v0.2.1 微同步）**：
+- §M-2.1 BackendBindingSpec 8 字段与 L3-5 §3.3 Memory 5+5 简化 schema 派生映射表
+- §M-2.2 收敛率 11/31 = 35% 明确算法说明
+- §M-2.3 9 关键模块覆盖率与 60 测试 ID 映射表
+- §M-2.4 EventReason 3 枚举白名单继承 L3-5 §7.3 + L3-1 §7.1.5 引用
 
 ### M.6 文档元数据
 
 - **创建日期**：2026-07-29 #64
-- **最后更新**：2026-07-30 #66
-- **下次更新**：#67 L3-6 独立评审
+- **最后更新**：2026-07-30 #67.x（v0.2.0 升级 + 5 关注项全关闭 + §F 9 步跨文档同步）
+- **下次更新**：L4 前架构门禁（OPEN-MEMORY-001 transport spike）/ v0.2.1 微同步（4 建议项）
 - **依赖完整性**：上游 L1 v0.2.0 + L2-4 v0.2.0 + L3-1/2/3/4/5 v0.2.0 全部就绪
-- **下游影响**：L4 实施 Memory backend 工程师 + RBAC write Role 拆分（L3-5-followup-1）+ Leader Election 实施 + 性能门禁验证（L3-5-followup-2）+ _SCOPE_CACHE / BM25 rebuild 策略（L3-5-followup-4）+ 跨 container transport spike（OPEN-MEMORY-001）
-- **本次变更摘要**：头部版本/状态行 + 1 行 + M.2 增 2 行 + M.4 重写为评审/升级路径 + M.5 暂无 + M.6 更新；§7-§13 与附录 A/B 由占位/简表补完为可评审契约
+- **下游影响**：L4 实施 Memory backend 工程师 + RBAC write Role 含 admissionregistration/authn/authz（L3-6-followup-4 kind 验证）+ Leader Election 实施 + 性能门禁验证（L3-5-followup-2）+ _SCOPE_CACHE / BM25 rebuild 策略（L3-5-followup-4）+ 跨 container transport spike（OPEN-MEMORY-001）
+- **本次变更摘要**：v0.2-draft-full → v0.2.0；头部 4 处微同步（版本/状态/配套 Review 引用/supersede 描述）；M.1 状态 ✅ + 评审引用 #67；M.2 增 #67 + #67.x 两行；M.4 重写为 L4 前门禁 + v0.2.1 微同步 + 评审修正历史；M.5 关注项台账 5 项 L3-6-followup-1~5 全部 ✅ + 4 建议项 v0.2.1；M.6 更新；§8.1 TEST-MEM-051 静态断言代码块新增；§9.5 role_write 补 3 条规则；§9.7 完整 PrometheusRule YAML；§9.10 HELM-DEPLOY-002 描述补全；§6.1 Clock 边界 + InProcessContext.clock 显式；§6.4 admission 示例改用 `monotonic_deadline`
 
 ---
 
-> **签署**：本 L3-6 Memory backend 文件级 Spec Python v0.2-draft-full 由 #64 起草、#65 补完 §3-§6、#66 补完 §7-§13 与附录 A/B，依据 [L1 Architecture v0.2.0 §3.5.3 + §4.3 C-7](../../design/L1-architecture.md)、[L1 Spec v0.2.0 §5.2.3 Memory YAML](../../spec/L1-system-spec.md)、[L2-4 Knowledge/Memory Spec v0.2.0 §3-§15](../../spec/L2-module-specs/L2-knowledge-memory.md)、[L2-4 Knowledge/Memory Design v0.2.0 §3-§14](../../design/L2-modules/L2-knowledge-memory.md)、[L3-1 Operator Core v0.2.0 §3.4 + §7](../../spec/L3-file-specs/L3-operator-core.md)、[L3-2 A2A Core v0.2.0 §5 + §6 + §9 + §10](../../spec/L3-file-specs/L3-a2a-core.md)、[L3-3 Adapter SDK v0.2.0 §3](../../spec/L3-file-specs/L3-adapter-sdk.md)、[L3-4 Hello Agent v0.2.0 §3.2 + §5](../../spec/L3-file-specs/L3-hello-agent.md)、**[L3-5 Knowledge Service v0.2.0 §3.3 Memory 5+5 简化 schema + §5 admission + §6.2 共享 Deployment 协调点（line 1488-1577）+ §9.9 共享 Helm chart 段落 + §8.2 12 MEMORY_* 错误码权威名](../../spec/L3-file-specs/L3-knowledge-service.md)**、[ADR-0003 Memory 设计](../../adr/0003-memory-design.md)、[ADR-0005 Python-first §3.4 + §6.2 + §6.3 + §10 + §13.1](../../adr/0005-python-first-technology-stack.md) 与 Constitution v0.5.0 编写。**当前 v0.2-draft-full 已具备进入 #67 独立评审的条件；评审通过并按 #67.x 关注项修正后方可升级 v0.2.0**。
+> **签署**：本 L3-6 Memory backend 文件级 Spec Python v0.2.0 由 #64 起草、#65 补完 §3-§6、#66 补完 §7-§13 与附录 A/B、#67 独立评审通过（10 维度全 PASS / 0 阻塞 / 5 关注项 / 4 建议项）、#67.x 5 关注项同步修正（TEST-MEM-051 集合相等静态断言 + §9.7 PrometheusRule 完整 YAML + HELM-DEPLOY-002 描述补全 + role_write 扩展 admissionregistration/authn/authz + Clock.monotonic() 暴露到 handler 边界）+ §F 9 步跨文档同步。依据 [L1 Architecture v0.2.0 §3.5.3 + §4.3 C-7](../../design/L1-architecture.md)、[L1 Spec v0.2.0 §5.2.3 Memory YAML](../../spec/L1-system-spec.md)、[L2-4 Knowledge/Memory Spec v0.2.0 §3-§15](../../spec/L2-module-specs/L2-knowledge-memory.md)、[L2-4 Knowledge/Memory Design v0.2.0 §3-§14](../../design/L2-modules/L2-knowledge-memory.md)、[L3-1 Operator Core v0.2.0 §3.4 + §7](../../spec/L3-file-specs/L3-operator-core.md)、[L3-2 A2A Core v0.2.0 §5 + §6 + §9 + §10](../../spec/L3-file-specs/L3-a2a-core.md)、[L3-3 Adapter SDK v0.2.0 §3](../../spec/L3-file-specs/L3-adapter-sdk.md)、[L3-4 Hello Agent v0.2.0 §3.2 + §5](../../spec/L3-file-specs/L3-hello-agent.md)、**[L3-5 Knowledge Service v0.2.0 §3.3 Memory 5+5 简化 schema + §5 admission + §6.2 共享 Deployment 协调点（line 1488-1577）+ §9.9 共享 Helm chart 段落 + §8.2 12 MEMORY_* 错误码权威名](../../spec/L3-file-specs/L3-knowledge-service.md)**、[ADR-0003 Memory 设计](../../adr/0003-memory-design.md)、[ADR-0005 Python-first §3.4 + §6.2 + §6.3 + §10 + §13.1](../../adr/0005-python-first-technology-stack.md) 与 Constitution v0.5.0 编写。**当前 v0.2.0 已具备进入 L4 实施（Phase 1 MVP Core）的条件；L4 前架构门禁 OPEN-MEMORY-001（跨 container transport spike + ADR）必须先关闭，4 建议项（§M-2.1~2.4）移交 v0.2.1 微同步**。
