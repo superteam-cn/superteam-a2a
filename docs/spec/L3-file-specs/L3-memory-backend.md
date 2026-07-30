@@ -856,9 +856,11 @@ class MemoryBackend(Protocol):
 
 ---
 
-## 6. in-process function reference 契约（与 L3-5 §6.2 严格一致）
+## 6. in-process function reference 契约（单进程架构 · ADR-0006 D 方案 · v0.2.1 · 2026-07-30 #71）
 
-### 6.1 三条运行时规则
+> **架构变更**（[ADR-0006 v1.0 Accepted · D 方案](../../adr/0006-memory-transport.md) · 2026-07-30 #71）：取消 L3-5 + L3-6 双进程架构，**合并为单 Python 进程**（L3-5 + L3-6 同一 Python runtime）。本节 in-process function reference 契约从"跨进程"改为"同进程"（<1μs 直接函数调用，无 IPC 边界，无序列化）。
+
+### 6.1 三条运行时规则（D 方案 · 单进程）
 
 1. **immutable 传递**：L3-5 传入 frozen/deep-copy snapshot；L3-6 不保存 caller mutable reference。
 2. **显式失败**：全链 `async def` + exception propagation；L3-5 不 catch 后改 code，L3-6 不以模糊 `None` 表示 backend failure。
@@ -873,9 +875,9 @@ class MemoryBackendInProcessService(Protocol):
 
 **Clock 边界**：L3-6 在 `record_memory_async` / `query_memory_async` handler 入口将 `Clock.monotonic()` 通过 `InProcessContext` 暴露给 L3-5 调用方（用于 deadline/timeout/idempotency window 一致性）；L3-5 不得使用 `asyncio.get_event_loop().time()` 或本地 `time.monotonic()` 独立计算 deadline，必须读取 `context.clock.monotonic()`。`InProcessContext` 必须携带与 L3-6 §5.1 `Clock` 协议同源的 `clock` 字段（`RealClock` / `FakeClock`），且为 frozen 不可变。
 
-禁止 HTTP loopback。共享 emptyDir 只提供模块 artifact；两个独立 Python 进程不能共享对象内存，因此实际跨 container transport 若无法 direct import，必须在 L4 spike 前将部署修正为同进程或使用明确 IPC，并保持本 Protocol 语义。
+**单进程架构**（D 方案 · ADR-0006 v1.0 Accepted）：L3-5 与 L3-6 合并为单 Python 进程（services/knowledge-memory-service），同进程直接 `import memory_backend.svc` + `await record_memory_async(mem, context=context)` 调用。**无 IPC 边界 · 无序列化 · 无网络延迟**（<1μs 直接函数调用）。v0.1 单实例已锁定，OPEN-MEMORY-002 推迟到 v0.5+。
 
-### 6.2 8 个边界测试（PUT/GET/DELETE/LIST 各 2 项）
+### 6.2 8 个边界测试（PUT/GET/DELETE/LIST 各 2 项 · D 方案 · 同进程）
 
 | ID | 操作 | 并发/错误/时序完整描述 |
 |---|---|---|
@@ -888,26 +890,26 @@ class MemoryBackendInProcessService(Protocol):
 | `TEST-MEM-059` | LIST | LIST 与并发 PUT 使用单一 snapshot、稳定排序、无重复/半页数据 |
 | `TEST-MEM-060` | LIST | industry 无 tag/confidence 过滤透传 `MEMORY_QUERY_TOO_BROAD` 且 0 次 backend scan |
 
-**与 L3-5 §6.2 的部署级 8 ID 保持原名**：`MTLS-IT-001..005` 与 `E2E-WIRE-IT-001..003` 继续验证双 container、ServiceMonitor、RBAC、NetworkPolicy 与 record/query 委托链；上表是操作级补集，不替换它们。
+**与 L3-5 §6.2 的部署级 8 ID 调整**（D 方案 · 单 container）：`MTLS-IT-001` 已废弃（双 Container 启动顺序不再适用 · 改为单 container 单进程启动）；`MTLS-IT-002..005` 与 `E2E-WIRE-IT-001..003` 继续验证单 container、ServiceMonitor 25 指标、RBAC、NetworkPolicy 与 record/query 委托链（单进程直接调用，无 IPC 边界）。
 
-### 6.3 协调点拓扑
+### 6.3 协调点拓扑（D 方案 · 单进程架构）
 
 ```text
-Knowledge Service Pod · replicaCount=1
-├─ knowledge-service :8080
-│  ├─ A2A recordMemory/queryMemory
-│  ├─ admission_validator（唯一 owner；50ms fail-closed）
-│  └─ MemoryBackendInProcessService client
-└─ memory-backend :8081（不进 Service）
-   ├─ MemoryBackend Protocol -> dict | in-memory | redis
-   ├─ 60s timer + Lease + finalize
-   └─ immutable record/query result
+Knowledge-Memory Service Pod · replicaCount=1
+└── knowledge-memory-service :8080（Uvicorn 单 worker）
+   ├─ L3-5 A2A recordMemory/queryMemory
+   ├─ admission_validator（唯一 owner；50ms fail-closed）
+   ├─ L3-5 业务层：scope/visibility/BM25 算法
+   ├─ L3-6 业务层：MemoryReconciler 60s timer + Lease + 4 纯函数
+   ├─ Clock Protocol + RealClock + FakeClock（同进程共享）
+   ├─ BM25 启动期全量重建 + watch 增量（共享 in-memory dict）
+   └─ MemoryBackend Protocol（同进程直接调用 · <1μs）
 
-A2A envelope -> L3-5 admission -> immutable DTO -> L3-6 Protocol
+A2A envelope -> L3-5 admission -> immutable DTO -> L3-6 Protocol（同进程）
              -> backend -> result/权威异常透传 -> L3-5 wire envelope
 ```
 
-L3-5 独占四个 A2A method 与 admission；L3-6 独占 timer、Lease、后端 I/O 与生命周期算法；Service 仅暴露 8080。
+L3-5 与 L3-6 合并为单 Python 进程（services/knowledge-memory-service）；L3-5 独占四个 A2A method + admission；L3-6 独占 timer、Lease、后端 I/O 与生命周期算法（同进程）；Service 仅暴露 8080。
 
 ### 6.4 与 L2-3 admission_validator 的 in-process 调用契约（五步互斥）
 
@@ -936,13 +938,13 @@ async def admitted_record_memory(req: RecordMemoryRequest, context: InProcessCon
     return await memory_service.record_memory_async(memory, context=context)
 ```
 
-### 6.5 五项关键不变量 → 实现映射
+### 6.5 五项关键不变量 → 实现映射（D 方案 · 单进程）
 
 | §1.2 不变量 | §3-§6 显式保证 |
 |---|---|
-| 同 Pod 第二进程 / 单实例 | §6.3 拓扑 + replicaCount=1 + 8081 不暴露；§6.1 标注跨进程机制需 L4 spike |
+| **同 Pod 单进程**（D 方案） | §6.3 拓扑 + replicaCount=1 + 单 container 8080 + 单 Python 进程；§6.1 标注单进程直接调用（<1μs） |
 | 60s timer 固定 | §4.1 decorator 固定 `interval=60.0` / `id="memory-reconciler"` + TEST-MEM-016 |
-| L3-5/L3-6 共享 Deployment | §6.1 Protocol、§6.3 拓扑、保留 MTLS/E2E-WIRE 8 ID |
+| **L3-5/L3-6 单进程同 Pod**（D 方案） | §6.1 Protocol（同进程直接 import）、§6.3 拓扑（单 container）、保留 MTLS/E2E-WIRE 7 ID（MTLS-IT-001 废弃） |
 | 4 生命周期纯函数数学不变 | §4.3 `calculate_status` 调用 L2-4 §7.3；§5 将存储操作与算法隔离，禁止 adapter 改公式 |
 | L2-4 wire 完全继承 | §3.3 12 字段、§3.4 权威 code、§5.7 封闭错误集、TEST-MEM-001/052/060 |
 
@@ -1161,49 +1163,40 @@ resources:
 
 `_helpers.tpl` 定义 `knowledge-service.name/fullname/labels/selectorLabels/serviceAccountName`。`values.schema.json` 强制 `replicaCount const=1`、两 image tag 非空且非 `latest`、`intervalSeconds const=60`、端口 1..65535、production TLS=true、request≤limit。7 个逻辑模板组仍为 helpers/values、Deployment、Service、ServiceAccount、RBAC、NetworkPolicy、PrometheusRule+ServiceMonitor，对应 `HELM-DEPLOY-001~007`。
 
-### 9.2 `deployment.yaml`（同 Pod 两个独立 Python 业务进程）
+### 9.2 `deployment.yaml`（D 方案 · 单 container 单进程 · ADR-0006 v1.0 Accepted · v0.2.1）
 
 ```yaml
 apiVersion: apps/v1
 kind: Deployment
-metadata: {name: knowledge-service}
+metadata: {name: knowledge-memory-service}
 spec:
   replicas: 1
   strategy: {type: Recreate}
-  selector: {matchLabels: {app.kubernetes.io/name: knowledge-service}}
+  selector: {matchLabels: {app.kubernetes.io/name: knowledge-memory-service}}
   template:
-    metadata: {labels: {app.kubernetes.io/name: knowledge-service}}
+    metadata: {labels: {app.kubernetes.io/name: knowledge-memory-service}}
     spec:
-      serviceAccountName: knowledge-service
+      serviceAccountName: knowledge-memory-service
       terminationGracePeriodSeconds: 30
       securityContext: {runAsNonRoot: true, seccompProfile: {type: RuntimeDefault}}
       containers:
-      - name: knowledge-service
-        image: superteam-a2a/knowledge-service:v0.2.0
+      - name: knowledge-memory-service
+        image: superteam-a2a/knowledge-memory-service:v0.2.1
         ports: [{name: http, containerPort: 8080}, {name: https, containerPort: 8443}]
-        envFrom: [{configMapRef: {name: knowledge-service-config}}]
+        envFrom: [{configMapRef: {name: knowledge-memory-service-config}}]
+        # MEMORY_RECONCILER_INTERVAL/LEASE_NAME 改为进程内常量（@kopf.timer interval=60.0 + id=”memory-reconciler”）
+        # IPC_SOCKET 删除（D 方案单进程 · 无 IPC 边界）
         livenessProbe: {httpGet: {path: /healthz, port: http}, initialDelaySeconds: 10, periodSeconds: 30}
         readinessProbe: {httpGet: {path: /readyz, port: http}, initialDelaySeconds: 5, periodSeconds: 10}
         securityContext: &restricted
           {runAsUser: 65532, allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: [ALL]}}
-        volumeMounts: [{name: tls, mountPath: /var/run/secrets/tls, readOnly: true}, {name: ipc, mountPath: /var/run/superteam}]
-      - name: memory-backend
-        image: superteam-a2a/memory-backend:v0.2.0
-        ports: [{name: memory-health, containerPort: 8081}]
-        env:
-        - {name: MEMORY_RECONCILER_INTERVAL, value: "60"}
-        - {name: LEASE_NAME, value: memory-reconciler}
-        - {name: IPC_SOCKET, value: /var/run/superteam/memory.sock}
-        livenessProbe: {httpGet: {path: /healthz, port: memory-health}, periodSeconds: 30}
-        readinessProbe: {httpGet: {path: /readyz, port: memory-health}, periodSeconds: 10}
-        securityContext: *restricted
-        volumeMounts: [{name: ipc, mountPath: /var/run/superteam}]
+        volumeMounts: [{name: tls, mountPath: /var/run/secrets/tls, readOnly: true}]
       volumes:
-      - {name: tls, secret: {secretName: knowledge-service-tls}}
-      - {name: ipc, emptyDir: {medium: Memory, sizeLimit: 16Mi}}
+      - {name: tls, secret: {secretName: knowledge-memory-service-tls}}
+      # ipc emptyDir volumeMount 删除（D 方案单进程 · 无 IPC volume）
 ```
 
-8081 只用于 kubelet probe，不进入 Service。§6.1 的 function-reference 是逻辑 Protocol；两个 container 跨进程 transport 在 L4 spike 前固定为受限 Unix domain socket 候选，禁止 loopback HTTP 冒充“in-process”。transport 必须保持 async DTO、异常透传、取消与幂等语义；决策前不锁定实现。这显式保留 #65 transport 关注项。
+**D 方案单进程架构**（ADR-0006 v1.0 Accepted）：单 container 单进程（knowledge-memory-service），port 8080 对外 + 8443 mTLS。L3-5 + L3-6 在同一 Python runtime 中通过 `import memory_backend.svc` + `await record_memory_async(mem, context=context)` 直接调用（<1μs）。`MEMORY_RECONCILER_INTERVAL` / `LEASE_NAME` / `IPC_SOCKET` 三个 env 全部删除：前两个改为进程内常量（`@kopf.timer(interval=60.0, id=”memory-reconciler”)` hardcode），IPC_SOCKET 因 D 方案单进程无 IPC 边界而彻底删除。port 8081 不再使用（memory-backend health probe 合并到 8080 /healthz）。
 
 ### 9.3 `service.yaml`
 
@@ -1423,10 +1416,10 @@ Deployment 固定 `replicaCount=1`，包含 `knowledge-service` 与 `memory-back
 | ID | 验证 |
 |---|---|
 | HELM-DEPLOY-001 | helpers/values schema 与 const=1/60 |
-| HELM-DEPLOY-002 | 双 container、双 probe、restricted SecurityContext、IPC volume（emptyDir medium: Memory sizeLimit: 16Mi mounted to /var/run/superteam）、memory-backend env 三项（MEMORY_RECONCILER_INTERVAL=60 / LEASE_NAME=memory-reconciler / IPC_SOCKET=/var/run/superteam/memory.sock）、Recreate strategy、`securityContext: *restricted` YAML anchor |
-| HELM-DEPLOY-003 | Service 不暴露 8081 |
+| HELM-DEPLOY-002 | **D 方案**：单 container、双 probe、restricted SecurityContext、Recreate strategy、`securityContext: *restricted` YAML anchor；`MEMORY_RECONCILER_INTERVAL` / `LEASE_NAME` / `IPC_SOCKET` 三个 env 已删除（前两个改为进程内常量；IPC_SOCKET 因 D 方案单进程无 IPC 边界而彻底删除）；~~IPC volume（emptyDir medium: Memory sizeLimit: 16Mi mounted to /var/run/superteam）~~ 已删除 |
+| HELM-DEPLOY-003 | ~~Service 不暴露 8081~~ 已废弃（**D 方案单 container 8080，memory-backend 8081 health probe 合并到 8080 /healthz**） |
 | HELM-DEPLOY-004 | 专用 SA + read/write 双 Role 最小权限 |
-| HELM-DEPLOY-005 | default-deny NetworkPolicy + UDS mode |
+| HELM-DEPLOY-005 | default-deny NetworkPolicy + ~~UDS mode~~ D 方案单进程无需 UDS |
 | HELM-DEPLOY-006 | 8 rules 通过 promtool |
 | HELM-DEPLOY-007 | 25 指标经单一 ServiceMonitor 可见 |
 
