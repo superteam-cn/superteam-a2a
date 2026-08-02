@@ -694,7 +694,7 @@ spec:
   tasks:
     - id: "fetch"
       agent: "github-reader"
-      inputs: { repo: "superteam-a2a/superteam-a2a", ref: "main" }
+      inputs: { repo: "superteam-cn/superteam-a2a", ref: "main" }
       outputs: ["files"]
     - id: "lint"
       agent: "python-linter"
@@ -1493,8 +1493,8 @@ helm/
 ### 12.2 安装命令
 
 ```bash
-helm repo add superteam-a2a https://coderzhangfujiang.github.io/superteam-a2a
-helm install superteam-a2a superteam-a2a/superteam-a2a \
+helm repo add superteam-a2a https://superteam-cn.github.io/superteam-a2a
+helm install superteam-a2a superteam-cn/superteam-a2a \
   --namespace superteam-a2a-system \
   --create-namespace
 ```

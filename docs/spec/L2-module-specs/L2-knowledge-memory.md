@@ -1321,7 +1321,7 @@ class KnowledgeServiceCard(BaseModel):
     ))
     provider: dict[str, str] = Field(default={
         "organization": "superteam-a2a",
-        "url": "https://github.com/CoderZhangfujiang/superteam-a2a",
+        "url": "https://github.com/superteam-cn/superteam-a2a",
     })
     skills: list[AgentSkill] = Field(default_factory=lambda: [
         AgentSkill(
@@ -3877,7 +3877,7 @@ uv run pytest --cov=packages/knowledge --cov=packages/memory \
 
 ```bash
 # 1. 克隆 + 安装依赖
-git clone https://github.com/your-org/supeteam-a2a.git
+git clone https://github.com/superteam-cn/superteam-a2a.git
 cd superteam-a2a
 uv sync  # 安装所有 workspace 依赖
 
@@ -3898,9 +3898,9 @@ helm install superteam-a2a ./helm --namespace superteam-a2a --create-namespace
 uv run pytest packages/ -m e2e
 
 # 6. 构建 + 推送镜像
-docker build -t ghcr.io/your-org/supeteam-a2a-knowledge-service:0.2.0 \
+docker build -t ghcr.io/superteam-cn/superteam-a2a-knowledge-service:0.2.0 \
   -f docker/Dockerfile.knowledge-service .
-docker push ghcr.io/your-org/supeteam-a2a-knowledge-service:0.2.0
+docker push ghcr.io/superteam-cn/superteam-a2a-knowledge-service:0.2.0
 
 # 7. Helm 部署到生产
 helm upgrade --install superteam-a2a ./helm \

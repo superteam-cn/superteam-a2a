@@ -3400,9 +3400,9 @@ type: application
 version: 0.2.0      # chart 自身版本(独立于 appVersion)
 appVersion: "0.2.0" # 与 packages/operator/pyproject.toml [project].version 同步(TOOL-010)
 kubeVersion: ">=1.27, <1.32"  # envtest 验证范围;v0.2 锁定(TOOL-016)
-home: https://github.com/CoderZhangfujiang/superteam-a2a
+home: https://github.com/superteam-cn/superteam-a2a
 sources:
-  - https://github.com/CoderZhangfujiang/superteam-a2a
+  - https://github.com/superteam-cn/superteam-a2a
 maintainers:
   - name: CoderZhangfujiang
     email: bot@superteam-a2a.local

@@ -701,9 +701,9 @@ description: |
 type: application
 version: 0.2.0
 appVersion: "0.2.0"
-home: https://github.com/superteam-a2a/superteam-a2a
+home: https://github.com/superteam-cn/superteam-a2a
 sources:
-  - https://github.com/superteam-a2a/superteam-a2a
+  - https://github.com/superteam-cn/superteam-a2a
 maintainers:
   - name: superteam-a2a maintainers
     email: maintainers@superteam-a2a.local

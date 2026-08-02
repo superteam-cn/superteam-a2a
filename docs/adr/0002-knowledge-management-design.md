@@ -408,7 +408,7 @@ Knowledge Service 是**特殊 Agent**，与其他 Agent 同等待遇——通过
   "description": "Internal knowledge service for superteam-a2a. Provides free-text query and item retrieval across the 4-level scope hierarchy.",
   "provider": {
     "organization": "superteam-a2a",
-    "url": "https://github.com/CoderZhangfujiang/superteam-a2a"
+    "url": "https://github.com/superteam-cn/superteam-a2a"
   },
   "skills": [
     {
