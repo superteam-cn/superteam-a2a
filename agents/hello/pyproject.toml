@@ -1,0 +1,24 @@
+[project]
+name = "superteam-a2a-hello-agent"
+version = "0.1.0"
+description = "superteam-a2a Hello Agent · Python 无框架参考实现 · 1 个 Echo skill · 1 worker ASGI"
+requires-python = ">=3.12"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "superteam-a2a contributors" },
+]
+
+# L4 Step 1：仅声明运行所需核心依赖；runtime（uvicorn/starlette）推迟到 #80+
+dependencies = [
+    "pydantic>=2.10,<3",
+    "superteam-a2a-a2a-core>=0.1.0",  # workspace 内部依赖
+    "superteam-a2a-adapter-sdk>=0.1.0",  # workspace 内部依赖
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/superteam_a2a"]

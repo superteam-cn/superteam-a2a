@@ -1,0 +1,24 @@
+[project]
+name = "superteam-a2a-knowledge-memory-service"
+version = "0.1.0"
+description = "superteam-a2a Knowledge-Memory Service · D 方案单进程合并（ADR-0006 v1.0 Accepted）· KS + MEM 共享 Deployment · 4 A2A methods + admission + MemoryReconciler 60s timer + Lease"
+requires-python = ">=3.12"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "superteam-a2a contributors" },
+]
+
+# L4 Step 1：仅声明运行所需核心依赖；runtime 完整依赖（uvicorn/kopf/mTLS/otel 等）
+# 推迟到 #76-#78 实施期按需添加，避免 uv 解析失败阻塞骨架落地。
+dependencies = [
+    "pydantic>=2.10,<3",
+    "superteam-a2a-a2a-core>=0.1.0",  # workspace 内部依赖
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/superteam_a2a"]
