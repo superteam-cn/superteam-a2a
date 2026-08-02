@@ -1,0 +1,54 @@
+name-template: 'v$RESOLVED_VERSION'
+tag-template: 'v$RESOLVED_VERSION'
+version-template: '$MAJOR.$MINOR.$PATCH'
+categories:
+  - title: '🚀 Features'
+    labels:
+      - 'feature'
+      - 'enhancement'
+  - title: '🐛 Bug Fixes'
+    labels:
+      - 'bug'
+      - 'fix'
+  - title: '📚 Documentation'
+    labels:
+      - 'docs'
+  - title: '🔬 Spec / Architecture'
+    labels:
+      - 'spec'
+      - 'arch'
+      - 'adr'
+  - title: '🧪 Tests'
+    labels:
+      - 'test'
+  - title: '⚙️ CI / Tooling'
+    labels:
+      - 'ci'
+      - 'chore'
+      - 'dependencies'
+  - title: '🚨 Breaking Changes'
+    labels:
+      - 'breaking'
+    collapse-after: 5
+change-template: '- $TITLE (#$NUMBER) @$AUTHOR'
+change-title-escapes: '\<*_&`'
+exclude-labels:
+  - 'duplicate'
+  - 'invalid'
+  - 'wontfix'
+  - 'question'
+template: |
+  ## Changes
+
+  $CHANGES
+
+  ## Contributors
+
+  $CONTRIBUTORS
+
+  **Full Changelog**: https://github.com/superteam-cn/superteam-a2a/compare/$PREVIOUS_TAG...v$RESOLVED_VERSION
+replacers:
+  - search: '/依赖|dep|dependencies/i'
+    replace: ''
+  - search: '/\[([^\]]+)\]\(([^)]+)\)/g'
+    replace: '`$1`'
