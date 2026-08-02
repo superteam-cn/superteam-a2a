@@ -1,0 +1,78 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    name: Lint / Type-check / Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    fail-fast: false
+
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12"]
+
+    steps:
+      - name: Checkout (full history)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install uv
+        uses: astral-sh/uv-action@v3
+        with:
+          version: latest
+
+      - name: Set up Python ${{ matrix.python-version }}
+        run: uv python install ${{ matrix.python-version }}
+
+      - name: Sync dependencies (all extras)
+        run: uv sync --all-extras --python ${{ matrix.python-version }}
+
+      - name: Lint (ruff check)
+        run: uv run --python ${{ matrix.python-version }} ruff check . --output-format=github
+
+      - name: Lint (ruff format)
+        run: uv run --python ${{ matrix.python-version }} ruff format --check .
+
+      - name: Type-check (pyright)
+        run: uv run --python ${{ matrix.python-version }} pyright
+
+      - name: Run tests
+        run: uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short
+
+      - name: YAML lint
+        uses: frenck/action-yamllint@v1
+        with:
+          config_file: .yamllint.yml
+          strict: false
+
+      - name: Markdown lint
+        uses: DavidAnson/markdownlint-cli2-action@v18
+
+      - name: Helm lint
+        if: hashFiles('helm/**/Chart.yaml') != ''
+        uses: azure/setup-helm@v4
+        with:
+          version: v3.16.2
+
+      - name: Helm lint (run)
+        if: hashFiles('helm/**/Chart.yaml') != ''
+        run: |
+          set -e
+          for chart in $(find helm -name Chart.yaml -type f); do
+            echo "Linting $chart"
+            helm lint "$(dirname "$chart")"
+          done
