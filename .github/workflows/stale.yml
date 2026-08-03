@@ -1,0 +1,52 @@
+name: Stale
+
+on:
+  schedule:
+    - cron: "0 0 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: stale-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    name: Mark / close stale issues and PRs
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Run stale action
+        uses: actions/stale@v9
+        with:
+          # ---------- Operations ----------
+          operations-to-perform: "marks-and-close"
+
+          # ---------- Issues ----------
+          days-before-stale-issue: 60
+          days-before-close-issue: 7
+          stale-issue-label: "stale"
+          exempt-issue-labels: "keep,pinned,security,spec-deviation"
+          stale-issue-message: "This issue has been auto-marked stale because it has not had recent activity. Please update or close within 7 days, otherwise it will be auto-closed."
+          close-issue-message: "Closing due to inactivity. Reopen if still relevant."
+          close-issue-reason: "not_planned"
+
+          # ---------- Pull Requests ----------
+          days-before-stale-pr: 30
+          days-before-close-pr: 14
+          stale-pr-label: "stale"
+          exempt-pr-labels: "keep,pinned,WIP,do-not-merge"
+          stale-pr-message: "This PR has been auto-marked stale because it has not had recent activity. Please update or close within 14 days, otherwise it will be auto-closed."
+          close-pr-message: "Closing due to inactivity. Reopen if still relevant."
+          close-pr-reason: "not_planned"
+
+          # ---------- Common ----------
+          only-prs: false
+          only-issues: false
+          remove-stale-when-updated: true
+          debug-only: false
+          reporter: "github-actions[bot]"
