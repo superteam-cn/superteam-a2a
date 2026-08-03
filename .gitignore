@@ -90,6 +90,16 @@ release/
 *.seed
 *.pid.lock
 
+# ── uv / Python tooling caches (uv.lock MUST be committed, do NOT ignore) ─
+.uv-cache/
+.uv-cache-*/
+.python-cache/
+.ruff_cache/
+.pyright_cache/
+.mypy_cache/
+.bandit/
+pip-audit*.json
+
 # ── Helm & K8s ephemeral files ────────
 charts/*/charts/
 *.tgz

@@ -1,0 +1,149 @@
+# superteam-a2a — uv workspace root (L4 Step 1)
+# 依据 L1 §4.1 + 宪法 v0.5.0 §3.8 (Python-first) + §9.7 (uv.lock 必须提交 + Ruff/Pyright strict)
+
+[project]
+name = "superteam-a2a"
+version = "0.1.0"
+description = "Multi-Framework Agent Orchestration on Kubernetes, powered by Google A2A protocol"
+requires-python = ">=3.12"
+readme = "README.md"
+license = { text = "Apache-2.0" }
+authors = [
+    { name = "superteam-a2a contributors" },
+]
+
+[tool.uv]
+# 统一工作区（5 packages + 1 service + 1 agent）
+workspace = { members = [
+    "packages/operator",
+    "packages/a2a-core",
+    "packages/adapter-sdk",
+    "services/knowledge-memory-service",
+    "agents/hello",
+] }
+
+# Workspace 内部包依赖映射（uv 强制要求）
+# 注意：发布到 PyPI 时需移除此段
+[tool.uv.sources]
+superteam-a2a-a2a-core = { workspace = true }
+superteam-a2a-adapter-sdk = { workspace = true }
+superteam-a2a-operator = { workspace = true }
+superteam-a2a-knowledge-memory-service = { workspace = true }
+superteam-a2a-hello-agent = { workspace = true }
+
+# 强制开发依赖：所有 workspace member 共享（PEP 735 dependency-groups）
+[dependency-groups]
+dev = [
+    "pytest>=8.3,<9",
+    "pytest-asyncio>=0.24,<1",
+    "pytest-cov>=6.0,<7",
+    "ruff>=0.8,<1",
+    "pyright>=1.1,<2",
+    "bandit>=1.7,<2",
+    "pip-audit>=2.7,<3",
+]
+
+# ============================================================================
+# Ruff: format + lint 合并门禁（宪法 §9.7）
+# ============================================================================
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+extend-exclude = [
+    ".venv",
+    "build",
+    "dist",
+    "*.egg-info",
+    "uv.lock",
+]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+docstring-code-format = true
+
+[tool.ruff.lint]
+# 严格精选规则集（K8s operator + Pydantic 项目基线）
+select = [
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "N",   # pep8-naming
+    "UP",  # pyupgrade
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "SIM", # flake8-simplify
+    "RUF", # Ruff-specific
+    "PT",  # pytest style
+]
+ignore = [
+    "E501",  # line-too-long (formatter 处理)
+    "B008",  # function call in default argument (Pydantic Field 必需)
+    "RUF002",  # fullwidth punctuation in docstrings（双语 codebase 中文 docstring 标准）
+    "RUF003",  # fullwidth punctuation in comments
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py" = ["S101"]  # 允许 tests 使用 assert
+
+# ============================================================================
+# Pyright: strict mode（宪法 §9.7）
+# ============================================================================
+[tool.pyright]
+include = [
+    "packages/*/src",
+    "services/*/src",
+    "agents/*/src",
+    "tests",
+]
+exclude = [
+    ".venv",
+    "build",
+    "dist",
+]
+pythonVersion = "3.12"
+pythonPlatform = "Linux"
+# 全局报告级别（strict 模式按需在 CI 启用，避免单文件 Pyright 误报阻塞）
+reportMissingTypeStubs = "none"  # workspace 内部包无 stub 文件，Pyright 误报
+reportUnknownMemberType = "warning"
+reportUnknownVariableType = "warning"
+reportUnknownArgumentType = "warning"
+reportUnknownParameterType = "warning"
+reportMissingTypeArgument = "warning"
+reportImplicitOverride = "error"
+reportUntypedBaseClass = "error"
+reportUnnecessaryIsInstance = "warning"
+reportUnnecessaryCast = "warning"
+
+# ============================================================================
+# pytest: asyncio + 严格路径
+# ============================================================================
+[tool.pytest.ini_options]
+minversion = "8.0"
+testpaths = ["tests/unit"]
+pythonpath = [
+    "packages/operator/src",
+    "packages/a2a-core/src",
+    "packages/adapter-sdk/src",
+    "services/knowledge-memory-service/src",
+    "agents/hello/src",
+]
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--showlocals",
+    "--tb=short",
+]
+asyncio_mode = "auto"
+filterwarnings = [
+    "error",
+    # Pydantic v2 内部警告，按需放开
+    "ignore::DeprecationWarning:pydantic.*",
+]
+markers = [
+    "integration: envtest + kind integration tests (skip on -m 'not integration')",
+    "e2e: kind cluster end-to-end tests",
+    "conformance: A2A wire contract conformance tests",
+]
