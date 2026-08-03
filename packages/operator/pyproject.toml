@@ -11,7 +11,7 @@ authors = [
 
 dependencies = [
     "pydantic>=2.10,<3",
-    "kubernetes-asyncio>=32.0,<33",
+    "kubernetes-asyncio>=36.1.0,<37",
     "kopf>=1.37,<2",
 ]
 
