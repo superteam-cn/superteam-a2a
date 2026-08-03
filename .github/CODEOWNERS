@@ -1,0 +1,37 @@
+# superteam-a2a CODEOWNERS
+# Single-maintainer project. 扩展 reviewer 时改这里。
+# 路径匹配按从下到上 / 后到前的顺序；最后一个匹配生效。
+
+# Default fallback
+*       @CoderZhangfujiang
+
+# L4 implementation code
+/packages/          @CoderZhangfujiang
+/services/          @CoderZhangfujiang
+/agents/            @CoderZhangfujiang
+/tests/             @CoderZhangfujiang
+/pyproject.toml     @CoderZhangfujiang
+/uv.lock            @CoderZhangfujiang
+
+# Spec / ADR / Constitution
+/docs/spec/         @CoderZhangfujiang
+/docs/adr/          @CoderZhangfujiang
+/docs/design/       @CoderZhangfujiang
+/docs/constitution/ @CoderZhangfujiang
+/docs/reviews/      @CoderZhangfujiang
+
+# Helm / K8s manifests
+/helm/              @CoderZhangfujiang
+/dashboards/        @CoderZhangfujiang
+/examples/          @CoderZhangfujiang
+
+# GitHub configuration
+/.github/           @CoderZhangfujiang
+/CONTRIBUTING.md    @CoderZhangfujiang
+/CHANGELOG.md       @CoderZhangfujiang
+/README.md          @CoderZhangfujiang
+/ROADMAP.md         @CoderZhangfujiang
+/SECURITY.md        @CoderZhangfujiang
+/CODE_OF_CONDUCT.md @CoderZhangfujiang
+/CONSTITUTION.md    @CoderZhangfujiang
+/CONSTITUTION-CHANGELOG.md @CoderZhangfujiang
