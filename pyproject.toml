@@ -104,6 +104,14 @@ exclude = [
     ".venv",
     "build",
     "dist",
+    "tests/unit/operator/test_memory_crd.py",  # 12 fixture-only tests 需 L4 Step 2 operator package 完整实装后再恢复
+]
+extraPaths = [
+    "packages/operator/src",
+    "packages/a2a-core/src",
+    "packages/adapter-sdk/src",
+    "services/knowledge-memory-service/src",
+    "agents/hello/src",
 ]
 pythonVersion = "3.12"
 pythonPlatform = "Linux"
