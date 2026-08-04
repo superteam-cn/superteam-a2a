@@ -382,7 +382,7 @@ class CRDValidator(Protocol):
     """4 CRD validators 必须实现此接口"""
 
     crd_kind: str  # "Agent" | "AgentSet" | "Workflow" | "Memory"
-    group: str     # "superteam-a2a.io"
+    group: str  # "superteam-a2a.io"
 
     async def validate(self, namespace: str, name: str, spec: BaseModel) -> ValidationResult:
         """同步校验 spec；返回 ValidationResult(allowed, reason)"""
@@ -582,9 +582,7 @@ class AsyncLeaseClient:
             existing.spec.acquire_time = datetime.now(timezone.utc).isoformat()
             existing.spec.renew_time = datetime.now(timezone.utc).isoformat()
             existing.spec.lease_duration_seconds = int(self.lease_duration.total_seconds())
-            await self.k8s.replace_namespaced_lease(
-                self.lease_name, self.namespace, existing
-            )
+            await self.k8s.replace_namespaced_lease(self.lease_name, self.namespace, existing)
             return True
         except client.exceptions.ApiException as e:
             if e.status == 404:  # Lease 不存在，创建
@@ -599,9 +597,7 @@ class AsyncLeaseClient:
             if lease.spec.holder_identity != self.holder_id:
                 return False  # 已失主
             lease.spec.renew_time = datetime.now(timezone.utc).isoformat()
-            await self.k8s.replace_namespaced_lease(
-                self.lease_name, self.namespace, lease
-            )
+            await self.k8s.replace_namespaced_lease(self.lease_name, self.namespace, lease)
             self.renew_deadline = datetime.now(timezone.utc) + self.lease_duration
             return True
         except client.exceptions.ApiException:
@@ -613,9 +609,7 @@ class AsyncLeaseClient:
             lease = await self.k8s.read_namespaced_lease(self.lease_name, self.namespace)
             if lease.spec.holder_identity == self.holder_id:
                 lease.spec.holder_identity = None
-                await self.k8s.replace_namespaced_lease(
-                    self.lease_name, self.namespace, lease
-                )
+                await self.k8s.replace_namespaced_lease(self.lease_name, self.namespace, lease)
         except client.exceptions.ApiException:
             pass  # 已过期或不存在
 
@@ -719,6 +713,7 @@ kopf.on.delete("Agent", callback=AgentController.on_delete)
 kopf.on.create("AgentSet", callback=AgentSetController.on_create)
 # ... AgentSet / Workflow / Memory
 
+
 # MemoryReconciler 定时任务
 @kopf.timer("Memory", interval=60, when=lambda mem: mem.status.phase != "GarbageCollected")
 async def memory_reconcile_timer(mem, **_):
@@ -753,9 +748,7 @@ async def run_cpu_bound(func, *args, **kwargs):
 # 示例：Memory batch decay
 async def batch_decay(memories: list[Memory], current_time: datetime) -> list[MemoryStatus]:
     """批量计算 decay（CPU-bound）"""
-    return await run_cpu_bound(
-        _compute_decay_sync, memories, current_time
-    )
+    return await run_cpu_bound(_compute_decay_sync, memories, current_time)
 
 
 def _compute_decay_sync(memories: list[Memory], current_time: datetime) -> list[MemoryStatus]:
@@ -764,11 +757,13 @@ def _compute_decay_sync(memories: list[Memory], current_time: datetime) -> list[
     for mem in memories:
         elapsed_days = (current_time - mem.spec.lastReinforcedAt).days
         effective_confidence = mem.spec.confidence * math.exp(-elapsed_days / mem.spec.decayDays)
-        results.append(MemoryStatus(
-            memory_id=mem.metadata.name,
-            effective_confidence=effective_confidence,
-            phase="Promotable" if effective_confidence > 0.9 else "Active",
-        ))
+        results.append(
+            MemoryStatus(
+                memory_id=mem.metadata.name,
+                effective_confidence=effective_confidence,
+                phase="Promotable" if effective_confidence > 0.9 else "Active",
+            )
+        )
     return results
 ```
 
@@ -849,23 +844,18 @@ async def agent_on_delete(spec, status, name, namespace, body, **_):
         )
 
         # 2. 清理关联 Service + ServiceAccount
-        await k8s_client.delete_namespaced_service(
-            name=f"{name}-svc", namespace=namespace
-        )
-        await k8s_client.delete_namespaced_service_account(
-            name=f"{name}-sa", namespace=namespace
-        )
+        await k8s_client.delete_namespaced_service(name=f"{name}-svc", namespace=namespace)
+        await k8s_client.delete_namespaced_service_account(name=f"{name}-sa", namespace=namespace)
 
         # 3. 清理 KnowledgeItem.sourceRef 引用
         knowledge_items = await k8s_client.list(
-            KnowledgeItem, namespace=namespace,
+            KnowledgeItem,
+            namespace=namespace,
             label_selector=f"superteam-a2a.io/source-ref={name}",
         )
         for item in knowledge_items:
             item.spec.source_ref = None  # 解除引用
-            await k8s_client.replace_namespaced_knowledge_item(
-                item.metadata.name, namespace, item
-            )
+            await k8s_client.replace_namespaced_knowledge_item(item.metadata.name, namespace, item)
 
         # 4. 记录审计事件
         await emit_event(
@@ -914,11 +904,13 @@ async def agent_on_delete(spec, status, name, namespace, body, **_):
 # packages/operator/src/superteam_a2a/operator/errors/reconcile_errors.py
 class ReconcileError(Exception):
     """Operator reconcile 通用错误基类"""
+
     retry_after_seconds: int | None = None  # 重试间隔（None = 由 Kopf 决策）
 
 
 class RetryableError(ReconcileError):
     """可重试错误（瞬时失败：网络抖动 + API Server 限流 + 外部服务暂不可用）"""
+
     def __init__(self, message: str, retry_after: int = 30):
         super().__init__(message)
         self.retry_after_seconds = retry_after
@@ -926,11 +918,13 @@ class RetryableError(ReconcileError):
 
 class NonRetryableError(ReconcileError):
     """不可重试错误（业务逻辑错误：CRD 字段非法 + 关联资源缺失）"""
+
     pass
 
 
 class PermanentError(ReconcileError):
     """永久错误（不可恢复：K8s API 永久失败 + 配置错误）"""
+
     pass
 ```
 
@@ -1226,10 +1220,12 @@ class PythonConfig(BaseModel):
     image: str = "python:3.12-slim"
     liveness_probe: dict | None = None
     readiness_probe: dict | None = None
-    resources: dict = Field(default_factory=lambda: {
-        "requests": {"cpu": "200m", "memory": "256Mi"},
-        "limits": {"cpu": "1000m", "memory": "1Gi"},
-    })
+    resources: dict = Field(
+        default_factory=lambda: {
+            "requests": {"cpu": "200m", "memory": "256Mi"},
+            "limits": {"cpu": "1000m", "memory": "1Gi"},
+        }
+    )
 
 
 class LeaderElectionConfig(BaseModel):
@@ -1269,9 +1265,14 @@ class OperatorConfig(BaseModel):
     replicaCount: int = Field(2, ge=1, le=10)
     image: dict
     python: PythonConfig
-    controllers: dict[str, int] = Field(default_factory=lambda: {
-        "agent": 1, "agentset": 1, "workflow": 1, "memory": 1,
-    })
+    controllers: dict[str, int] = Field(
+        default_factory=lambda: {
+            "agent": 1,
+            "agentset": 1,
+            "workflow": 1,
+            "memory": 1,
+        }
+    )
     leader_election: LeaderElectionConfig
     admission: AdmissionConfig
     memory_reconciler: MemoryReconcilerConfig

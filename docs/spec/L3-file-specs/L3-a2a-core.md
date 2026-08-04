@@ -75,17 +75,29 @@ L3-2 A2A Core 文件级 Spec 将 [L2-1 Spec v0.2.0](../../spec/L2-module-specs/L
 Public surface: re-export upstream types + 4 routers + factory functions.
 All business modules import from here, never from `a2a` directly.
 """
+
 from superteam_a2a.a2a.upstream import (
     # SDK re-exports（仅枚举，禁止业务层绕过）
-    AgentCard, Message, Part, Task, Artifact, TaskState,
-    JSONRPCRequest, JSONRPCResponse, JSONRPCError,
+    AgentCard,
+    Message,
+    Part,
+    Task,
+    Artifact,
+    TaskState,
+    JSONRPCRequest,
+    JSONRPCResponse,
+    JSONRPCError,
 )
 from superteam_a2a.a2a.upstream_types import (
     # 项目私有 DTO
-    QueryKnowledgeRequest, QueryKnowledgeResponse,
-    GetKnowledgeItemRequest, GetKnowledgeItemResponse,
-    RecordMemoryRequest, RecordMemoryResponse,
-    QueryMemoryRequest, QueryMemoryResponse,
+    QueryKnowledgeRequest,
+    QueryKnowledgeResponse,
+    GetKnowledgeItemRequest,
+    GetKnowledgeItemResponse,
+    RecordMemoryRequest,
+    RecordMemoryResponse,
+    QueryMemoryRequest,
+    QueryMemoryResponse,
 )
 from superteam_a2a.a2a.server.app import create_app
 from superteam_a2a.a2a.client.client import A2AClient
@@ -93,29 +105,48 @@ from superteam_a2a.a2a.errors import StandardRpcError, ProjectRpcError
 from superteam_a2a.a2a.mtls import MtlsConfig, build_server_ssl_context, extract_spiffe_id
 from superteam_a2a.a2a.extensions import (
     ExtensionRouter,
-    QueryKnowledgeRouter, GetKnowledgeItemRouter,
-    RecordMemoryRouter, QueryMemoryRouter,
+    QueryKnowledgeRouter,
+    GetKnowledgeItemRouter,
+    RecordMemoryRouter,
+    QueryMemoryRouter,
 )
 
 __all__ = [
     # SDK re-exports
-    "AgentCard", "Message", "Part", "Task", "Artifact", "TaskState",
-    "JSONRPCRequest", "JSONRPCResponse", "JSONRPCError",
+    "AgentCard",
+    "Message",
+    "Part",
+    "Task",
+    "Artifact",
+    "TaskState",
+    "JSONRPCRequest",
+    "JSONRPCResponse",
+    "JSONRPCError",
     # DTO
-    "QueryKnowledgeRequest", "QueryKnowledgeResponse",
-    "GetKnowledgeItemRequest", "GetKnowledgeItemResponse",
-    "RecordMemoryRequest", "RecordMemoryResponse",
-    "QueryMemoryRequest", "QueryMemoryResponse",
+    "QueryKnowledgeRequest",
+    "QueryKnowledgeResponse",
+    "GetKnowledgeItemRequest",
+    "GetKnowledgeItemResponse",
+    "RecordMemoryRequest",
+    "RecordMemoryResponse",
+    "QueryMemoryRequest",
+    "QueryMemoryResponse",
     # Server + Client
-    "create_app", "A2AClient",
+    "create_app",
+    "A2AClient",
     # Errors
-    "StandardRpcError", "ProjectRpcError",
+    "StandardRpcError",
+    "ProjectRpcError",
     # mTLS
-    "MtlsConfig", "build_server_ssl_context", "extract_spiffe_id",
+    "MtlsConfig",
+    "build_server_ssl_context",
+    "extract_spiffe_id",
     # Extension routers
     "ExtensionRouter",
-    "QueryKnowledgeRouter", "GetKnowledgeItemRouter",
-    "RecordMemoryRouter", "QueryMemoryRouter",
+    "QueryKnowledgeRouter",
+    "GetKnowledgeItemRouter",
+    "RecordMemoryRouter",
+    "QueryMemoryRouter",
 ]
 ```
 
@@ -453,9 +484,7 @@ class ExtensionRouter(Protocol):
 
     method_name: str  # e.g. "a2a.queryKnowledge"
 
-    async def handle(
-        self, request: JSONRPCRequest
-    ) -> JSONRPCResponse | JSONRPCError:
+    async def handle(self, request: JSONRPCRequest) -> JSONRPCResponse | JSONRPCError:
         """处理单个 JSON-RPC 请求；返回响应或错误。"""
         ...
 ```
@@ -653,6 +682,7 @@ class CertHotReloader:
     启动期一次性 load_from_disk()；后台 task 每 5min 触发 watch_and_reload()。
     替换使用 atomic snapshot（旧 SSLContext 引用数降为 0 才回收）。
     """
+
     def __init__(
         self,
         config: MtlsConfig,
@@ -834,8 +864,7 @@ class Discovery:
         k8s_client: kubernetes_asyncio.client.CoreV1Api,
         agent_card_ttl_seconds: float = 300.0,
         watch_reconnect_seconds: float = 5.0,
-    ):
-        ...
+    ): ...
 
     async def start(self) -> None:
         """启动 EndpointSlice watch；触发首次 list + 后续 watch。"""
@@ -906,12 +935,9 @@ class A2AClient:
         max_keepalive: int = DEFAULT_MAX_KEEPALIVE,
         discovery: Discovery | None = None,
         metrics: A2aMetrics | None = None,
-    ):
-        ...
+    ): ...
 
-    async def send_message(
-        self, target: str, message: Message
-    ) -> Task:
+    async def send_message(self, target: str, message: Message) -> Task:
         """a2a.sendMessage 调用；受 retry + CB 保护。
 
         Returns: Task（同步调用返回）
@@ -944,9 +970,7 @@ class A2AClient:
         """a2a.recordMemory 调用；idempotency_key 强制。"""
         ...
 
-    async def query_memory(
-        self, target: str, request: QueryMemoryRequest
-    ) -> QueryMemoryResponse:
+    async def query_memory(self, target: str, request: QueryMemoryRequest) -> QueryMemoryResponse:
         """a2a.queryMemory 调用。"""
         ...
 
@@ -965,20 +989,23 @@ from enum import StrEnum
 
 class RetryDecision(StrEnum):
     """按 method + error code 判断是否重试。"""
+
     DO_RETRY = "do-retry"
     DO_NOT_RETRY = "do-not-retry"
     METHOD_NOT_IDEMPOTENT = "method-not-idempotent"
 
 
 # method_idempotency 表（与 L2-1 Spec §5.4 + ADR-0003 §6 一致）
-METHOD_IDEMPOTENT = frozenset({
-    "a2a.sendMessage",   # 业务侧按 idempotency_key 决定
-    "a2a.getTask",
-    "a2a.getKnowledgeItem",
-    "a2a.queryKnowledge",
-    "a2a.queryMemory",
-    # "a2a.recordMemory" — NOT idempotent（除非 idempotency_key）
-})
+METHOD_IDEMPOTENT = frozenset(
+    {
+        "a2a.sendMessage",  # 业务侧按 idempotency_key 决定
+        "a2a.getTask",
+        "a2a.getKnowledgeItem",
+        "a2a.queryKnowledge",
+        "a2a.queryMemory",
+        # "a2a.recordMemory" — NOT idempotent（除非 idempotency_key）
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -1155,6 +1182,7 @@ class StandardRpcError(IntEnum):
 
     数字与 L1 Spec §5.7 + v0.1.0 Go baseline 完全一致；contract test 锁定。
     """
+
     # 标准 JSON-RPC（5 码）
     PARSE_ERROR = -32700
     INVALID_REQUEST = -32600
@@ -1190,6 +1218,7 @@ class StandardRpcError(IntEnum):
 
 class ProjectRpcError(IntEnum):
     """项目扩展错误码子集（仅 Knowledge + Memory）。"""
+
     KNOWLEDGE_SCOPE_NOT_FOUND = StandardRpcError.KNOWLEDGE_SCOPE_NOT_FOUND
     KNOWLEDGE_ITEM_NOT_FOUND = StandardRpcError.KNOWLEDGE_ITEM_NOT_FOUND
     KNOWLEDGE_VERSION_NOT_FOUND = StandardRpcError.KNOWLEDGE_VERSION_NOT_FOUND
@@ -1352,10 +1381,18 @@ import logging
 import structlog
 
 
-_SENSITIVE_KEYS = frozenset({
-    "api_key", "token", "password", "secret",
-    "memory_content", "knowledge_body", "tls_key", "private_key",
-})
+_SENSITIVE_KEYS = frozenset(
+    {
+        "api_key",
+        "token",
+        "password",
+        "secret",
+        "memory_content",
+        "knowledge_body",
+        "tls_key",
+        "private_key",
+    }
+)
 
 
 def configure_logging(level: str = "INFO", json_format: bool = True) -> None:
@@ -2016,7 +2053,7 @@ class PythonConfig(BaseModel):
 class ResourcesConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
     requests: dict[str, str]  # {"cpu": "500m", "memory": "512Mi"}
-    limits: dict[str, str]    # {"cpu": "2000m", "memory": "2Gi"}
+    limits: dict[str, str]  # {"cpu": "2000m", "memory": "2Gi"}
 
 
 class MtlsHotReloadConfig(BaseModel):
@@ -2076,6 +2113,7 @@ class CertWatcherConfig(BaseModel):
 
 class A2aCoreConfig(BaseSettings):
     """A2A Core Helm values 完整 schema（继承 L2-1 Spec §12.1）。"""
+
     model_config = SettingsConfigDict(
         env_prefix="A2A_CORE_",
         env_nested_delimiter="__",

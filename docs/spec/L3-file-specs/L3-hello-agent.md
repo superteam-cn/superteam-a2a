@@ -66,44 +66,29 @@ L3-4 Hello Agent 文件级 Spec 将 [L1 Architecture v0.2.0 §3.5.1](../../desig
 # A2A 端点 1：a2a.sendMessage
 # 请求：
 {
-  "jsonrpc": "2.0",
-  "id": "uuid",
-  "method": "a2a.sendMessage",
-  "params": {
-    "message": {
-      "role": "user",
-      "parts": [{"type": "text", "text": "ping"}]
-    }
-  }
+    "jsonrpc": "2.0",
+    "id": "uuid",
+    "method": "a2a.sendMessage",
+    "params": {"message": {"role": "user", "parts": [{"type": "text", "text": "ping"}]}},
 }
 
 # 响应（pong echo）：
 {
-  "jsonrpc": "2.0",
-  "id": "uuid",
-  "result": {
-    "task": {
-      "id": "uuid",
-      "context_id": "uuid",
-      "status": {"state": "completed"},
-      "artifacts": [
-        {
-          "id": "uuid",
-          "parts": [{"type": "text", "text": "pong"}]
+    "jsonrpc": "2.0",
+    "id": "uuid",
+    "result": {
+        "task": {
+            "id": "uuid",
+            "context_id": "uuid",
+            "status": {"state": "completed"},
+            "artifacts": [{"id": "uuid", "parts": [{"type": "text", "text": "pong"}]}],
         }
-      ]
-    }
-  }
+    },
 }
 
 # A2A 端点 2：a2a.getTask
 # 请求：
-{
-  "jsonrpc": "2.0",
-  "id": "uuid",
-  "method": "a2a.getTask",
-  "params": {"task_id": "uuid"}
-}
+{"jsonrpc": "2.0", "id": "uuid", "method": "a2a.getTask", "params": {"task_id": "uuid"}}
 
 # 响应：同 sendMessage 的 task 字段
 ```
@@ -325,6 +310,7 @@ ENTRYPOINT ["uvicorn", "superteam_a2a.hello.agent:app", \
 单 Pod / 单 Python 进程 / 单 Uvicorn worker（ADR-0005 §6.2）；
 不依赖 framework；只暴露 a2a.sendMessage / a2a.getTask 两个 method。
 """
+
 from __future__ import annotations
 
 import uuid
@@ -474,6 +460,7 @@ Hello Agent `agent.py` 不得：
 # agents/hello/src/supteam_a2a/hello/card.py
 # Copyright 2026 superteam-a2a authors. Apache-2.0 license.
 """Hello Agent AgentCard（启动期一次性构建 + 模块级缓存）。"""
+
 from __future__ import annotations
 
 import os
@@ -549,6 +536,7 @@ def get_agent_card_json() -> bytes:
 # agents/hello/src/supteam_a2a/hello/observability.py
 # Copyright 2026 superteam-a2a authors. Apache-2.0 license.
 """Hello Agent 可观测性（4 Python runtime 指标 + structlog + 健康/就绪探针）。"""
+
 from __future__ import annotations
 
 import time
@@ -640,6 +628,7 @@ def health_response() -> tuple[bytes, int, dict[str, str]]:
 def ready_response() -> tuple[bytes, int, dict[str, str]]:
     """`/readyz` 探针：accepting requests → 200；agent_card 已就绪 → 200。"""
     from .card import build_agent_card  # 延迟 import 避免循环
+
     try:
         build_agent_card()
     except Exception:
@@ -1200,9 +1189,13 @@ agents/hello/tests/deploy/
 
 ```python
 def test_helm_install_networkpolicy_blocks_cross_ns(helm_release):
-    cross_ns_pod = run("kubectl run curl --image=curlimages/curl -n other --rm -it --restart=Never -- curl -s http://hello-agent:8080/healthz")
+    cross_ns_pod = run(
+        "kubectl run curl --image=curlimages/curl -n other --rm -it --restart=Never -- curl -s http://hello-agent:8080/healthz"
+    )
     assert "timed out" in cross_ns_pod.stderr  # NetworkPolicy 拒绝
-    same_ns_pod = run("kubectl run curl --image=curlimages/curl -n hello --rm -it --restart=Never -- curl -s http://hello-agent:8080/healthz")
+    same_ns_pod = run(
+        "kubectl run curl --image=curlimages/curl -n hello --rm -it --restart=Never -- curl -s http://hello-agent:8080/healthz"
+    )
     assert '"alive"' in same_ns_pod.stdout  # 同 namespace 允许
 ```
 
