@@ -70,11 +70,16 @@ from .config import HelmValues
 
 __all__ = [
     "OperatorMain",
-    "AgentController", "AgentSetController", "WorkflowController",
+    "AgentController",
+    "AgentSetController",
+    "WorkflowController",
     "MemoryReconciler",
     "AdmissionWebhookApp",
     "Election",
-    "ReconcileError", "RetryableError", "NonRetryableError", "PermanentError",
+    "ReconcileError",
+    "RetryableError",
+    "NonRetryableError",
+    "PermanentError",
     "HelmValues",
 ]
 
@@ -257,6 +262,7 @@ class AgentPodMode(str, Enum):
 
 class AgentSpec(BaseModel):
     """与 L1 Spec §2.1 AgentSpec wire YAML 不变 · Python 实现"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     framework: str = Field(min_length=1, max_length=64)
@@ -388,6 +394,7 @@ from pydantic import BaseModel, Field
 
 class ValidationResult(BaseModel):
     """admission 校验结果"""
+
     model_config = ConfigDict(extra="forbid")
 
     allowed: bool
@@ -399,7 +406,7 @@ class CRDValidator(Protocol):
     """4 CRD validators 必须实现此接口"""
 
     crd_kind: str  # "Agent" | "AgentSet" | "Workflow" | "Memory"
-    group: str     # "superteam-a2a.io"
+    group: str  # "superteam-a2a.io"
 
     async def validate(
         self,
@@ -891,9 +898,7 @@ async def safe_reconcile(
         raise kopf.PermanentError(str(exc)) from exc
     except RetryableError as exc:
         await record_reconcile_retry(exc)
-        raise kopf.TemporaryError(
-            str(exc), delay=exc.retry_after_seconds
-        ) from exc
+        raise kopf.TemporaryError(str(exc), delay=exc.retry_after_seconds) from exc
 ```
 
 wrapper 必须包住每个 Controller handler 的业务调用；禁止在 Controller 内部 catch-all 后只打印日志并返回成功，因为这会导致 status 和 reconcile metric 虚假成功。
@@ -971,10 +976,12 @@ class PythonConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     workers: int = Field(default=1, ge=1, le=1)
     image: str = "python:3.12-slim"
-    resources: dict[str, object] = Field(default_factory=lambda: {
-        "requests": {"cpu": "200m", "memory": "256Mi"},
-        "limits": {"cpu": "1000m", "memory": "1Gi"},
-    })
+    resources: dict[str, object] = Field(
+        default_factory=lambda: {
+            "requests": {"cpu": "200m", "memory": "256Mi"},
+            "limits": {"cpu": "1000m", "memory": "1Gi"},
+        }
+    )
 
 
 class LeaderElectionConfig(BaseModel):

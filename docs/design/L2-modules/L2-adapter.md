@@ -123,17 +123,19 @@ from a2a import AgentCard, Message, Task, Part  # via superteam_a2a.a2a.upstream
 @runtime_checkable
 class Adapter(Protocol):
     """Adapter ↔ A2A Server 协议边界（ADR-0005 §3.3）。"""
-    
+
     async def on_message(
-        self, message: Message, context_id: str | None,
+        self,
+        message: Message,
+        context_id: str | None,
     ) -> Task:
         """处理 A2A sendMessage；返回 Task + 状态。"""
         ...
-    
+
     def agent_card(self) -> AgentCard:
         """返回 Agent Card（用于 /.well-known/agent.json）。"""
         ...
-    
+
     async def health_check(self) -> bool:
         """健康检查（Adapter container readiness）。"""
         ...
@@ -141,7 +143,7 @@ class Adapter(Protocol):
 
 class FrameworkAdapter(Protocol):
     """框架特定扩展钩子（v0.1 Hello Agent 必实现）。"""
-    
+
     async def on_framework_event(self, event: dict) -> None:
         """框架事件回调（如 LangChain chain run event）。"""
         ...
@@ -249,11 +251,12 @@ from superteam_a2a.a2a.upstream import MtlsConfig
 
 
 def create_agent_client(
-    base_url: str, mtls_config: MtlsConfig | None = None,
+    base_url: str,
+    mtls_config: MtlsConfig | None = None,
     timeout: float = 30.0,
 ) -> httpx.AsyncClient:
     """构造 A2A→Agent container 客户端（Sidecar 模式）。
-    
+
     - 进程级单例（lifespan startup 创建，shutdown 关闭）
     - 连接池：max_connections=100，max_keepalive=20
     - mTLS：ssl_context 由 mtls_config 注入
@@ -406,36 +409,38 @@ from a2a import AgentCard, Message, Task  # via superteam_a2a.a2a.upstream
 @runtime_checkable
 class Adapter(Protocol):
     """Adapter ↔ A2A Server 协议边界（ADR-0005 §3.3 + L1 Architecture §6.3）。"""
-    
+
     async def on_message(
-        self, message: Message, context_id: str | None,
+        self,
+        message: Message,
+        context_id: str | None,
     ) -> Task:
         """处理 A2A sendMessage；返回 Task + 状态。
-        
+
         Args:
             message: A2A Message（来自 sendMessage params.message）
             context_id: A2A context ID（用于 multi-turn 对话）
-        
+
         Returns:
             Task: A2A Task（status + artifacts）
-        
+
         Raises:
             CardConversionFailed: 启动时 Card 转换失败（-32003）
             FrameworkNotLoaded: framework SDK 未加载（-32001）
             ToolInvocationFailed: framework tool 调用异常（-32004）
         """
         ...
-    
+
     def agent_card(self) -> AgentCard:
         """返回 Agent Card（用于 /.well-known/agent.json）。
-        
+
         Card 转换由 §6 详述；启动时构建，运行期 cached。
         """
         ...
-    
+
     async def health_check(self) -> bool:
         """健康检查（Adapter container readiness）。
-        
+
         Returns:
             True: Adapter 可用
             False: Framework SDK 未初始化 / Agent container 不可达（Sidecar）
@@ -445,10 +450,10 @@ class Adapter(Protocol):
 
 class FrameworkAdapter(Protocol):
     """框架特定扩展钩子（Framework authors 必实现）。"""
-    
+
     async def on_framework_event(self, event: dict) -> None:
         """框架事件回调（如 LangChain chain run event / AutoGen message event）。
-        
+
         用于 framework-specific observability；非必须。
         """
         ...
@@ -465,7 +470,7 @@ from superteam_a2a.a2a.upstream import AgentCard, Message, Task
 
 class LangChainAdapter(Adapter):
     """LangChain framework adapter（v0.2 同进程 plugin）。"""
-    
+
     def __init__(
         self,
         runnable: Runnable,  # langchain_core.runnables.Runnable
@@ -474,22 +479,25 @@ class LangChainAdapter(Adapter):
         self._runnable = runnable
         self._config = config
         self._card = self._build_card()  # §6 Card 转换
-    
+
     async def on_message(
-        self, message: Message, context_id: str | None,
+        self,
+        message: Message,
+        context_id: str | None,
     ) -> Task:
         # 1. 转换 A2A Message → LangChain input
         lc_input = self._convert_message_to_lc(message)
         # 2. 调用 framework（CPU 工作通过 anyio.to_thread offload）
         lc_output = await anyio.to_thread.run_sync(
-            self._runnable.invoke, lc_input,
+            self._runnable.invoke,
+            lc_input,
         )
         # 3. 转换 framework output → A2A Task
         return self._convert_lc_to_task(lc_output, context_id)
-    
+
     def agent_card(self) -> AgentCard:
         return self._card
-    
+
     async def health_check(self) -> bool:
         # LangChain 总是 loaded（同进程 plugin）
         return self._runnable is not None
@@ -821,8 +829,10 @@ class AdapterError(Exception):
 # packages/adapter-sdk/src/supteam_a2a/adapter/retry.py
 # 完整代码在 L3-3 Spec
 from tenacity import (
-    AsyncRetrying, retry_if_exception_type,
-    stop_after_attempt, wait_exponential_jitter,
+    AsyncRetrying,
+    retry_if_exception_type,
+    stop_after_attempt,
+    wait_exponential_jitter,
 )
 from superteam_a2a.adapter.errors import AdapterError, AdapterErrorCode
 

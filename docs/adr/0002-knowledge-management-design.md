@@ -199,7 +199,9 @@ def resolve_effective_scopes(scope_name: str) -> List[str]:
     return chain
 
 
-def query_knowledge(scope_name: str, type_filter: List[str], tag_filter: List[str]) -> List[KnowledgeItem]:
+def query_knowledge(
+    scope_name: str, type_filter: List[str], tag_filter: List[str]
+) -> List[KnowledgeItem]:
     """查询时自动包含继承链上所有作用域的 KnowledgeItem。
 
     继承规则：

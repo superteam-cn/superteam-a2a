@@ -312,24 +312,30 @@
 
 ```python
 class ErrorCategory(str, Enum):
-    RETRYABLE = "retryable"            # 网络/超时/K8s API 5xx
-    NON_RETRYABLE = "non_retryable"    # K8s API 4xx（除 409）
-    PERMANENT = "permanent"            # 业务错误（DAG 有环 / spec 不合法）
-    UNKNOWN = "unknown"                # 兜底
+    RETRYABLE = "retryable"  # 网络/超时/K8s API 5xx
+    NON_RETRYABLE = "non_retryable"  # K8s API 4xx（除 409）
+    PERMANENT = "permanent"  # 业务错误（DAG 有环 / spec 不合法）
+    UNKNOWN = "unknown"  # 兜底
+
 
 class ReconcileError(Exception):
     """Operator reconcile 错误基类"""
+
     category: ErrorCategory = ErrorCategory.UNKNOWN
     retry_after_seconds: float | None = None
+
 
 class RetryableError(ReconcileError):
     category = ErrorCategory.RETRYABLE
 
+
 class NonRetryableError(ReconcileError):
     category = ErrorCategory.NON_RETRYABLE
 
+
 class PermanentError(ReconcileError):
     category = ErrorCategory.PERMANENT
+
 
 def classify_error(exc: Exception) -> ErrorCategory:
     """依据异常类型 + K8s API status code 分类"""
