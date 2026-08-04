@@ -64,11 +64,16 @@ from .config import HelmValues
 
 __all__ = [
     "OperatorMain",
-    "AgentController", "AgentSetController", "WorkflowController",
+    "AgentController",
+    "AgentSetController",
+    "WorkflowController",
     "MemoryReconciler",
     "AdmissionWebhookApp",
     "Election",
-    "ReconcileError", "RetryableError", "NonRetryableError", "PermanentError",
+    "ReconcileError",
+    "RetryableError",
+    "NonRetryableError",
+    "PermanentError",
     "HelmValues",
 ]
 ```
@@ -88,12 +93,20 @@ from .reconcilers.memory_reconciler import MemoryReconcilerService
 
 # admission validators
 from .admission.validators import (
-    AgentValidator, AgentSetValidator, WorkflowValidator,
-    MemoryValidator, MutualExclusionValidator,
+    AgentValidator,
+    AgentSetValidator,
+    WorkflowValidator,
+    MemoryValidator,
+    MutualExclusionValidator,
 )
 
 # Finalizer 工具
-from .finalizers.names import AGENT_FINALIZER, AGENTSET_FINALIZER, WORKFLOW_FINALIZER, MEMORY_FINALIZER
+from .finalizers.names import (
+    AGENT_FINALIZER,
+    AGENTSET_FINALIZER,
+    WORKFLOW_FINALIZER,
+    MEMORY_FINALIZER,
+)
 
 # K8s 客户端（kubernetes_asyncio 封装）
 from .clients.k8s_client import AsyncK8sClient
@@ -387,25 +400,32 @@ superteam_knowledge_query_total{scope,result}
 # packages/operator/src/superteam_a2a/operator/errors/__init__.py
 from enum import Enum
 
+
 class ErrorCategory(str, Enum):
-    RETRYABLE = "retryable"            # 网络/超时/K8s API 5xx
-    NON_RETRYABLE = "non_retryable"    # K8s API 4xx(非 409)
-    PERMANENT = "permanent"            # 业务错误(DAG 有环 / spec 不合法)
-    UNKNOWN = "unknown"                # 兜底
+    RETRYABLE = "retryable"  # 网络/超时/K8s API 5xx
+    NON_RETRYABLE = "non_retryable"  # K8s API 4xx(非 409)
+    PERMANENT = "permanent"  # 业务错误(DAG 有环 / spec 不合法)
+    UNKNOWN = "unknown"  # 兜底
+
 
 class ReconcileError(Exception):
     """Operator reconcile 错误基类"""
+
     category: ErrorCategory = ErrorCategory.UNKNOWN
     retry_after_seconds: float | None = None
+
 
 class RetryableError(ReconcileError):
     category = ErrorCategory.RETRYABLE
 
+
 class NonRetryableError(ReconcileError):
     category = ErrorCategory.NON_RETRYABLE
 
+
 class PermanentError(ReconcileError):
     category = ErrorCategory.PERMANENT
+
 
 def classify_error(exc: Exception) -> ErrorCategory:
     """依据异常类型 + K8s API status code 分类"""
@@ -482,22 +502,29 @@ from superteam_a2a.operator.finalizers import AGENT_FINALIZER, ensure_finalizer
 from superteam_a2a.operator.errors import ReconcileError
 from superteam_a2a.operator.observability import OperatorMetrics
 
+
 class AgentController:
     def __init__(self, reconciler: AgentReconcilerService, metrics: OperatorMetrics):
         self._reconciler = reconciler
         self._metrics = metrics
 
+
 # 行 35-65:create handler
-@kopf.on.create('agent.superteam-a2a.io', id='agent-create')
+@kopf.on.create("agent.superteam-a2a.io", id="agent-create")
 async def agent_create(spec: AgentSpec, name: str, namespace: str, body: Agent, **kwargs):
     controller = AgentController.get_instance()
     try:
         await ensure_finalizer(body=body, name=AGENT_FINALIZER)  # §2.3.7
         await controller._reconciler.reconcile(spec=spec, status=body.status, body=body)
-        controller._metrics.inc_reconcile_total(controller='agent', result='success')
+        controller._metrics.inc_reconcile_total(controller="agent", result="success")
     except ReconcileError as e:
-        controller._metrics.inc_reconcile_total(controller='agent', result='error')
-        raise kopf.PermanentError(str(e)) if e.category == ErrorCategory.PERMANENT else kopf.TemporaryError(str(e), delay=10)
+        controller._metrics.inc_reconcile_total(controller="agent", result="error")
+        raise (
+            kopf.PermanentError(str(e))
+            if e.category == ErrorCategory.PERMANENT
+            else kopf.TemporaryError(str(e), delay=10)
+        )
+
 
 # update/delete handlers 遵循同一结构；完整异常分类与 status patch 契约见 §3.5
 ```
@@ -521,7 +548,7 @@ async def agent_create(spec: AgentSpec, name: str, namespace: str, body: Agent, 
 
 ```python
 # 完整文件 ~150 行;handler 3 个(create/update/delete)各 35-45 行
-@kopf.on.create('agentset.superteam-a2a.io', id='agentset-create')
+@kopf.on.create("agentset.superteam-a2a.io", id="agentset-create")
 async def agentset_create(spec: AgentSetSpec, name: str, namespace: str, body: AgentSet, **kwargs):
     controller = AgentSetController.get_instance()
     await ensure_finalizer(body=body, name=AGENTSET_FINALIZER)
@@ -544,7 +571,7 @@ async def agentset_create(spec: AgentSetSpec, name: str, namespace: str, body: A
 
 ```python
 # 完整文件 ~170 行;handler 3 个 + DAG 校验 helper + Task stub emitter
-@kopf.on.create('workflow.superteam-a2a.io', id='workflow-create')
+@kopf.on.create("workflow.superteam-a2a.io", id="workflow-create")
 async def workflow_create(spec: WorkflowSpec, name: str, namespace: str, body: Workflow, **kwargs):
     controller = WorkflowController.get_instance()
     await ensure_finalizer(body=body, name=WORKFLOW_FINALIZER)
@@ -580,20 +607,21 @@ from superteam_a2a.operator.models.memory.gc import should_garbage_collect
 from superteam_a2a.operator.models.memory.promotion import is_eligible_for_promotion
 from superteam_a2a.operator.clients import AsyncK8sClient
 
+
 class MemoryReconcilerService:
     def __init__(self, k8s_client: AsyncK8sClient, election: Election, metrics: OperatorMetrics):
         self._k8s = k8s_client
         self._election = election
         self._metrics = metrics
 
-    @kopf.timer('agent.superteam-a2a.io', interval=60.0, idle=30.0)  # §2.3.3 L2-2 §3
+    @kopf.timer("agent.superteam-a2a.io", interval=60.0, idle=30.0)  # §2.3.3 L2-2 §3
     async def reconcile_all_memories(self, **kwargs):
         """每 60s 触发(仅 leader)"""
         if not self._election.is_leader():
             return  # 非 leader 立即退出,不参与 reconcile
 
         # 1. 列出所有 namespace 的 Memory CR
-        memories = await self._k8s.list_memories(namespace='*')
+        memories = await self._k8s.list_memories(namespace="*")
 
         # 2. CPU offload:batch decay 用 anyio.to_thread.run_sync(不阻塞 event loop)
         async def _batch_decay():
@@ -617,8 +645,10 @@ class MemoryReconcilerService:
                 new_status.phase = MemoryPhase.GARBAGE_COLLECTED
             elif is_eligible_for_promotion(effective_confidence, memory.spec.reinforced_count):
                 new_status.eligible_for_promotion = True
-            await self._k8s.update_memory_status(name=memory.name, namespace=memory.namespace, status=new_status)
-            self._metrics.inc_memory_decay_total(namespace=memory.namespace, result='success')
+            await self._k8s.update_memory_status(
+                name=memory.name, namespace=memory.namespace, status=new_status
+            )
+            self._metrics.inc_memory_decay_total(namespace=memory.namespace, result="success")
 ```
 
 **关键不变量**(继承 L2-2 Design §4.4):
@@ -714,8 +744,11 @@ from starlette.responses import JSONResponse
 from starlette.routing import Route
 
 from superteam_a2a.operator.admission.validators import (
-    AgentValidator, AgentSetValidator, WorkflowValidator,
-    MemoryValidator, MutualExclusionValidator,
+    AgentValidator,
+    AgentSetValidator,
+    WorkflowValidator,
+    MemoryValidator,
+    MutualExclusionValidator,
 )
 from superteam_a2a.operator.config import HelmValues
 from superteam_a2a.operator.observability.tracing import TracerProvider
@@ -723,6 +756,7 @@ from superteam_a2a.operator.observability.tracing import TracerProvider
 
 class AdmissionRequest(BaseModel):
     """AdmissionReview wire contract(K8s AdmissionRegistration v1)"""
+
     model_config = ConfigDict(extra="ignore")  # 接收 K8s 完整 AdmissionReview,忽略未知字段
     uid: str
     kind: str  # "Agent" | "AgentSet" | "Workflow" | "Memory"
@@ -734,6 +768,7 @@ class AdmissionRequest(BaseModel):
 
 class AdmissionResponse(BaseModel):
     """AdmissionReview response wire contract"""
+
     model_config = ConfigDict(extra="forbid")
     uid: str
     allowed: bool
@@ -869,9 +904,13 @@ from .mutual_exclusion import MutualExclusionValidator
 from .base import CRDValidator, ValidationResult
 
 __all__ = [
-    "CRDValidator", "ValidationResult",
-    "AgentValidator", "AgentSetValidator", "WorkflowValidator",
-    "MemoryValidator", "MutualExclusionValidator",
+    "CRDValidator",
+    "ValidationResult",
+    "AgentValidator",
+    "AgentSetValidator",
+    "WorkflowValidator",
+    "MemoryValidator",
+    "MutualExclusionValidator",
 ]
 ```
 
@@ -893,6 +932,7 @@ from pydantic import BaseModel, ConfigDict, Field
 
 class ValidationResult(BaseModel):
     """admission 校验结果(K8s AdmissionReview response 序列化)"""
+
     model_config = ConfigDict(extra="forbid")
 
     allowed: bool
@@ -904,7 +944,7 @@ class CRDValidator(Protocol):
     """5 validators 必须实现此接口(L2-2 Spec §4.2 + Design §5.3)"""
 
     crd_kind: str  # "Agent" | "AgentSet" | "Workflow" | "Memory"
-    group: str     # "superteam-a2a.io"
+    group: str  # "superteam-a2a.io"
 
     async def validate(
         self,
@@ -962,7 +1002,11 @@ class AgentValidator:
                     http_status=422,
                 )
             # 3. mode 与 securityContext 互斥(Plugin 模式禁止 securityContext.privileged)
-            if spec.mode.value == "plugin" and spec.security_context and spec.security_context.privileged:
+            if (
+                spec.mode.value == "plugin"
+                and spec.security_context
+                and spec.security_context.privileged
+            ):
                 return ValidationResult(
                     allowed=False,
                     reason="Plugin 模式禁止 securityContext.privileged(由 sidecar 接管)",
@@ -995,7 +1039,9 @@ class AgentSetValidator:
     crd_kind: str = "AgentSet"
     group: str = "superteam-a2a.io"
 
-    async def validate(self, namespace: str, name: str, spec: AgentSetSpec, operation: str) -> ValidationResult:
+    async def validate(
+        self, namespace: str, name: str, spec: AgentSetSpec, operation: str
+    ) -> ValidationResult:
         # 1. replicas ∈ [1, 100]
         # 2. selector 必填(与 template.labels 一致)
         # 3. template 字段必填且类型 = AgentSpec(跨 CRD 一致性)
@@ -1070,7 +1116,9 @@ class WorkflowValidator:
     def __init__(self) -> None:
         self._dag_validator = DAGValidator()
 
-    async def validate(self, namespace: str, name: str, spec: WorkflowSpec, operation: str) -> ValidationResult:
+    async def validate(
+        self, namespace: str, name: str, spec: WorkflowSpec, operation: str
+    ) -> ValidationResult:
         # 1. DAG 校验(纯函数)
         dag_result = self._dag_validator.validate_dag(spec.tasks)
         if not dag_result.allowed:
@@ -1122,7 +1170,9 @@ class MemoryValidator:
     crd_kind: str = "Memory"
     group: str = "superteam-a2a.io"
 
-    async def validate(self, namespace: str, name: str, spec: MemorySpec, operation: str) -> ValidationResult:
+    async def validate(
+        self, namespace: str, name: str, spec: MemorySpec, operation: str
+    ) -> ValidationResult:
         # 1. content 键数满足 1 ≤ count ≤ 20（继承 L2-4 Spec §3.4 MemorySpec）
         # 2. scope_ref 必填
         # 3. agent-private visibility 必填 owner_agent_id
@@ -1382,9 +1432,7 @@ class AsyncLeaseClient:
             existing.spec.acquire_time = datetime.now(timezone.utc).isoformat()
             existing.spec.renew_time = datetime.now(timezone.utc).isoformat()
             existing.spec.lease_duration_seconds = int(self._lease_duration.total_seconds())
-            await self._k8s.replace_namespaced_lease(
-                self._lease_name, self._namespace, existing
-            )
+            await self._k8s.replace_namespaced_lease(self._lease_name, self._namespace, existing)
             return True
         except ApiException as e:
             if e.status == 404:
@@ -1406,9 +1454,7 @@ class AsyncLeaseClient:
             if lease.spec.holder_identity != self._holder_id:
                 return False  # 已被其他副本抢占
             lease.spec.renew_time = datetime.now(timezone.utc).isoformat()
-            await self._k8s.replace_namespaced_lease(
-                self._lease_name, self._namespace, lease
-            )
+            await self._k8s.replace_namespaced_lease(self._lease_name, self._namespace, lease)
             return True
         except ApiException:
             return False
@@ -1419,9 +1465,7 @@ class AsyncLeaseClient:
             lease = await self._k8s.read_namespaced_lease(self._lease_name, self._namespace)
             if lease.spec.holder_identity == self._holder_id:
                 lease.spec.holder_identity = None
-                await self._k8s.replace_namespaced_lease(
-                    self._lease_name, self._namespace, lease
-                )
+                await self._k8s.replace_namespaced_lease(self._lease_name, self._namespace, lease)
         except ApiException:
             pass  # 已过期或不存在;no-op
 
@@ -1589,6 +1633,7 @@ class Election:
 
 class StandbyError(Exception):
     """非 leader 时 Controller 抛出,Kopf 标记为 TemporaryError 并延迟重试"""
+
     pass
 ```
 
@@ -1633,7 +1678,7 @@ spec:
 ```python
 # packages/operator/src/superteam_a2a/operator/controllers/agent.py
 # (示意;完整在 §3.1)
-@kopf.on.create('agent.superteam-a2a.io', id='agent-create')
+@kopf.on.create("agent.superteam-a2a.io", id="agent-create")
 async def agent_create(spec: AgentSpec, name: str, namespace: str, body: Agent, **kwargs):
     controller = AgentController.get_instance()
     try:
@@ -1698,11 +1743,17 @@ from .gc import should_garbage_collect
 from .promotion import is_eligible_for_promotion
 
 __all__ = [
-    "MemorySpec", "AgentReference", "MemoryStatus",
-    "MemoryConditionType", "MemoryCondition",
-    "MemoryPhase", "MemoryVisibility",
-    "compute_effective_confidence", "apply_reinforce",
-    "should_garbage_collect", "is_eligible_for_promotion",
+    "MemorySpec",
+    "AgentReference",
+    "MemoryStatus",
+    "MemoryConditionType",
+    "MemoryCondition",
+    "MemoryPhase",
+    "MemoryVisibility",
+    "compute_effective_confidence",
+    "apply_reinforce",
+    "should_garbage_collect",
+    "is_eligible_for_promotion",
 ]
 ```
 
@@ -1726,6 +1777,7 @@ from .enums import MemoryVisibility
 
 class AgentReference(BaseModel):
     """Agent(ServiceAccount)引用"""
+
     model_config = ConfigDict(extra="forbid", frozen=True)
     kind: str = Field(default="ServiceAccount", description="固定为 ServiceAccount")
     name: str = Field(..., min_length=1, max_length=253)
@@ -1733,11 +1785,15 @@ class AgentReference(BaseModel):
 
 class MemorySpec(BaseModel):
     """Memory CRD spec(12 字段 · 与 L2-4 Spec §3.4 MemorySpec 完全一致)"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     scope_ref: ScopeReference = Field(..., alias="scopeRef")
-    agent_ref: AgentReference = Field(..., alias="agentRef",
-        description="必须 ServiceAccount;与 KI.User/Group 互斥(L2-4 Spec §3.4)")
+    agent_ref: AgentReference = Field(
+        ...,
+        alias="agentRef",
+        description="必须 ServiceAccount;与 KI.User/Group 互斥(L2-4 Spec §3.4)",
+    )
     content: dict[str, str] = Field(..., min_length=1, max_length=20)
     summary: str = Field(..., min_length=1, max_length=512)
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
@@ -1745,8 +1801,11 @@ class MemorySpec(BaseModel):
     reinforced_count: int = Field(default=0, ge=0, alias="reinforcedCount")
     last_reinforced_at: AwareDatetime | None = Field(default=None, alias="lastReinforcedAt")
     memory_key_pattern: str | None = Field(default=None, alias="memoryKeyPattern", max_length=128)
-    source_knowledge_ref: dict | None = Field(default=None, alias="sourceKnowledgeRef",
-        description="追溯的 KnowledgeItem(dict 形式,避免循环 import L2-4)")
+    source_knowledge_ref: dict | None = Field(
+        default=None,
+        alias="sourceKnowledgeRef",
+        description="追溯的 KnowledgeItem(dict 形式,避免循环 import L2-4)",
+    )
     tags: list[str] | None = Field(default=None, max_length=10)
     visibility: MemoryVisibility = Field(default=MemoryVisibility.SCOPE_AND_CHILDREN)
 ```
@@ -1769,6 +1828,7 @@ from .enums import MemoryPhase
 
 class MemoryStatus(BaseModel):
     """Memory CRD status(7 字段 · 与 L2-4 Spec §3.4 MemoryStatus 一致)"""
+
     model_config = ConfigDict(extra="forbid")
 
     phase: MemoryPhase | None = None
@@ -1776,7 +1836,9 @@ class MemoryStatus(BaseModel):
     conditions: list[MemoryCondition] = Field(default_factory=list)
     last_decayed_at: AwareDatetime | None = Field(default=None, alias="lastDecayedAt")
     last_reinforced_at: AwareDatetime | None = Field(default=None, alias="lastReinforcedAt")
-    effective_confidence: float | None = Field(default=None, alias="effectiveConfidence", ge=0.0, le=1.0)
+    effective_confidence: float | None = Field(
+        default=None, alias="effectiveConfidence", ge=0.0, le=1.0
+    )
     eligible_for_promotion: bool | None = Field(default=None, alias="eligibleForPromotion")
     observed_generation: int | None = Field(default=None, alias="observedGeneration", ge=0)
 ```
@@ -1796,6 +1858,7 @@ from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
 
 class MemoryConditionType(StrEnum):
     """Memory status.conditions[].type 枚举(继承 L2-4 Spec §7)"""
+
     DECAYED = "Decayed"
     REINFORCED = "Reinforced"
     PROMOTED = "Promoted"
@@ -1805,6 +1868,7 @@ class MemoryConditionType(StrEnum):
 
 class MemoryCondition(BaseModel):
     """K8s-style condition(L2-4 Spec §3.4 + K8s conventions)"""
+
     model_config = ConfigDict(extra="forbid")
     type: MemoryConditionType
     status: str = Field(..., pattern="^(True|False|Unknown)$")
@@ -1826,15 +1890,17 @@ from enum import StrEnum
 
 class MemoryPhase(StrEnum):
     """Memory status.phase 状态机(5 态 · 与 L2-4 Spec §3.4 一致)"""
-    ACTIVE = "Active"                # effective_confidence > 0.5
-    DECAYING = "Decaying"            # 0.01 ≤ effective_confidence ≤ 0.5
-    PROMOTABLE = "Promotable"        # eligible_for_promotion = true(v0.1 仅算不触发)
-    EXPIRED = "Expired"              # effective_confidence < 0.01
-    ERROR = "Error"                  # reconcile 失败
+
+    ACTIVE = "Active"  # effective_confidence > 0.5
+    DECAYING = "Decaying"  # 0.01 ≤ effective_confidence ≤ 0.5
+    PROMOTABLE = "Promotable"  # eligible_for_promotion = true(v0.1 仅算不触发)
+    EXPIRED = "Expired"  # effective_confidence < 0.01
+    ERROR = "Error"  # reconcile 失败
 
 
 class MemoryVisibility(StrEnum):
     """Memory visibility 3 类(5 维矩阵 · agent-private 短路)"""
+
     SCOPE_ONLY = "scope-only"
     SCOPE_AND_CHILDREN = "scope-and-children"
     AGENT_PRIVATE = "agent-private"
@@ -1988,8 +2054,12 @@ from anyio import to_thread
 
 from superteam_a2a.operator.leader_election import Election, StandbyError
 from superteam_a2a.operator.models.memory import (
-    Memory, MemorySpec, MemoryStatus, MemoryPhase,
-    compute_effective_confidence, should_garbage_collect,
+    Memory,
+    MemorySpec,
+    MemoryStatus,
+    MemoryPhase,
+    compute_effective_confidence,
+    should_garbage_collect,
     is_eligible_for_promotion,
 )
 from superteam_a2a.operator.clients import AsyncK8sClient
@@ -2025,7 +2095,8 @@ class MemoryReconcilerService:
         except StandbyError:
             return  # 非 leader 立即退出,不参与 reconcile
         # 1. 列出所有 namespace 的 Memory CR
-        memories = await self._k8s.list_memories(namespace='*')
+        memories = await self._k8s.list_memories(namespace="*")
+
         # 2. CPU offload:batch decay 用 anyio.to_thread.run_sync
         async def _batch_decay() -> list[tuple[Memory, float]]:
             results = []
@@ -2037,6 +2108,7 @@ class MemoryReconcilerService:
                 )
                 results.append((memory, effective))
             return results
+
         results = await to_thread.run_sync(_batch_decay)
         # 3. 应用 decay + GC + promotion + status patch
         for memory, effective_confidence in results:
@@ -2047,12 +2119,14 @@ class MemoryReconcilerService:
                 # GC 判断
                 if should_garbage_collect(effective_confidence):
                     new_status.phase = MemoryPhase.EXPIRED
-                    new_status.conditions.append(MemoryCondition(
-                        type=MemoryConditionType.GARBAGE_COLLECTED,
-                        status="True",
-                        reason="effective_confidence < 0.1",
-                        last_transition_time=datetime.now(timezone.utc),
-                    ))
+                    new_status.conditions.append(
+                        MemoryCondition(
+                            type=MemoryConditionType.GARBAGE_COLLECTED,
+                            status="True",
+                            reason="effective_confidence < 0.1",
+                            last_transition_time=datetime.now(timezone.utc),
+                        )
+                    )
                 # Promotion 判断(v0.1 仅算不触发)
                 elif is_eligible_for_promotion(effective_confidence, memory.spec.reinforced_count):
                     new_status.eligible_for_promotion = True
@@ -2063,11 +2137,13 @@ class MemoryReconcilerService:
                     status=new_status,
                 )
                 self._metrics.inc_memory_decay_total(
-                    namespace=memory.metadata.namespace, result="success",
+                    namespace=memory.metadata.namespace,
+                    result="success",
                 )
             except Exception as e:
                 self._metrics.inc_memory_decay_total(
-                    namespace=memory.metadata.namespace, result="error",
+                    namespace=memory.metadata.namespace,
+                    result="error",
                 )
                 get_logger().error(
                     "memory_reconcile_failed",
@@ -2404,6 +2480,7 @@ class RuntimeMonitor:
     async def run(self) -> NoReturn:
         """永久运行每 30s 采样;CancellationToken 安全(stop() 触发 task 取消)。"""
         ...
+
     async def stop(self) -> None:
         """停止 RuntimeMonitor;cancel 当前 task 等待 join。"""
         ...
@@ -2624,10 +2701,12 @@ class PythonConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     workers: int = Field(default=1, ge=1, le=1)
     image: str = "python:3.12-slim"
-    resources: dict[str, object] = Field(default_factory=lambda: {
-        "requests": {"cpu": "200m", "memory": "256Mi"},
-        "limits": {"cpu": "1000m", "memory": "1Gi"},
-    })
+    resources: dict[str, object] = Field(
+        default_factory=lambda: {
+            "requests": {"cpu": "200m", "memory": "256Mi"},
+            "limits": {"cpu": "1000m", "memory": "1Gi"},
+        }
+    )
 
 
 class LeaderElectionConfig(BaseModel):
@@ -2666,9 +2745,11 @@ class ServiceAccountConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     create: bool = True
     name: str = "superteam-a2a-operator"
-    annotations: dict[str, str] = Field(default_factory=lambda: {
-        "cert-manager.io/inject-ca-from": "superteam-a2a-ca/superteam-a2a-ca-cert",
-    })
+    annotations: dict[str, str] = Field(
+        default_factory=lambda: {
+            "cert-manager.io/inject-ca-from": "superteam-a2a-ca/superteam-a2a-ca-cert",
+        }
+    )
 
 
 class OperatorConfig(BaseModel):

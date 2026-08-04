@@ -206,8 +206,10 @@ from starlette.routing import Route
 from a2a.server.apps.jsonrpc import jsonrpc_app  # via upstream
 from superteam_a2a.a2a.upstream import AgentCard
 from superteam_a2a.a2a.extensions import (
-    QueryKnowledgeRouter, GetKnowledgeItemRouter,
-    RecordMemoryRouter, QueryMemoryRouter,
+    QueryKnowledgeRouter,
+    GetKnowledgeItemRouter,
+    RecordMemoryRouter,
+    QueryMemoryRouter,
 )
 
 
@@ -217,37 +219,40 @@ def create_app(
     middlewares: list[Middleware] | None = None,
 ) -> Starlette:
     """构造 A2A ASGI app；4 个项目扩展 method 注册到 Starlette sub-app。
-    
+
     SDK 处理 sendMessage / getTask / cancelTask / subscribeTask；
     extension routers 处理 queryKnowledge / getKnowledgeItem /
     recordMemory / queryMemory。
     """
     # 1. 标准 method 由 SDK 处理
     sdk_app = jsonrpc_app(agent_card=card)
-    
+
     # 2. 项目扩展 method 由 Starlette sub-app 处理（compatibility adapter）
-    extension_app = Starlette(routes=[
-        Route("/a2a/jsonrpc", endpoint=_dispatch_extension,
-              methods=["POST"]),
-    ])
-    
+    extension_app = Starlette(
+        routes=[
+            Route("/a2a/jsonrpc", endpoint=_dispatch_extension, methods=["POST"]),
+        ]
+    )
+
     # 3. 合并 + middleware 链
-    app = Starlette(routes=[
-        Mount("/", sdk_app),
-        Mount("/", extension_app),
-        # /.well-known/agent.json 由 SDK 提供
-        Route("/healthz", endpoint=liveness, methods=["GET"]),
-        Route("/readyz", endpoint=readiness, methods=["GET"]),
-        Route("/metrics", endpoint=metrics_endpoint, methods=["GET"]),
-    ])
-    
+    app = Starlette(
+        routes=[
+            Mount("/", sdk_app),
+            Mount("/", extension_app),
+            # /.well-known/agent.json 由 SDK 提供
+            Route("/healthz", endpoint=liveness, methods=["GET"]),
+            Route("/readyz", endpoint=readiness, methods=["GET"]),
+            Route("/metrics", endpoint=metrics_endpoint, methods=["GET"]),
+        ]
+    )
+
     # 4. middleware 链顺序：trace → auth (mTLS) → rate-limit → metrics
     app.add_middleware(TracingMiddleware)
     if mtls_config:
         app.add_middleware(MtlsMiddleware, config=mtls_config)
     app.add_middleware(RateLimitMiddleware)
     app.add_middleware(MetricsMiddleware)
-    
+
     return app
 ```
 
@@ -257,20 +262,22 @@ def create_app(
 # packages/a2a-core/src/superteam_a2a/a2a/extensions/base.py
 from typing import Protocol, runtime_checkable
 from superteam_a2a.a2a.upstream_types import (
-    JSONRPCRequest, JSONRPCResponse, JSONRPCError,
+    JSONRPCRequest,
+    JSONRPCResponse,
+    JSONRPCError,
 )
 
 
 @runtime_checkable
 class ExtensionRouter(Protocol):
     """项目扩展 method router 协议。
-    
+
     L2-1 通过 inspect 找出所有实现类；L2-4 Knowledge/Memory 模块
     提供具体实现（QueryKnowledgeRouter / RecordMemoryRouter 等）。
     """
-    
+
     method_name: str  # e.g. "a2a.queryKnowledge"
-    
+
     async def handle(self, request: JSONRPCRequest) -> JSONRPCResponse | JSONRPCError:
         """处理单个 JSON-RPC 请求；返回响应或错误。"""
         ...
@@ -532,7 +539,7 @@ async def measure_event_loop_lag(interval: float = 1.0):
         lag = actual - interval
         EVENT_LOOP_LAG.labels(component="a2a-core").observe(lag)
         if lag > 0.050:  # 50ms 阈值（Helm values 可配）
-            emit_warning_event(f"event loop lag {lag*1000:.1f}ms exceeds threshold")
+            emit_warning_event(f"event loop lag {lag * 1000:.1f}ms exceeds threshold")
 ```
 
 ---
@@ -598,6 +605,7 @@ from enum import IntEnum
 
 class StandardRpcError(IntEnum):
     """JSON-RPC 标准错误码 + 项目扩展错误码。"""
+
     PARSE_ERROR = -32700
     INVALID_REQUEST = -32600
     METHOD_NOT_FOUND = -32601
@@ -609,7 +617,7 @@ class StandardRpcError(IntEnum):
     UNAUTHORIZED = -32004
     FORBIDDEN = -32005
     RATE_LIMIT = -32006
-    
+
     # 项目扩展（ADR-0002 + ADR-0003）
     KNOWLEDGE_SCOPE_NOT_FOUND = -32400
     KNOWLEDGE_ITEM_NOT_FOUND = -32401

@@ -172,25 +172,26 @@ __all__ = [
 # 6 framework 共用的 Protocol 形态（具体由各 framework 适配）
 class FrameworkAdapter(Protocol):
     """Framework Adapter 协议（typing.Protocol + @runtime_checkable）"""
+
     framework_name: str  # "langchain" / "autogen" / "crewai" / "sk" / "strands" / "smolagents"
     framework_version: str  # "0.2.0" 形式
-    
+
     async def load_agent(self, spec: AgentSpec) -> Any:
         """从 AgentSpec 加载 framework 特定 Agent 对象"""
         ...
-    
+
     async def to_agent_card(self, agent: Any) -> AgentCard:
         """framework Agent → A2A AgentCard 转换"""
         ...
-    
+
     async def from_agent_card(self, card: AgentCard) -> AgentSpec:
         """A2A AgentCard → AgentSpec 反向转换"""
         ...
-    
+
     async def invoke(self, agent: Any, message: Message) -> Task:
         """framework Agent 执行 A2A Message"""
         ...
-    
+
     async def health_check(self) -> bool:
         """framework 运行时健康检查"""
         ...
@@ -390,69 +391,69 @@ FrameworkName = Literal[
 @runtime_checkable
 class FrameworkAdapter(Protocol):
     """Framework Adapter 协议（typing.Protocol + @runtime_checkable）。
-    
+
     6 framework adapter（LangChain / AutoGen / CrewAI / SK / Strands / Smolagents）
     必须实现本协议的全部 5 生命周期方法。SDK 不强制基类继承；通过 duck typing
     + isinstance(adapter, FrameworkAdapter) 运行时校验。
     """
-    
+
     framework_name: FrameworkName
     framework_version: str  # semver X.Y.Z
-    
+
     async def load_agent(self, spec: AgentSpec) -> Any:
         """从 AgentSpec 加载 framework 特定 Agent 对象。
-        
+
         Args:
             spec: AgentSpec Pydantic v2 模型（model + config + tools）
-        
+
         Returns:
             framework 特定的 Agent 对象（如 LangChain AgentExecutor / AutoGen ConversableAgent
             / CrewAI Crew / SK Kernel / Strands Agent / Smolagents CodeAgent）
-        
+
         Raises:
             AdapterConfigError: spec 字段不合法
             AdapterFrameworkError: framework 加载失败
         """
         ...
-    
+
     async def to_agent_card(self, agent: Any) -> AgentCard:
         """framework Agent → A2A AgentCard 转换。
-        
+
         Args:
             agent: framework 特定 Agent 对象（load_agent 返回值）
-        
+
         Returns:
             A2A AgentCard（url / name / description / capabilities / skills / version）
-        
+
         Raises:
             AdapterFrameworkError: 转换失败
         """
         ...
-    
+
     async def from_agent_card(self, card: AgentCard) -> AgentSpec:
         """A2A AgentCard → AgentSpec 反向转换（用于 A2A Discovery 接收）。
-        
+
         Args:
             card: A2A AgentCard（来自 .well-known/agent.json 或消息）
-        
+
         Returns:
             AgentSpec Pydantic v2 模型
-        
+
         Raises:
             AdapterConfigError: card 字段缺失或不合法
         """
         ...
-    
+
     async def invoke(self, agent: Any, message: Message) -> Task:
         """framework Agent 执行 A2A Message。
-        
+
         Args:
             agent: framework 特定 Agent 对象
             message: A2A Message（role + parts + metadata）
-        
+
         Returns:
             A2A Task（id + context_id + status + artifacts）
-        
+
         Raises:
             AdapterRetryableError: 网络/超时/5xx（Tenacity 重试策略覆盖）
             AdapterNonRetryableError: 4xx（不重试）
@@ -460,10 +461,10 @@ class FrameworkAdapter(Protocol):
             AdapterTimeoutError: invoke 超时（> adapterConfig.timeoutSeconds）
         """
         ...
-    
+
     async def health_check(self) -> bool:
         """framework 运行时健康检查（无参数）。
-        
+
         Returns:
             True: framework + 必要依赖可用
             False: 任何依赖缺失（env var / API key / model 文件）
@@ -474,7 +475,7 @@ class FrameworkAdapter(Protocol):
 @runtime_checkable
 class AgentCardConverter(Protocol):
     """AgentCard 转换器 Protocol（用于 framework 字段映射）。
-    
+
     6 framework 各自实现 AgentCardConverter，根据 framework 特定字段映射：
     - LangChain: tool name → AgentCard skill
     - AutoGen: function_call → AgentCard tool
@@ -483,20 +484,20 @@ class AgentCardConverter(Protocol):
     - Strands: tool spec → AgentCard skill
     - Smolagents: tool class → AgentCard skill
     """
-    
+
     @staticmethod
     def framework_to_card_skill(framework_field: Any) -> dict[str, Any]:
         """framework 特定字段 → AgentCard skill dict。
-        
+
         Returns:
             {"id": str, "name": str, "description": str, "tags": list[str]}
         """
         ...
-    
+
     @staticmethod
     def card_skill_to_framework(card_skill: dict[str, Any]) -> Any:
         """AgentCard skill dict → framework 特定字段。
-        
+
         Returns:
             framework 特定 tool 描述（如 LangChain Tool 对象）
         """
@@ -556,6 +557,7 @@ class Adapter(Protocol):
 # --- AdapterError JSON-RPC 序列化契约（v0.2.0 #58 补齐 · 评审 §M 关注项 7） ---
 # 定义位置：errors.py 中的 AdapterError 基类方法；此处列出签名与 wire 结构，
 # 供 §8.3 errors_mapping.py 与 L3-2 §10 错误传播直接对照实现。
+
 
 class AdapterError(Exception):  # 契约摘录（完整定义见 errors.py）
     """Adapter 错误基类（7 子类见 §1.4 不变量）。"""
@@ -827,8 +829,8 @@ from .protocol import Adapter
 
 _logger = structlog.get_logger("superteam_a2a.adapter.lifecycle")
 
-GRACE_PERIOD_SECONDS: float = 30.0   # 与 §9.3 terminationGracePeriodSeconds 成对修改
-READINESS_PERIODS: int = 5           # B.2 row 19：readiness probe 连续 5 周期
+GRACE_PERIOD_SECONDS: float = 30.0  # 与 §9.3 terminationGracePeriodSeconds 成对修改
+READINESS_PERIODS: int = 5  # B.2 row 19：readiness probe 连续 5 周期
 
 
 class Lifecycle:
@@ -906,13 +908,13 @@ from pydantic import BaseModel, Field, ConfigDict, SecretStr, field_validator, m
 
 class AgentSpec(BaseModel):
     """Agent 规格（Pydantic v2）。"""
-    
+
     model_config = ConfigDict(
         extra="forbid",  # 严格 wire shape
         str_strip_whitespace=True,
         validate_assignment=True,
     )
-    
+
     name: str = Field(min_length=1, max_length=253, pattern=r"^[a-z0-9-]+$")
     framework: Literal["langchain", "autogen", "crewai", "sk", "strands", "smolagents"]
     model: str = Field(min_length=1, max_length=512)  # model name
@@ -921,7 +923,7 @@ class AgentSpec(BaseModel):
     system_prompt: str | None = Field(default=None, max_length=4096)
     memory_ref: str | None = Field(default=None)  # 引用 Memory CRD（L2-4）
     knowledge_ref: str | None = Field(default=None)  # 引用 KnowledgeItem CRD
-    
+
     @field_validator("model")
     @classmethod
     def _validate_model_format(cls, v: str) -> str:
@@ -933,9 +935,9 @@ class AgentSpec(BaseModel):
 
 class ToolSpec(BaseModel):
     """Tool 规格（AgentSpec.tools 元素）。"""
-    
+
     model_config = ConfigDict(extra="forbid")
-    
+
     name: str = Field(min_length=1, max_length=63, pattern=r"^[a-zA-Z0-9_-]+$")
     description: str = Field(min_length=1, max_length=512)
     parameters: dict[str, Any] = Field(default_factory=dict)  # JSON Schema
@@ -944,7 +946,7 @@ class ToolSpec(BaseModel):
 
 class AgentCard(BaseModel):
     """A2A AgentCard（Pydantic v2 重导出 L3-2 a2a.AgentCard）。"""
-    
+
     # 不重写 L3-2 的 AgentCard 字段；仅作为 SDK 入口导出
     url: str
     name: str
@@ -958,15 +960,17 @@ class AgentCard(BaseModel):
 
 class AdapterConfig(BaseModel):
     """Adapter 配置（4 层优先级合并输入）。"""
-    
+
     model_config = ConfigDict(extra="forbid")
-    
+
     timeout_seconds: int = Field(default=120, ge=1, le=3600)
     max_retries: int = Field(default=3, ge=0, le=10)
-    retry_strategy: Literal["retry_network", "retry_timeout", "retry_5xx", "retry_429", "no_retry_4xx"] = "retry_network"
+    retry_strategy: Literal[
+        "retry_network", "retry_timeout", "retry_5xx", "retry_429", "no_retry_4xx"
+    ] = "retry_network"
     sensitive_fields: list[str] = Field(default_factory=lambda: ["api_key", "token", "password"])
     observability_labels: dict[str, str] = Field(default_factory=dict)
-    
+
     @model_validator(mode="after")
     def _validate_retry_strategy(self) -> "AdapterConfig":
         """retry_strategy 5 值枚举 + 与 max_retries 协同校验。"""
@@ -1108,21 +1112,21 @@ from superteam_a2a.adapter import (
 
 class LangChainAdapter:
     """LangChain FrameworkAdapter 实现（不显式继承 FrameworkAdapter；duck typing）。
-    
+
     framework_name = "langchain"
     framework_version 当前 = "0.2.0"（VERSION_MATRIX 同步）
     """
-    
+
     framework_name: str = "langchain"
     framework_version: str = "0.2.0"
-    
+
     def __init__(self, config: AdapterConfig):
         self.config = config
         self._llm: BaseLanguageModel | None = None
-    
+
     async def load_agent(self, spec: AgentSpec) -> AgentExecutor:
         """从 AgentSpec 加载 LangChain AgentExecutor。
-        
+
         关键步骤：
         1. 解析 spec.model → 创建 LLM（OpenAI / Anthropic / Bedrock 等）
         2. 解析 spec.tools → 加载 LangChain Tool 对象
@@ -1130,27 +1134,28 @@ class LangChainAdapter:
         4. create_react_agent + AgentExecutor
         """
         ...
-    
+
     async def to_agent_card(self, agent: AgentExecutor) -> AgentCard:
         """AgentExecutor → AgentCard 转换。"""
         ...
-    
+
     async def from_agent_card(self, card: AgentCard) -> AgentSpec:
         """AgentCard → AgentSpec 反向转换。"""
         ...
-    
+
     async def invoke(self, agent: AgentExecutor, message: Message) -> Task:
         """通过 AgentExecutor.acall() 执行 A2A Message。"""
         ...
-    
+
     async def health_check(self) -> bool:
         """检查 LLM API key + Tool 依赖。"""
         ...
 
 
 # 运行时校验
-assert isinstance(LangChainAdapter(AdapterConfig()), FrameworkAdapter), \
+assert isinstance(LangChainAdapter(AdapterConfig()), FrameworkAdapter), (
     "LangChainAdapter must satisfy FrameworkAdapter Protocol"
+)
 ```
 
 ### 5.3 6 framework adapter 子包对照表（22 文件）
@@ -1476,22 +1481,26 @@ GOLDEN_CASE_PASS_TOTAL = Counter(
 
 def setup_metrics(registry: CollectorRegistry | None = None) -> CollectorRegistry:
     """注册指标到指定 registry（None = DEFAULT_REGISTRY）。
-    
+
     Args:
         registry: 自定义 registry（测试场景注入；生产 = None）
-    
+
     Returns:
         CollectorRegistry: 实际使用的 registry
-    
+
     Raises:
         AdapterConfigError: registry 已包含同名指标（重新注册冲突）
     """
     if registry is None:
         return DEFAULT_REGISTRY
     for metric in (
-        REQUESTS_TOTAL, REQUEST_DURATION_SECONDS,
-        CARD_CONVERSION_DURATION_SECONDS, FRAMEWORK_LOAD_DURATION_SECONDS,
-        ERRORS_TOTAL, ACTIVE_AGENTS, GOLDEN_CASE_PASS_TOTAL,
+        REQUESTS_TOTAL,
+        REQUEST_DURATION_SECONDS,
+        CARD_CONVERSION_DURATION_SECONDS,
+        FRAMEWORK_LOAD_DURATION_SECONDS,
+        ERRORS_TOTAL,
+        ACTIVE_AGENTS,
+        GOLDEN_CASE_PASS_TOTAL,
     ):
         # 重新注册到自定义 registry（幂等保护）
         try:
@@ -1499,7 +1508,8 @@ def setup_metrics(registry: CollectorRegistry | None = None) -> CollectorRegistr
         except ValueError as exc:
             raise AdapterConfigError(
                 f"metric {metric._name} already registered",
-                framework=None, error_code=AdapterErrorCode.ADAPTER_CONFIG_ERROR,
+                framework=None,
+                error_code=AdapterErrorCode.ADAPTER_CONFIG_ERROR,
             ) from exc
     return registry
 
@@ -1538,27 +1548,27 @@ def create_tracer(
     service_version: str = "0.2.0",
 ) -> trace.Tracer:
     """创建 Adapter tracer（显式 provider 注入，避免污染全局）。
-    
+
     Args:
         name: tracer 名（默认 "supteam_a2a.adapter"）
         otlp_endpoint: OTLP collector endpoint（如 "otel-collector:4317"）；None = 不导出
         sample_ratio: 采样率（0.1 = 10%；生产推荐 0.01-0.1）
         service_version: adapter-sdk 版本（Root Span attribute `adapter.version`）
-    
+
     Returns:
         trace.Tracer: OTel tracer 实例
     """
     provider = TracerProvider(
         sampler=TraceIdRatioBased(sample_ratio),
     )
-    
+
     if otlp_endpoint:
         exporter = OTLPSpanExporter(endpoint=otlp_endpoint, insecure=True)
         provider.add_span_processor(BatchSpanProcessor(exporter))
-    
+
     trace.set_tracer_provider(provider)
     tracer = trace.get_tracer(name)
-    
+
     # 注入 service.version resource attribute
     resource = provider._resource if hasattr(provider, "_resource") else None
     return tracer
@@ -1572,14 +1582,14 @@ def create_root_span(
     framework_version: str,
 ) -> trace.Span:
     """创建 Root Span：`adapter.{framework}.{method}`。
-    
+
     Attributes:
         framework (str): 6 framework 名称
         framework.version (str): framework SDK 版本（运行时检测）
         adapter.version (str): adapter-sdk 版本（来自 service_version）
         agent.name (str): framework agent 名称
         method (str): A2A method 名（sendMessage / getTask 等）
-    
+
     Returns:
         trace.Span: 当前活跃 Span（用作 `with` 上下文管理器）
     """
@@ -1605,20 +1615,24 @@ def create_child_span(
 
 
 # OTel 4 层 Span 结构（语义约定）
-SPAN_NAMES = frozenset({
-    "adapter.{framework}.{method}",     # Root
-    "framework.invoke",                  # Child 1
-    "card.convert",                      # Child 2（Card 重读时）
-    "framework.translate",               # Child 3（framework output → A2A 响应）
-})
+SPAN_NAMES = frozenset(
+    {
+        "adapter.{framework}.{method}",  # Root
+        "framework.invoke",  # Child 1
+        "card.convert",  # Child 2（Card 重读时）
+        "framework.translate",  # Child 3（framework output → A2A 响应）
+    }
+)
 
 # Span Events（可选）
-SPAN_EVENTS = frozenset({
-    "tool.invoked",      # framework tool 调用
-    "memory.read",       # memory 读
-    "memory.write",      # memory 写
-    "error.occurred",    # 错误发生（携带 exception type + error_code）
-})
+SPAN_EVENTS = frozenset(
+    {
+        "tool.invoked",  # framework tool 调用
+        "memory.read",  # memory 读
+        "memory.write",  # memory 写
+        "error.occurred",  # 错误发生（携带 exception type + error_code）
+    }
+)
 ```
 
 ### 7.4 `logging.py` 文件级契约（96 行）
@@ -1632,11 +1646,19 @@ import structlog
 
 
 # 9 项敏感字段（永不过日志；L2-3 Spec §7.3 + 宪法 §6.5）
-_SENSITIVE_KEYS = frozenset({
-    "api_key", "token", "password", "secret",
-    "user_data", "memory_content", "knowledge_body",
-    "cert", "private_key",
-})
+_SENSITIVE_KEYS = frozenset(
+    {
+        "api_key",
+        "token",
+        "password",
+        "secret",
+        "user_data",
+        "memory_content",
+        "knowledge_body",
+        "cert",
+        "private_key",
+    }
+)
 
 
 def _redact_sensitive(_: object, __: str, event_dict: dict) -> dict:
@@ -1649,15 +1671,15 @@ def _redact_sensitive(_: object, __: str, event_dict: dict) -> dict:
 
 def configure_logging(level: str = "INFO") -> None:
     """配置 structlog JSON 输出（单进程模式 + 9 项脱敏）。
-    
+
     Args:
         level: 日志级别（DEBUG / INFO / WARNING / ERROR）；默认 INFO
-    
+
     强制字段（每条日志必须含）：
         framework / framework.version / adapter.version / method / task_id / agent.name / level / ts / msg
     """
     log_level = getattr(logging, level.upper(), logging.INFO)
-    
+
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
@@ -1686,7 +1708,7 @@ def bind_context(
     agent_name: str | None = None,
 ) -> None:
     """绑定强制字段到 contextvars（避免每条日志重复传参）。
-    
+
     7 项强制字段：framework / framework.version / adapter.version / method / task_id / agent.name / level
     （level 由 structlog.add_log_level 自动添加；adapter.version 在服务启动时通过 configure_logging 设置）
     """
@@ -1798,19 +1820,21 @@ _logger = structlog.get_logger("supteam_a2a.adapter.retry")
 
 # 5 类策略常量（继承 L2-3 Spec §10.4 + 宪法 §15.5）
 
-STRATEGY_RETRY_NETWORK = "retry_network"          # 网络错误 → 指数退避 + jitter（默认）
-STRATEGY_RETRY_5XX = "retry_5xx"                   # 5xx → 指数退避 + jitter
-STRATEGY_RETRY_RATE_LIMIT = "retry_rate_limit"    # 429 rate limit → 固定 60s + jitter
-STRATEGY_RETRY_TIMEOUT = "retry_timeout"           # 超时 → 指数退避 + jitter
-STRATEGY_RETRY_FRAMEWORK = "retry_framework"      # framework 业务错误 → 有限 3 次 + 指数退避
+STRATEGY_RETRY_NETWORK = "retry_network"  # 网络错误 → 指数退避 + jitter（默认）
+STRATEGY_RETRY_5XX = "retry_5xx"  # 5xx → 指数退避 + jitter
+STRATEGY_RETRY_RATE_LIMIT = "retry_rate_limit"  # 429 rate limit → 固定 60s + jitter
+STRATEGY_RETRY_TIMEOUT = "retry_timeout"  # 超时 → 指数退避 + jitter
+STRATEGY_RETRY_FRAMEWORK = "retry_framework"  # framework 业务错误 → 有限 3 次 + 指数退避
 
-VALID_STRATEGIES = frozenset({
-    STRATEGY_RETRY_NETWORK,
-    STRATEGY_RETRY_5XX,
-    STRATEGY_RETRY_RATE_LIMIT,
-    STRATEGY_RETRY_TIMEOUT,
-    STRATEGY_RETRY_FRAMEWORK,
-})
+VALID_STRATEGIES = frozenset(
+    {
+        STRATEGY_RETRY_NETWORK,
+        STRATEGY_RETRY_5XX,
+        STRATEGY_RETRY_RATE_LIMIT,
+        STRATEGY_RETRY_TIMEOUT,
+        STRATEGY_RETRY_FRAMEWORK,
+    }
+)
 
 
 def compute_backoff(
@@ -1820,16 +1844,16 @@ def compute_backoff(
     max_delay: float = 60.0,
 ) -> float:
     """计算第 N 次重试的退避时间（含 jitter）。
-    
+
     Args:
         strategy: 5 类策略之一（VALID_STRATEGIES 成员）
         attempt: 当前重试次数（0 = 首次重试）
         base_delay: 基础延迟秒数（默认 1.0）
         max_delay: 最大延迟秒数（默认 60.0）
-    
+
     Returns:
         float: 实际等待秒数（≤ max_delay）
-    
+
     Raises:
         AdapterConfigError: strategy 不在 VALID_STRATEGIES
     """
@@ -1839,20 +1863,20 @@ def compute_backoff(
             framework=None,
             error_code=AdapterErrorCode.ADAPTER_CONFIG_ERROR,
         )
-    
+
     if strategy == STRATEGY_RETRY_RATE_LIMIT:
         # 固定 60s + jitter（±10%）
         base = 60.0
     elif strategy == STRATEGY_RETRY_NETWORK or strategy == STRATEGY_RETRY_5XX:
         # 指数退避（base * 2^attempt）+ jitter（0.5x-1.5x）
-        base = min(base_delay * (2 ** attempt), max_delay)
+        base = min(base_delay * (2**attempt), max_delay)
     elif strategy == STRATEGY_RETRY_TIMEOUT:
         # 指数退避 + cap 30s
-        base = min(base_delay * (2 ** attempt), 30.0)
+        base = min(base_delay * (2**attempt), 30.0)
     elif strategy == STRATEGY_RETRY_FRAMEWORK:
         # 3 次有限 + 指数退避（5s/10s/20s）
-        base = min(5.0 * (2 ** attempt), max_delay)
-    
+        base = min(5.0 * (2**attempt), max_delay)
+
     # jitter（全 jitter = random.uniform(0.5, 1.5) 倍率）
     return base * random.uniform(0.5, 1.5)
 
@@ -1864,20 +1888,21 @@ def with_retry(
     max_delay: float = 60.0,
 ) -> Callable[[Callable[P, Awaitable[R]]], Callable[P, Awaitable[R]]]:
     """装饰器：包装 async 函数应用 5 类 Tenacity 策略。
-    
+
     Args:
         strategy: 重试策略（5 类之一）
         max_attempts: 最大尝试次数（含首次调用；默认 3 = 首次 + 2 重试）
         base_delay: 基础延迟（秒）
         max_delay: 最大延迟（秒）
-    
+
     Returns:
         Callable: 装饰后的 async 函数
-    
+
     Raises:
         AdapterRetryableError: 重试耗尽后最后一次错误
         AdapterPermanentError: 不可重试错误立即抛出
     """
+
     def decorator(func: Callable[P, Awaitable[R]]) -> Callable[P, Awaitable[R]]:
         @wraps(func)
         async def wrapper(*args: P.args, **kwargs: P.kwargs) -> R:
@@ -1900,11 +1925,14 @@ def with_retry(
                     error_code=AdapterErrorCode.ADAPTER_RETRYABLE_ERROR,
                     cause=last,
                 ) from exc
+
         return wrapper
+
     return decorator
 
 
 # --- public 工厂（v0.2.0 #58 补齐 · 评审 §M 关注项 9 · 继承 L2-3 Spec §6.4） ---
+
 
 def create_retry_policy(
     error_code: AdapterErrorCode,
@@ -1974,13 +2002,13 @@ from .errors import (
 # True = 该错误码触发重试；False = 立即抛出
 
 RETRYABLE_MATRIX: dict[AdapterErrorCode, bool] = {
-    AdapterErrorCode.ADAPTER_CONFIG_ERROR: False,        # 配置错误 = 永久
-    AdapterErrorCode.ADAPTER_AUTH_ERROR: False,          # 认证错误 = 永久
-    AdapterErrorCode.ADAPTER_TIMEOUT_ERROR: True,        # 超时 = 可重试
-    AdapterErrorCode.ADAPTER_FRAMEWORK_ERROR: True,      # framework 业务错误 = 可重试（有限 3 次）
-    AdapterErrorCode.ADAPTER_VERSION_ERROR: False,       # 版本不兼容 = 永久
-    AdapterErrorCode.ADAPTER_RETRYABLE_ERROR: True,      # 重试错误 = 可重试
-    AdapterErrorCode.ADAPTER_PERMANENT_ERROR: False,     # 永久错误 = 不可重试
+    AdapterErrorCode.ADAPTER_CONFIG_ERROR: False,  # 配置错误 = 永久
+    AdapterErrorCode.ADAPTER_AUTH_ERROR: False,  # 认证错误 = 永久
+    AdapterErrorCode.ADAPTER_TIMEOUT_ERROR: True,  # 超时 = 可重试
+    AdapterErrorCode.ADAPTER_FRAMEWORK_ERROR: True,  # framework 业务错误 = 可重试（有限 3 次）
+    AdapterErrorCode.ADAPTER_VERSION_ERROR: False,  # 版本不兼容 = 永久
+    AdapterErrorCode.ADAPTER_RETRYABLE_ERROR: True,  # 重试错误 = 可重试
+    AdapterErrorCode.ADAPTER_PERMANENT_ERROR: False,  # 永久错误 = 不可重试
 }
 
 
@@ -1994,14 +2022,14 @@ def map_framework_exception(
     framework: str,
 ) -> AdapterError:
     """framework 特定异常 → AdapterError 子类映射。
-    
+
     Args:
         exc: framework 抛出的原始异常
         framework: framework 名称（6 值之一）
-    
+
     Returns:
         AdapterError: 包装后的错误（带 error_code + framework context）
-    
+
     映射规则（继承 L2-3 Spec §10.4）：
         - 网络错误（httpx.RequestError / aiohttp.ClientError）→ AdapterRetryableError
         - 超时（asyncio.TimeoutError / httpx.TimeoutException）→ AdapterTimeoutError
@@ -2012,7 +2040,7 @@ def map_framework_exception(
         - 版本不兼容 → AdapterVersionError
     """
     import httpx  # framework adapter 子包内 import；此处仅在 framework adapter 调 SDK 时触达
-    
+
     if isinstance(exc, (httpx.ConnectError, httpx.NetworkError)):
         return AdapterRetryableError(
             f"network error: {exc}",
@@ -2074,14 +2102,14 @@ async def propagate_error(
     span: TraceSpan | None = None,
 ) -> None:
     """3 通道统一错误传播（structlog + Prometheus + OTel）。
-    
+
     Args:
         error: AdapterError 实例
         span: 当前活跃 OTel Span（可选；None = 无 Span）
     """
     import structlog
     from .observability.metrics import ERRORS_TOTAL
-    
+
     logger = structlog.get_logger("supteam_a2a.adapter")
     logger.error(
         "adapter_error",

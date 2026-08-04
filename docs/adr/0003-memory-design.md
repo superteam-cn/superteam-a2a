@@ -507,7 +507,9 @@ def validate_knowledge_item(ki: KnowledgeItem, operation: str) -> List[str]:
     if ki.spec.visibility == "public-readable":
         scope = get_scope(ki.spec.scopeRef.name)
         if scope.spec.level != "industry":
-            errors.append("KnowledgeItem.visibility == public-readable requires scope.level == industry")
+            errors.append(
+                "KnowledgeItem.visibility == public-readable requires scope.level == industry"
+            )
     return errors
 
 
@@ -526,7 +528,9 @@ def validate_memory(m: Memory, operation: str) -> List[str]:
     if m.spec.sourceKnowledgeRef:
         ki = get_knowledge_item(m.spec.sourceKnowledgeRef.name)
         if ki is None:
-            errors.append(f"Memory.sourceKnowledgeRef KI not found: {m.spec.sourceKnowledgeRef.name}")
+            errors.append(
+                f"Memory.sourceKnowledgeRef KI not found: {m.spec.sourceKnowledgeRef.name}"
+            )
         if ki and ki.spec.scopeRef.name != m.spec.scopeRef.name:
             errors.append("Memory.sourceKnowledgeRef.scope must match Memory.scopeRef")
     # visibility 校验

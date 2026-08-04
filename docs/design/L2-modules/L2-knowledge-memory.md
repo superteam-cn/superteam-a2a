@@ -135,7 +135,8 @@ from superteam_a2a.shared.meta import ObjectMeta, Condition
 
 class ScopeLevel(StrEnum):
     """4 级作用域枚举（ADR-0002 §3.1 + §4.1）。"""
-    INDUSTRY = "industry"        # cluster-scoped；唯一 1 个
+
+    INDUSTRY = "industry"  # cluster-scoped；唯一 1 个
     ORGANIZATION = "organization"  # namespace-scoped
     TEAM = "team"
     PROJECT = "project"
@@ -143,6 +144,7 @@ class ScopeLevel(StrEnum):
 
 class SubjectKind(StrEnum):
     """Subject 引用类型（User / Group / ServiceAccount）。"""
+
     USER = "User"
     GROUP = "Group"
     SERVICE_ACCOUNT = "ServiceAccount"
@@ -150,37 +152,44 @@ class SubjectKind(StrEnum):
 
 class SubjectReference(BaseModel):
     """指向 User / Group / ServiceAccount 的引用。"""
+
     model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
-    
+
     kind: SubjectKind = Field(..., description="主体类型")
     name: str = Field(..., min_length=1, max_length=253)
 
 
 class ScopeReference(BaseModel):
     """指向 KnowledgeScope 的引用。"""
+
     model_config = ConfigDict(extra="forbid", frozen=True)
-    
+
     name: str = Field(..., min_length=1, max_length=128)
     level: ScopeLevel | None = Field(default=None, description="冗余缓存；admission 校验一致性")
 
 
 class InheritRules(BaseModel):
     """4 级 scope 继承过滤规则（admission webhook 强制）。"""
+
     model_config = ConfigDict(extra="forbid", frozen=True)
-    
+
     include_types: list[str] | None = Field(default=None, max_length=11)
     exclude_types: list[str] | None = Field(default=None, max_length=11)
 
 
 class KnowledgeScopeSpec(BaseModel):
     """KnowledgeScope CRD spec（6 字段 · ADR-0002 §3.1 + L1 v0.2.0 §5.2.2）。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    
+
     level: ScopeLevel = Field(..., description="作用域级别")
     display_name: str = Field(..., alias="displayName", min_length=1, max_length=64)
     description: str | None = Field(default=None, max_length=512)
-    parent_ref: ScopeReference | None = Field(default=None, alias="parentRef",
-        description="industry 必须为 None；其他 level 必须 parent 严格递增 1 级")
+    parent_ref: ScopeReference | None = Field(
+        default=None,
+        alias="parentRef",
+        description="industry 必须为 None；其他 level 必须 parent 严格递增 1 级",
+    )
     owner_ref: SubjectReference = Field(..., alias="ownerRef")
     inherit_rules: InheritRules | None = Field(default=None, alias="inheritRules")
     # 7 = 6 spec + labels（可选）— labels 不计入 spec 字段数；ADR-0004 防过度设计 ≤15 上限达标
@@ -188,8 +197,9 @@ class KnowledgeScopeSpec(BaseModel):
 
 class KnowledgeScopeStatus(BaseModel):
     """KnowledgeScope CRD status（6 字段）。"""
+
     model_config = ConfigDict(extra="forbid")
-    
+
     phase: ScopePhase | None = None  # Pending / Active / Error / Deleting
     message: str | None = Field(default=None, max_length=512)
     conditions: list[Condition] = Field(default_factory=list)
@@ -200,8 +210,9 @@ class KnowledgeScopeStatus(BaseModel):
 
 class KnowledgeScope(BaseModel):
     """KnowledgeScope CRD 顶层。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    
+
     api_version: str = Field(default="knowledge.superteam-a2a.io/v1alpha1", alias="apiVersion")
     kind: str = Field(default="KnowledgeScope")
     metadata: ObjectMeta
@@ -247,38 +258,40 @@ from superteam_a2a.knowledge.apis.v1alpha1 import KnowledgeItem
 
 
 # BM25 参数（与 Go baseline 完全一致）
-BM25_K1 = 1.5   # 词频饱和参数
-BM25_B = 0.75   # 文档长度归一化参数
+BM25_K1 = 1.5  # 词频饱和参数
+BM25_B = 0.75  # 文档长度归一化参数
 
 
 @runtime_checkable
 class InvertedIndex(Protocol):
     """内存倒排索引抽象（ADR-0005 §3.4）。"""
-    
+
     async def search(
-        self, query: str, scope_chain: list[str],
+        self,
+        query: str,
+        scope_chain: list[str],
         type_filter: list[str] | None = None,
         tag_filter: list[str] | None = None,
         max_results: int = 10,
     ) -> list[tuple[KnowledgeItem, float]]:
         """BM25 检索；返回 (item, score) 列表。
-        
+
         阻塞工作通过 to_thread.run_sync offload（满足 ADR-0005 §6.3）。
         """
         ...
-    
+
     async def rebuild(self, items: list[KnowledgeItem]) -> None:
         """全量重建索引（启动期 + Helm values 触发）。"""
         ...
-    
+
     async def upsert(self, item: KnowledgeItem) -> None:
         """增量更新（watch 触发）。"""
         ...
-    
+
     async def remove(self, item_name: str) -> None:
         """增量删除。"""
         ...
-    
+
     def size(self) -> int:
         """当前索引条目数（10K 上限报警）。"""
         ...
@@ -286,7 +299,7 @@ class InvertedIndex(Protocol):
 
 class RealInvertedIndex:
     """生产实现：内存 dict + BM25 评分。"""
-    
+
     def __init__(self) -> None:
         # token → set of item names
         self._postings: dict[str, set[str]] = defaultdict(set)
@@ -296,9 +309,11 @@ class RealInvertedIndex:
         self._items: dict[str, KnowledgeItem] = {}
         self._avg_doc_len: float = 0.0
         self._lock = asyncio.Lock()
-    
+
     async def search(
-        self, query: str, scope_chain: list[str],
+        self,
+        query: str,
+        scope_chain: list[str],
         type_filter: list[str] | None = None,
         tag_filter: list[str] | None = None,
         max_results: int = 10,
@@ -306,11 +321,17 @@ class RealInvertedIndex:
         # 异步入口 + 受控线程 offload（满足 ADR-0005 §6.3 + L1 §11.5 event-loop lag 门禁）
         return await to_thread.run_sync(
             self._search_blocking,
-            query, scope_chain, type_filter, tag_filter, max_results,
+            query,
+            scope_chain,
+            type_filter,
+            tag_filter,
+            max_results,
         )
-    
+
     def _search_blocking(
-        self, query: str, scope_chain: list[str],
+        self,
+        query: str,
+        scope_chain: list[str],
         type_filter: list[str] | None,
         tag_filter: list[str] | None,
         max_results: int,
@@ -319,31 +340,30 @@ class RealInvertedIndex:
         query_tokens = self._tokenize(query)
         if not query_tokens:
             return []
-        
+
         # 1. 收集候选 item name（union of postings）
         candidates: set[str] = set()
         for tok in query_tokens:
             candidates.update(self._postings.get(tok, set()))
-        
+
         # 2. scope 过滤
         scope_set = set(scope_chain)
         candidates = {
-            name for name in candidates
-            if self._items[name].spec.scope_ref.name in scope_set
+            name for name in candidates if self._items[name].spec.scope_ref.name in scope_set
         }
-        
+
         # 3. typeFilter / tagFilter 过滤
         if type_filter:
             candidates = {
-                name for name in candidates
-                if self._items[name].spec.type.value in type_filter
+                name for name in candidates if self._items[name].spec.type.value in type_filter
             }
         if tag_filter:
             candidates = {
-                name for name in candidates
+                name
+                for name in candidates
                 if set(self._items[name].spec.tags or []) & set(tag_filter)
             }
-        
+
         # 4. BM25 评分
         N = len(self._items)
         scores: list[tuple[str, float]] = []
@@ -351,11 +371,11 @@ class RealInvertedIndex:
             score = self._bm25_score(name, query_tokens, N)
             if score > 0:
                 scores.append((name, score))
-        
+
         # 5. 排序 + 截断
         scores.sort(key=lambda x: x[1], reverse=True)
         top = scores[:max_results]
-        
+
         # 6. visibility 过滤（公开方法调用，避免循环依赖）
         results: list[tuple[KnowledgeItem, float]] = []
         for name, score in top:
@@ -363,7 +383,7 @@ class RealInvertedIndex:
             if self._is_visible(item, scope_chain):
                 results.append((item, score))
         return results
-    
+
     def _bm25_score(self, doc_name: str, query_tokens: list[str], N: int) -> float:
         """BM25 评分公式（与 Go baseline math 完全等价）。"""
         doc_tokens = self._doc_lens[doc_name]
@@ -379,7 +399,7 @@ class RealInvertedIndex:
             tf_norm = (1) / (1 + BM25_B * (doc_tokens / self._avg_doc_len - 1))
             score += idf * tf_norm
         return score
-    
+
     # ... rebuild / upsert / remove / size 实现
 ```
 
@@ -428,19 +448,23 @@ from datetime import timedelta
 from typing import Protocol, runtime_checkable
 import kopf
 from superteam_a2a.memory.lifecycle import (
-    apply_decay, apply_reinforce, gc_expired, is_eligible_for_promotion,
+    apply_decay,
+    apply_reinforce,
+    gc_expired,
+    is_eligible_for_promotion,
 )
 from superteam_a2a.shared.clock import Clock, RealClock
 from superteam_a2a.shared.leader import LeaseLeader
 from superteam_a2a.shared.observability import (
-    SUPTEAM_MEMORY_DECAY_TOTAL, SUPTEAM_MEMORY_RECONCILE_DURATION_SECONDS,
+    SUPTEAM_MEMORY_DECAY_TOTAL,
+    SUPTEAM_MEMORY_RECONCILE_DURATION_SECONDS,
 )
 
 
 @runtime_checkable
 class MemoryReconcilerService(Protocol):
     """MemoryReconciler 业务抽象（L2-2 Operator Core §5.6）。"""
-    
+
     async def reconcile_all(self, now: "datetime") -> ReconcileSummary:
         """单次全集群 Memory reconcile；返回计数摘要。"""
         ...
@@ -448,9 +472,9 @@ class MemoryReconcilerService(Protocol):
 
 class RealMemoryReconcilerService:
     """生产实现：批量 reconcile + Leader Election + 周期触发。"""
-    
+
     BATCH_SIZE = 1000  # 单 reconcile 批大小；Helm values 可配
-    
+
     def __init__(
         self,
         clock: Clock,  # Protocol 注入（默认 RealClock；测试 FakeClock）
@@ -460,15 +484,15 @@ class RealMemoryReconcilerService:
         self._clock = clock
         self._leader = leader
         self._store = memory_store
-    
+
     async def reconcile_all(self, now: "datetime") -> ReconcileSummary:
         """周期 reconcile 入口（被 @kopf.timer 调用）。"""
         if not await self._leader.is_leader():
             return ReconcileSummary()  # 非 leader 直接返回（K8s Lease 单活）
-        
+
         with SUPTEAM_MEMORY_RECONCILE_DURATION_SECONDS.time():
             summary = ReconcileSummary()
-            
+
             # 1. 拉取全集群 Memory（分批，避免 API server 过载）
             memories = await self._store.list_all_memories()
             for batch in chunked(memories, self.BATCH_SIZE):
@@ -476,34 +500,41 @@ class RealMemoryReconcilerService:
                     for mem in batch:
                         tg.create_task(self._reconcile_one(mem, now, summary))
             return summary
-    
+
     async def _reconcile_one(
-        self, mem: Memory, now: datetime, summary: ReconcileSummary,
+        self,
+        mem: Memory,
+        now: datetime,
+        summary: ReconcileSummary,
     ) -> None:
         """单 Memory reconcile（decay + GC + promotion 计算）。"""
         # 1. decay 公式（数学等价于 L2-2 §5.6）
         new_effective = apply_decay(mem, now)
         old_phase = mem.status.phase if mem.status else MemoryPhase.ACTIVE
-        
+
         # 2. GC 检查
         if new_effective < 0.01 and mem.spec.decay_days > 0:
             await self._store.delete_memory(mem.metadata.name)
             SUPTEAM_MEMORY_DECAY_TOTAL.labels(
-                phase_from=old_phase.value, phase_to=MemoryPhase.EXPIRED.value,
+                phase_from=old_phase.value,
+                phase_to=MemoryPhase.EXPIRED.value,
             ).inc()
             summary.expired += 1
             return
-        
+
         # 3. promotion 资格计算（v0.1 仅算不触发）
         eligible = is_eligible_for_promotion(mem, new_effective)
-        
+
         # 4. status 写回（partial update，避免覆盖 spec）
-        await self._store.patch_status(mem.metadata.name, {
-            "phase": _phase_for(new_effective).value,
-            "effectiveConfidence": new_effective,
-            "lastDecayedAt": now,
-            "eligibleForPromotion": eligible,
-        })
+        await self._store.patch_status(
+            mem.metadata.name,
+            {
+                "phase": _phase_for(new_effective).value,
+                "effectiveConfidence": new_effective,
+                "lastDecayedAt": now,
+                "eligibleForPromotion": eligible,
+            },
+        )
         if old_phase != _phase_for(new_effective):
             SUPTEAM_MEMORY_DECAY_TOTAL.labels(
                 phase_from=old_phase.value,
@@ -513,9 +544,10 @@ class RealMemoryReconcilerService:
 
 
 # Kopf timer decorator（与 L2-2 Operator Core Spec §5.6 对齐）
-@kopf.timer('memories', interval=60.0, idle=30.0)
+@kopf.timer("memories", interval=60.0, idle=30.0)
 async def memory_reconcile_timer(
-    now: "datetime", memory_reconciler: MemoryReconcilerService,
+    now: "datetime",
+    memory_reconciler: MemoryReconcilerService,
     **_,
 ) -> None:
     """60s 周期触发 MemoryReconciler（与 Go baseline 一致）。"""
@@ -604,48 +636,45 @@ import math
 
 def apply_decay(memory: Memory, now: datetime) -> float:
     """decay 公式：effectiveConfidence = confidence * exp(-elapsed_days / decayDays)。
-    
+
     与 Go baseline ADR-0003 §4.1 数学完全等价；时间由 Clock 注入。
     """
     if memory.spec.decay_days == 0:
         return memory.spec.confidence  # 不衰减
-    
-    last_reinforced = (
-        memory.status.last_reinforced_at
-        or memory.metadata.creation_timestamp
-    )
+
+    last_reinforced = memory.status.last_reinforced_at or memory.metadata.creation_timestamp
     elapsed_days = (now - last_reinforced).total_seconds() / 86400.0
     return memory.spec.confidence * math.exp(-elapsed_days / memory.spec.decay_days)
 
 
 def apply_reinforce(memory: Memory, now: datetime, hit_count: int = 1) -> Memory:
     """reinforce 公式：reinforcedCount += hit_count；confidence 不变；lastReinforcedAt = now。
-    
+
     与 Go baseline ADR-0003 §4.2 数学完全等价。
     """
-    return memory.model_copy(update={
-        "spec": memory.spec.model_copy(update={
-            "reinforced_count": memory.spec.reinforced_count + hit_count,
-        }),
-        "status": (memory.status or MemoryStatus()).model_copy(update={
-            "last_reinforced_at": now,
-        }),
-    })
+    return memory.model_copy(
+        update={
+            "spec": memory.spec.model_copy(
+                update={
+                    "reinforced_count": memory.spec.reinforced_count + hit_count,
+                }
+            ),
+            "status": (memory.status or MemoryStatus()).model_copy(
+                update={
+                    "last_reinforced_at": now,
+                }
+            ),
+        }
+    )
 
 
 def is_eligible_for_promotion(memory: Memory, effective: float) -> bool:
     """promotion 资格（v0.1 仅算不触发；详见 ADR-0003 §4.3）。
-    
+
     规则：reinforced_count ≥ 5 AND effective ≥ 0.7 AND age ≥ 7d。
     """
-    age_days = (
-        (datetime.now(UTC) - memory.metadata.creation_timestamp).days
-    )
-    return (
-        memory.spec.reinforced_count >= 5
-        and effective >= 0.7
-        and age_days >= 7
-    )
+    age_days = (datetime.now(UTC) - memory.metadata.creation_timestamp).days
+    return memory.spec.reinforced_count >= 5 and effective >= 0.7 and age_days >= 7
 ```
 
 **与 Go baseline 对照**：
@@ -680,9 +709,10 @@ from superteam_a2a.memory.apis.v1alpha1 import Memory
 from superteam_a2a.shared.errors import AdmissionRejected
 
 
-@kopf.validation('knowledgeitems', 'create', 'update')
+@kopf.validation("knowledgeitems", "create", "update")
 async def validate_knowledge_item(
-    spec: KnowledgeItemSpec, **_,
+    spec: KnowledgeItemSpec,
+    **_,
 ) -> None:
     """KnowledgeItem admission 互斥规则（左侧）。"""
     # 1. ownerRef.Kind 必须 User / Group（拒绝 ServiceAccount）
@@ -690,25 +720,26 @@ async def validate_knowledge_item(
         raise AdmissionRejected(
             code="KNOWLEDGE_OWNER_KIND_FORBIDDEN",
             message="KnowledgeItem.ownerRef.Kind must be User or Group; "
-                    "ServiceAccount owned Memories are tracked separately.",
+            "ServiceAccount owned Memories are tracked separately.",
         )
-    
+
     # 2. visibility == public-readable 必须 scope.level == industry
-    if (spec.visibility == KnowledgeVisibility.PUBLIC_READABLE
-            and spec.scope_ref.level != ScopeLevel.INDUSTRY):
+    if (
+        spec.visibility == KnowledgeVisibility.PUBLIC_READABLE
+        and spec.scope_ref.level != ScopeLevel.INDUSTRY
+    ):
         raise AdmissionRejected(
             code="KNOWLEDGE_PUBLIC_REQUIRES_INDUSTRY",
-            message="KnowledgeItem.visibility == public-readable "
-                    "requires scope.level == industry.",
+            message="KnowledgeItem.visibility == public-readable requires scope.level == industry.",
         )
-    
+
     # 3. visibility == agent-private v0.1 拒绝
     if spec.visibility == KnowledgeVisibility.AGENT_PRIVATE:
         raise AdmissionRejected(
             code="KNOWLEDGE_AGENT_PRIVATE_V0_5_PLUS",
             message="KnowledgeItem.visibility == agent-private is reserved for v0.5+",
         )
-    
+
     # 4. scopeRef 存在 + level 合法 + parent 关系合法
     scope = await fetch_scope(spec.scope_ref.name)
     if scope is None:
@@ -723,9 +754,10 @@ async def validate_knowledge_item(
         )
 
 
-@kopf.validation('memories', 'create', 'update')
+@kopf.validation("memories", "create", "update")
 async def validate_memory(
-    spec: MemorySpec, **_,
+    spec: MemorySpec,
+    **_,
 ) -> None:
     """Memory admission 互斥规则（右侧）。"""
     # 1. agentRef.Kind 必须 ServiceAccount（拒绝 User / Group）
@@ -733,9 +765,9 @@ async def validate_memory(
         raise AdmissionRejected(
             code="MEMORY_AGENT_KIND_FORBIDDEN",
             message="Memory.agentRef.Kind must be ServiceAccount; "
-                    "User/Group owned knowledge uses KnowledgeItem.",
+            "User/Group owned knowledge uses KnowledgeItem.",
         )
-    
+
     # 2. scopeRef 必须存在
     scope = await fetch_scope(spec.scope_ref.name)
     if scope is None:
@@ -743,11 +775,12 @@ async def validate_memory(
             code="MEMORY_SCOPE_NOT_FOUND",
             message=f"KnowledgeScope {spec.scope_ref.name} not found.",
         )
-    
+
     # 3. sourceKnowledgeRef 若存在 → KI 必须存在 + scope 匹配
     if spec.source_knowledge_ref is not None:
         ki = await fetch_knowledge_item(
-            spec.source_knowledge_ref.name, spec.source_knowledge_ref.scope,
+            spec.source_knowledge_ref.name,
+            spec.source_knowledge_ref.scope,
         )
         if ki is None:
             raise AdmissionRejected(
@@ -759,15 +792,14 @@ async def validate_memory(
                 code="MEMORY_SOURCE_KNOWLEDGE_SCOPE_MISMATCH",
                 message="Memory.scopeRef must match sourceKnowledgeRef.scope",
             )
-    
+
     # 4. visibility == agent-private 必须 agentRef.Name != ""
-    if (spec.visibility == MemoryVisibility.AGENT_PRIVATE
-            and not spec.agent_ref.name):
+    if spec.visibility == MemoryVisibility.AGENT_PRIVATE and not spec.agent_ref.name:
         raise AdmissionRejected(
             code="MEMORY_AGENT_PRIVATE_REQUIRES_AGENT_NAME",
             message="Memory.visibility == agent-private requires agentRef.Name.",
         )
-    
+
     # 5. decayDays ≤ 3650
     if spec.decay_days > 3650:
         raise AdmissionRejected(
@@ -1008,7 +1040,10 @@ supteam_a2a.memory_backend/
 # 完整代码 + 12 种组合表驱动单测在 L3-5 Spec
 from typing import Protocol, runtime_checkable
 from superteam_a2a.knowledge.apis.v1alpha1 import (
-    KnowledgeScope, KnowledgeScopeSpec, ScopeLevel, ScopeReference,
+    KnowledgeScope,
+    KnowledgeScopeSpec,
+    ScopeLevel,
+    ScopeReference,
 )
 from superteam_a2a.shared.errors import ScopeNotFound, ScopeCycle
 
@@ -1016,11 +1051,11 @@ from superteam_a2a.shared.errors import ScopeNotFound, ScopeCycle
 @runtime_checkable
 class ScopeResolver(Protocol):
     """4 级 scope 继承解析抽象。"""
-    
+
     async def get_scope(self, name: str) -> KnowledgeScope | None:
         """从 K8s API / 内存缓存获取 scope。"""
         ...
-    
+
     async def resolve_effective_scopes(self, scope_name: str) -> list[str]:
         """从 industry 一路到当前 scope 的完整继承链（顶层在前）。"""
         ...
@@ -1028,12 +1063,12 @@ class ScopeResolver(Protocol):
 
 class RealScopeResolver:
     """生产实现：Kopf K8s API client + 内存 LRU 缓存。"""
-    
+
     def __init__(self, k8s_client: "kubernetes_asyncio.client.CoreV1Api") -> None:
         self._k8s = k8s_client
         self._cache: dict[str, KnowledgeScope] = {}
         self._cache_lock = asyncio.Lock()
-    
+
     async def get_scope(self, name: str) -> KnowledgeScope | None:
         if name in self._cache:
             return self._cache[name]
@@ -1043,35 +1078,35 @@ class RealScopeResolver:
             async with self._cache_lock:
                 self._cache[name] = scope
         return scope
-    
+
     async def resolve_effective_scopes(self, scope_name: str) -> list[str]:
         """从 industry 一路到当前 scope 的完整继承链（顶层在前）。
-        
+
         例：["industry-cloud", "org-acme", "team-payments", "project-checkout"]
         """
         chain: list[str] = []
         visited: set[str] = set()  # 循环引用检测
         current_name: str | None = scope_name
-        
+
         while current_name is not None:
             if current_name in visited:
                 raise ScopeCycle(
                     f"Cycle detected in scope inheritance at {current_name}",
                 )
             visited.add(current_name)
-            
+
             scope = await self.get_scope(current_name)
             if scope is None:
                 raise ScopeNotFound(
                     f"KnowledgeScope {current_name} not found during inheritance resolution",
                 )
-            
+
             chain.insert(0, scope.metadata.name)  # 顶层在前
-            
+
             # 终止条件：industry（parent_ref is None）
             if scope.spec.parent_ref is None:
                 break
-            
+
             # 检查 parent 跨级（精确递增 1 级）
             parent_scope = await self.get_scope(scope.spec.parent_ref.name)
             if parent_scope is None:
@@ -1084,9 +1119,9 @@ class RealScopeResolver:
                     f"parent {parent_scope.metadata.name} (level={parent_scope.spec.level}) "
                     f"violates strict level increment",
                 )
-            
+
             current_name = scope.spec.parent_ref.name
-        
+
         return chain
 
 
@@ -1107,7 +1142,7 @@ async def query_knowledge(
 ) -> list[tuple[KnowledgeItem, float]]:
     """查询时自动包含继承链上所有作用域的 KnowledgeItem。"""
     effective_scopes = await scope_resolver.resolve_effective_scopes(scope_name)
-    
+
     # 内存倒排索引查询（CPU offload）
     candidates = await inverted_index.search(
         query=query,
@@ -1116,7 +1151,7 @@ async def query_knowledge(
         tag_filter=tag_filter,
         max_results=max_results * 2,  # 多取一倍用于 visibility 过滤后截断
     )
-    
+
     # visibility 过滤（公开方法调用，避免循环依赖）
     results: list[tuple[KnowledgeItem, float]] = []
     for item, score in candidates:
@@ -1127,7 +1162,7 @@ async def query_knowledge(
         if not _is_visibility_allowed(item, scope_name):
             continue
         results.append((item, score))
-    
+
     # 去重：同 ID 保留最新 version
     return _dedupe_by_id_keep_latest(results)[:max_results]
 ```
@@ -1267,68 +1302,92 @@ from superteam_a2a.a2a.upstream import AgentSkill  # L2-1 边界
 
 class KnowledgeServiceCard(BaseModel):
     """Knowledge Service Agent Card（Pydantic 推导 AgentCard JSON）。"""
-    
+
     model_config = ConfigDict(extra="forbid", frozen=True)
-    
+
     name: str = Field(default="superteam-a2a.knowledge-service", frozen=True)
     version: str = Field(default="0.2.0", description="Python 重写版本")
     description: str = Field(
         default="Internal knowledge service for superteam-a2a. "
-                "Provides free-text query and item retrieval across the 4-level "
-                "scope hierarchy, plus persistent memory record/query.",
+        "Provides free-text query and item retrieval across the 4-level "
+        "scope hierarchy, plus persistent memory record/query.",
     )
-    provider: dict[str, str] = Field(default={
-        "organization": "superteam-a2a",
-        "url": "https://github.com/superteam-cn/superteam-a2a",
-    })
-    skills: list[AgentSkill] = Field(default_factory=lambda: [
-        AgentSkill(
-            id="query_knowledge",
-            name="Query Knowledge",
-            description="Free-text search over KnowledgeItems with scope/type/tag filters.",
-            input_schema={  # JSON Schema 2020-12
-                "type": "object",
-                "required": ["scope", "query"],
-                "properties": {
-                    "scope": {"type": "string", "description": "KnowledgeScope name"},
-                    "query": {"type": "string", "minLength": 1, "maxLength": 512},
-                    "typeFilter": {"type": "array", "items": {"enum": [
-                        "document", "runbook", "api-spec", "architecture", "faq",
-                        "best-practice", "template", "contract", "troubleshooting",
-                        "glossary", "other",
-                    ]}},
-                    "tagFilter": {"type": "array"},
-                    "maxResults": {"type": "integer", "minimum": 1, "maximum": 50, "default": 10},
+    provider: dict[str, str] = Field(
+        default={
+            "organization": "superteam-a2a",
+            "url": "https://github.com/superteam-cn/superteam-a2a",
+        }
+    )
+    skills: list[AgentSkill] = Field(
+        default_factory=lambda: [
+            AgentSkill(
+                id="query_knowledge",
+                name="Query Knowledge",
+                description="Free-text search over KnowledgeItems with scope/type/tag filters.",
+                input_schema={  # JSON Schema 2020-12
+                    "type": "object",
+                    "required": ["scope", "query"],
+                    "properties": {
+                        "scope": {"type": "string", "description": "KnowledgeScope name"},
+                        "query": {"type": "string", "minLength": 1, "maxLength": 512},
+                        "typeFilter": {
+                            "type": "array",
+                            "items": {
+                                "enum": [
+                                    "document",
+                                    "runbook",
+                                    "api-spec",
+                                    "architecture",
+                                    "faq",
+                                    "best-practice",
+                                    "template",
+                                    "contract",
+                                    "troubleshooting",
+                                    "glossary",
+                                    "other",
+                                ]
+                            },
+                        },
+                        "tagFilter": {"type": "array"},
+                        "maxResults": {
+                            "type": "integer",
+                            "minimum": 1,
+                            "maximum": 50,
+                            "default": 10,
+                        },
+                    },
                 },
-            },
-            output_schema={  # items[] + totalCount
-                "type": "object",
-                "required": ["items", "totalCount"],
-                "properties": {
-                    "items": {"type": "array"},
-                    "totalCount": {"type": "integer", "minimum": 0},
+                output_schema={  # items[] + totalCount
+                    "type": "object",
+                    "required": ["items", "totalCount"],
+                    "properties": {
+                        "items": {"type": "array"},
+                        "totalCount": {"type": "integer", "minimum": 0},
+                    },
                 },
-            },
-        ),
-        AgentSkill(
-            id="get_knowledge_item",
-            name="Get Knowledge Item",
-            description="Retrieve full KnowledgeItem by name + version.",
-            input_schema={
-                "type": "object",
-                "required": ["name"],
-                "properties": {
-                    "name": {"type": "string"},
-                    "version": {"type": "integer", "minimum": 1},
+            ),
+            AgentSkill(
+                id="get_knowledge_item",
+                name="Get Knowledge Item",
+                description="Retrieve full KnowledgeItem by name + version.",
+                input_schema={
+                    "type": "object",
+                    "required": ["name"],
+                    "properties": {
+                        "name": {"type": "string"},
+                        "version": {"type": "integer", "minimum": 1},
+                    },
                 },
-            },
-        ),
-    ])
-    capabilities: dict[str, bool] = Field(default={
-        "streaming": False,
-        "pushNotifications": False,
-        "stateTransitionHistory": False,
-    })
+            ),
+        ]
+    )
+    capabilities: dict[str, bool] = Field(
+        default={
+            "streaming": False,
+            "pushNotifications": False,
+            "stateTransitionHistory": False,
+        }
+    )
     authentication: dict[str, list[str]] = Field(default={"schemes": ["mtls"]})
 ```
 
@@ -1353,7 +1412,7 @@ class KnowledgeServiceCard(BaseModel):
 ```python
 class QueryKnowledgeRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    
+
     scope: str = Field(..., min_length=1, max_length=128)
     query: str = Field(..., min_length=1, max_length=512)
     type_filter: list[str] | None = Field(default=None, max_length=11, alias="typeFilter")
@@ -1363,8 +1422,10 @@ class QueryKnowledgeRequest(BaseModel):
 
 class QueryKnowledgeResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
-    
-    items: list[KnowledgeItemSummary]  # name + scope + type + title + summary + version + relevanceScore
+
+    items: list[
+        KnowledgeItemSummary
+    ]  # name + scope + type + title + summary + version + relevanceScore
     total_count: int = Field(..., ge=0, alias="totalCount")
 ```
 
@@ -1630,18 +1691,20 @@ def test_decay_over_30_days():
     fake_clock = FakeClock(start=datetime(2026, 7, 24, 0, 0, 0, tzinfo=UTC))
     memory = Memory(
         spec=MemorySpec(
-            confidence=1.0, decay_days=30,
+            confidence=1.0,
+            decay_days=30,
             scope_ref=ScopeReference(name="team-test"),
             agent_ref=AgentReference(kind=SubjectKind.SERVICE_ACCOUNT, name="test-agent"),
-            content={"key": "value"}, summary="test",
+            content={"key": "value"},
+            summary="test",
             reinforced_count=0,
             visibility=MemoryVisibility.SCOPE_AND_CHILDREN,
         ),
         metadata=ObjectMeta(name="test", creation_timestamp=fake_clock.now()),
     )
-    
+
     fake_clock.advance(timedelta(days=30))  # 30 天后
-    
+
     effective = apply_decay(memory, fake_clock.now())
     assert abs(effective - 0.368) < 0.01  # exp(-1) ≈ 0.368
 ```

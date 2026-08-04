@@ -376,21 +376,24 @@ from superteam_a2a.shared.meta import ObjectMeta, Condition
 
 class ScopeLevel(StrEnum):
     """4 级作用域枚举（ADR-0002 §3.1 + L2-4 Spec §3.2）。"""
-    AGENT = "agent"           # agent-scoped；唯一 1 个 per SA
-    AGENTSET = "agentset"     # agentset-scoped；多 agent 共享
-    WORKFLOW = "workflow"     # workflow-scoped；任务级临时
-    SYSTEM = "system"         # cluster-wide；只读
+
+    AGENT = "agent"  # agent-scoped；唯一 1 个 per SA
+    AGENTSET = "agentset"  # agentset-scoped；多 agent 共享
+    WORKFLOW = "workflow"  # workflow-scoped；任务级临时
+    SYSTEM = "system"  # cluster-wide；只读
 
 
 class ScopePhase(StrEnum):
     """KnowledgeScope status.phase 状态机。"""
-    PENDING = "Pending"        # 创建中
-    ACTIVE = "Active"          # 正常
-    ARCHIVED = "Archived"      # 已归档
+
+    PENDING = "Pending"  # 创建中
+    ACTIVE = "Active"  # 正常
+    ARCHIVED = "Archived"  # 已归档
 
 
 class SubjectKind(StrEnum):
     """Subject 引用类型。"""
+
     AGENT = "Agent"
     AGENTSET = "AgentSet"
     WORKFLOW = "Workflow"
@@ -399,6 +402,7 @@ class SubjectKind(StrEnum):
 
 class SubjectReference(BaseModel):
     """指向 Agent / AgentSet / Workflow 的不可变引用。"""
+
     model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
 
     kind: SubjectKind = Field(..., description="主体类型")
@@ -407,6 +411,7 @@ class SubjectReference(BaseModel):
 
 class ScopeReference(BaseModel):
     """指向 KnowledgeScope 的不可变引用。"""
+
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     name: str = Field(..., min_length=1, max_length=128)
@@ -415,6 +420,7 @@ class ScopeReference(BaseModel):
 
 class InheritRules(BaseModel):
     """4 级 scope 继承过滤规则（admission webhook 强制 · 与 L2-4 Spec §3.2 一致）。"""
+
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     include_types: list[str] | None = Field(default=None, max_length=11, alias="includeTypes")
@@ -423,6 +429,7 @@ class InheritRules(BaseModel):
 
 class KnowledgeVisibility(StrEnum):
     """5 维 visibility 矩阵（ADR-0002 §4 + L2-4 Spec §4.5）。"""
+
     SCOPE_ONLY = "scope-only"
     SCOPE_AND_CHILDREN = "scope-and-children"
     PUBLIC_READABLE = "public-readable"
@@ -432,16 +439,20 @@ class KnowledgeVisibility(StrEnum):
 
 class KnowledgeScopeSpec(BaseModel):
     """KnowledgeScope CRD spec（6 字段 · ADR-0002 §3.1 + L1 v0.2.0 §5.2.2）。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     scope_level: ScopeLevel = Field(..., alias="scopeLevel", description="作用域级别")
     name: str = Field(..., min_length=1, max_length=64)
-    subject_ref: SubjectReference = Field(..., alias="subjectRef",
-        description="Agent / AgentSet / Workflow 主体引用")
-    parent_ref: ScopeReference | None = Field(default=None, alias="parentRef",
-        description="system 必须为 None；其他 level 严格递增 1 级")
-    inherit_rules: InheritRules | None = Field(default=None, alias="inheritRules",
-        description="4 级 scope 继承过滤规则（admission 强制）")
+    subject_ref: SubjectReference = Field(
+        ..., alias="subjectRef", description="Agent / AgentSet / Workflow 主体引用"
+    )
+    parent_ref: ScopeReference | None = Field(
+        default=None, alias="parentRef", description="system 必须为 None；其他 level 严格递增 1 级"
+    )
+    inherit_rules: InheritRules | None = Field(
+        default=None, alias="inheritRules", description="4 级 scope 继承过滤规则（admission 强制）"
+    )
     visibility: KnowledgeVisibility = Field(
         default=KnowledgeVisibility.SCOPE_AND_CHILDREN,
         description="5 维 visibility 矩阵；PUBLIC_READABLE 仅 system scope 允许",
@@ -451,6 +462,7 @@ class KnowledgeScopeSpec(BaseModel):
 
 class KnowledgeScopeStatus(BaseModel):
     """KnowledgeScope CRD status（6 字段）。"""
+
     model_config = ConfigDict(extra="forbid")
 
     phase: ScopePhase | None = None
@@ -463,6 +475,7 @@ class KnowledgeScopeStatus(BaseModel):
 
 class KnowledgeScope(BaseModel):
     """KnowledgeScope CRD 顶层。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     api_version: str = Field(default="knowledge.superteam-a2a.io/v1alpha1", alias="apiVersion")
@@ -527,29 +540,33 @@ from enum import StrEnum
 from pydantic import BaseModel, Field, ConfigDict, AwareDatetime
 from superteam_a2a.shared.meta import ObjectMeta, Condition
 from superteam_a2a.knowledge.crd.knowledgescope import (
-    ScopeReference, SubjectReference,
+    ScopeReference,
+    SubjectReference,
 )
 
 
 class KnowledgeType(StrEnum):
     """KnowledgeItem 4 类枚举（ADR-0002 §3.2 · 与 L2-4 Spec §3.3 完全一致）。"""
-    PROCEDURAL = "procedural"      # 操作流程 / SOP
-    FACTUAL = "factual"            # 事实知识 / 定义
-    EPISODIC = "episodic"          # 事件 / 案例
-    CONCEPTUAL = "conceptual"      # 概念 / 模型
+
+    PROCEDURAL = "procedural"  # 操作流程 / SOP
+    FACTUAL = "factual"  # 事实知识 / 定义
+    EPISODIC = "episodic"  # 事件 / 案例
+    CONCEPTUAL = "conceptual"  # 概念 / 模型
 
 
 class ItemPhase(StrEnum):
     """KnowledgeItem status.phase 状态机。"""
-    INDEXING = "Indexing"          # 索引中
-    ACTIVE = "Active"              # 正常
-    DECAYING = "Decaying"          # 衰减中
-    SUPERSEDED = "Superseded"      # 被新版本替代
-    ARCHIVED = "Archived"          # 已归档
+
+    INDEXING = "Indexing"  # 索引中
+    ACTIVE = "Active"  # 正常
+    DECAYING = "Decaying"  # 衰减中
+    SUPERSEDED = "Superseded"  # 被新版本替代
+    ARCHIVED = "Archived"  # 已归档
 
 
 class ItemReference(BaseModel):
     """KnowledgeItem 不可变引用（Memory.sourceKnowledgeRef 使用）。"""
+
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     name: str = Field(..., min_length=1, max_length=128)
@@ -558,6 +575,7 @@ class ItemReference(BaseModel):
 
 class DecayState(BaseModel):
     """KnowledgeItem 衰减状态（status.effective_confidence 计算依据）。"""
+
     model_config = ConfigDict(extra="forbid")
 
     last_accessed: AwareDatetime | None = Field(default=None, alias="lastAccessed")
@@ -567,23 +585,29 @@ class DecayState(BaseModel):
 
 class KnowledgeItemSpec(BaseModel):
     """KnowledgeItem CRD spec（7 字段 · ADR-0002 §3.2 + L1 v0.2.0 §5.2.3）。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     scope_ref: ScopeReference = Field(..., alias="scopeRef")
     knowledge_type: KnowledgeType = Field(..., alias="knowledgeType")
-    content: str = Field(..., min_length=1, max_length=65536,
-        description="64KB Markdown body")
+    content: str = Field(..., min_length=1, max_length=65536, description="64KB Markdown body")
     tags: list[str] | None = Field(default=None, max_length=20)
     version: int = Field(default=1, ge=1)
-    superseded_by: ItemReference | None = Field(default=None, alias="supersededBy",
-        description="新版本引用；旧版本标记为 SUPERSEDED 状态")
-    confidence: float = Field(default=1.0, ge=0.0, le=1.0,
-        description="初始置信度；status.effective_confidence 由衰减公式计算")
+    superseded_by: ItemReference | None = Field(
+        default=None, alias="supersededBy", description="新版本引用；旧版本标记为 SUPERSEDED 状态"
+    )
+    confidence: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="初始置信度；status.effective_confidence 由衰减公式计算",
+    )
     # 7 spec 字段（距上限 15 距离 8）
 
 
 class KnowledgeItemStatus(BaseModel):
     """KnowledgeItem CRD status（7 字段）。"""
+
     model_config = ConfigDict(extra="forbid")
 
     phase: ItemPhase | None = None
@@ -592,11 +616,14 @@ class KnowledgeItemStatus(BaseModel):
     access_count_24h: int = Field(default=0, alias="accessCount24h", ge=0)
     bm25_score_avg: float | None = Field(default=None, alias="bm25ScoreAvg", ge=0.0)
     decay_state: DecayState | None = Field(default=None, alias="decayState")
-    effective_confidence: float | None = Field(default=None, alias="effectiveConfidence", ge=0.0, le=1.0)
+    effective_confidence: float | None = Field(
+        default=None, alias="effectiveConfidence", ge=0.0, le=1.0
+    )
 
 
 class KnowledgeItem(BaseModel):
     """KnowledgeItem CRD 顶层。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     api_version: str = Field(default="knowledge.superteam-a2a.io/v1alpha1", alias="apiVersion")
@@ -664,29 +691,34 @@ from enum import StrEnum
 from pydantic import BaseModel, Field, ConfigDict, AwareDatetime
 from superteam_a2a.shared.meta import ObjectMeta, Condition
 from superteam_a2a.knowledge.crd.knowledgescope import (
-    ScopeReference, SubjectReference, SubjectKind,
+    ScopeReference,
+    SubjectReference,
+    SubjectKind,
 )
 
 
 class MemoryPhase(StrEnum):
     """Memory status.phase 5 态状态机（ADR-0003 §3 + L2-4 Spec §3.4）。"""
-    ACTIVE = "Active"            # effective_confidence > 0.5
-    DECAYING = "Decaying"        # 0.01 ≤ effective_confidence ≤ 0.5
-    PROMOTABLE = "Promotable"    # eligible_for_promotion = true（v0.1 仅算不触发）
-    EXPIRED = "Expired"          # effective_confidence < 0.01
-    ERROR = "Error"              # reconcile 失败
+
+    ACTIVE = "Active"  # effective_confidence > 0.5
+    DECAYING = "Decaying"  # 0.01 ≤ effective_confidence ≤ 0.5
+    PROMOTABLE = "Promotable"  # eligible_for_promotion = true（v0.1 仅算不触发）
+    EXPIRED = "Expired"  # effective_confidence < 0.01
+    ERROR = "Error"  # reconcile 失败
 
 
 class GCState(StrEnum):
     """Memory GC 状态机（L3-6 详细落地 · L3-5 仅作为 schema 字段）。"""
-    NONE = "None"                # 未标记
-    PENDING = "Pending"          # 待清理
-    CLEANED = "Cleaned"          # 已清理
-    KEPT = "Kept"                # 保留（reinforce 后）
+
+    NONE = "None"  # 未标记
+    PENDING = "Pending"  # 待清理
+    CLEANED = "Cleaned"  # 已清理
+    KEPT = "Kept"  # 保留（reinforce 后）
 
 
 class TaskReference(BaseModel):
     """Memory 关联任务引用（Workflow scope 必填；Agent / AgentSet scope 可选）。"""
+
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     name: str = Field(..., min_length=1, max_length=128)
@@ -695,36 +727,54 @@ class TaskReference(BaseModel):
 
 class MemorySpec(BaseModel):
     """Memory CRD spec（5 字段 · ADR-0003 §3 + L2-4 Spec §3.4 · 注：L3-5 复用 KS-CRD 文件路径下；L3-6 packages/memory/ 也有完整定义；二者 wire 完全一致）。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
-    subject: str = Field(..., min_length=1, max_length=253,
-        description="三元组主语（Agent name / Workflow name 等）")
-    predicate: str = Field(..., min_length=1, max_length=128,
-        description="三元组谓词（如 'has-skill' / 'completed-task' / 'observed-event'）")
-    object: str = Field(..., min_length=1, max_length=512,
-        description="三元组宾语（free-form 字符串值）")
-    confidence: float = Field(default=1.0, ge=0.0, le=1.0,
-        description="初始置信度；status.effective_confidence 由衰减公式计算")
-    decay_days: int = Field(default=30, ge=1, le=3650, alias="decayDays",
-        description="decay 半衰期；超过 3650 拒绝")
+    subject: str = Field(
+        ..., min_length=1, max_length=253, description="三元组主语（Agent name / Workflow name 等）"
+    )
+    predicate: str = Field(
+        ...,
+        min_length=1,
+        max_length=128,
+        description="三元组谓词（如 'has-skill' / 'completed-task' / 'observed-event'）",
+    )
+    object: str = Field(
+        ..., min_length=1, max_length=512, description="三元组宾语（free-form 字符串值）"
+    )
+    confidence: float = Field(
+        default=1.0,
+        ge=0.0,
+        le=1.0,
+        description="初始置信度；status.effective_confidence 由衰减公式计算",
+    )
+    decay_days: int = Field(
+        default=30, ge=1, le=3650, alias="decayDays", description="decay 半衰期；超过 3650 拒绝"
+    )
     # 5 spec 字段（距上限 15 距离 10；与 L2-4 §3.4 12 字段版差异：L3-5 简化字段集，详细完整版由 L3-6 落地）
 
 
 class MemoryStatus(BaseModel):
     """Memory CRD status（5 字段）。"""
+
     model_config = ConfigDict(extra="forbid")
 
     phase: MemoryPhase | None = None
     confidence: float | None = Field(default=None, ge=0.0, le=1.0)
-    effective_confidence: float | None = Field(default=None, alias="effectiveConfidence",
-        ge=0.0, le=1.0,
-        description="effectiveConfidence = confidence × exp(-elapsed_days / decayDays)（ADR-0003 §4.1）")
+    effective_confidence: float | None = Field(
+        default=None,
+        alias="effectiveConfidence",
+        ge=0.0,
+        le=1.0,
+        description="effectiveConfidence = confidence × exp(-elapsed_days / decayDays)（ADR-0003 §4.1）",
+    )
     last_reinforced: AwareDatetime | None = Field(default=None, alias="lastReinforced")
     gc_state: GCState = Field(default=GCState.NONE, alias="gcState")
 
 
 class Memory(BaseModel):
     """Memory CRD 顶层。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     api_version: str = Field(default="memory.superteam-a2a.io/v1alpha1", alias="apiVersion")
@@ -817,11 +867,16 @@ from pydantic import BaseModel, Field, ConfigDict
 import anyio
 from superteam_a2a.a2a.upstream import A2AError, ServerCallContext
 from superteam_a2a.knowledge.crd.knowledgeitem import KnowledgeItemSummary
-from superteam_a2a.knowledge_service.deps import get_scope_resolver, get_bm25_index, get_visibility_resolver
+from superteam_a2a.knowledge_service.deps import (
+    get_scope_resolver,
+    get_bm25_index,
+    get_visibility_resolver,
+)
 
 
 class QueryKnowledgeRequest(BaseModel):
     """queryKnowledge 入参 · wire alias camelCase（继承 L2-4 §6.2）。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     query: str = Field(..., min_length=1, max_length=512)
     scope_filter: ScopeReference | None = Field(default=None, alias="scopeFilter")
@@ -831,6 +886,7 @@ class QueryKnowledgeRequest(BaseModel):
 
 class QueryKnowledgeResponse(BaseModel):
     """queryKnowledge 返回值 · wire alias camelCase。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     items: list[KnowledgeItemSummary]
     total_count: int = Field(..., ge=0, alias="totalCount")
@@ -839,20 +895,36 @@ class QueryKnowledgeResponse(BaseModel):
 @runtime_checkable
 class QueryKnowledgeHandler(Protocol):
     """queryKnowledge handler Protocol；4 handler 共同实现此契约。"""
-    async def __call__(self, req: QueryKnowledgeRequest, ctx: ServerCallContext) -> QueryKnowledgeResponse: ...
+
+    async def __call__(
+        self, req: QueryKnowledgeRequest, ctx: ServerCallContext
+    ) -> QueryKnowledgeResponse: ...
 
 
-async def handle_query_knowledge(req: QueryKnowledgeRequest, ctx: ServerCallContext) -> QueryKnowledgeResponse:
+async def handle_query_knowledge(
+    req: QueryKnowledgeRequest, ctx: ServerCallContext
+) -> QueryKnowledgeResponse:
     """a2a.queryKnowledge 业务实现（BM25 + 5 维 visibility 过滤）。"""
     scope_resolver = get_scope_resolver()
     bm25 = get_bm25_index()
     vis = get_visibility_resolver()
     scope_chain = await scope_resolver.resolve(req.scope_filter)  # 4 级 scope 解析
     candidates = await anyio.to_thread.run_sync(  # CPU offload（D-2）
-        bm25.search, req.query, scope_chain, req.max_results * 2)
+        bm25.search, req.query, scope_chain, req.max_results * 2
+    )
     visible = [c for c in candidates if vis.is_visible(ctx.caller_agent, c, req.visibility_filter)]
-    items = [KnowledgeItemSummary(name=c.name, scope=c.scope, type=c.type, title=c.title,
-        summary=c.summary, version=c.version, relevance_score=c.bm25_score) for c in visible[:req.max_results]]
+    items = [
+        KnowledgeItemSummary(
+            name=c.name,
+            scope=c.scope,
+            type=c.type,
+            title=c.title,
+            summary=c.summary,
+            version=c.version,
+            relevance_score=c.bm25_score,
+        )
+        for c in visible[: req.max_results]
+    ]
     return QueryKnowledgeResponse(items=items, total_count=len(items))
 ```
 
@@ -919,6 +991,7 @@ from superteam_a2a.knowledge_service.errors import KNOWLEDGE_VERSION_NOT_FOUND
 
 class GetKnowledgeItemRequest(BaseModel):
     """getKnowledgeItem 入参 · wire alias camelCase（继承 L2-4 §6.3）。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     scope_ref: ScopeReference = Field(..., alias="scopeRef")
     name: str = Field(..., min_length=1, max_length=128)
@@ -927,6 +1000,7 @@ class GetKnowledgeItemRequest(BaseModel):
 
 class GetKnowledgeItemResponse(BaseModel):
     """getKnowledgeItem 返回值 · wire alias camelCase。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     item: KnowledgeItem  # 完整 Pydantic 对象
     item_ref: ItemReference = Field(..., alias="itemRef")
@@ -935,22 +1009,36 @@ class GetKnowledgeItemResponse(BaseModel):
 @runtime_checkable
 class GetKnowledgeItemHandler(Protocol):
     """getKnowledgeItem handler Protocol。"""
-    async def __call__(self, req: GetKnowledgeItemRequest, ctx: ServerCallContext) -> GetKnowledgeItemResponse: ...
+
+    async def __call__(
+        self, req: GetKnowledgeItemRequest, ctx: ServerCallContext
+    ) -> GetKnowledgeItemResponse: ...
 
 
-async def handle_get_knowledge_item(req: GetKnowledgeItemRequest, ctx: ServerCallContext) -> GetKnowledgeItemResponse:
+async def handle_get_knowledge_item(
+    req: GetKnowledgeItemRequest, ctx: ServerCallContext
+) -> GetKnowledgeItemResponse:
     """a2a.getKnowledgeItem 业务实现（K8s API 拉取 + 父子链解析 + 5 维 visibility）。"""
     k8s = get_k8s_client()
     vis = get_visibility_resolver()
     raw = await k8s.get_namespaced_custom_object(  # KnowledgeItem CR 拉取
-        group="knowledge.superteam-a2a.io", version="v1alpha1",
-        namespace=req.scope_ref.namespace, plural="knowledgeitems", name=req.name)
+        group="knowledge.superteam-a2a.io",
+        version="v1alpha1",
+        namespace=req.scope_ref.namespace,
+        plural="knowledgeitems",
+        name=req.name,
+    )
     item = KnowledgeItem.model_validate(raw)
     if req.version is not None and item.spec.version != req.version:  # version 匹配校验
-        raise A2AError(KNOWLEDGE_VERSION_NOT_FOUND, f"version {req.version} != {item.spec.version} (item latest={item.spec.version})")
+        raise A2AError(
+            KNOWLEDGE_VERSION_NOT_FOUND,
+            f"version {req.version} != {item.spec.version} (item latest={item.spec.version})",
+        )
     if not vis.is_visible(ctx.caller_agent, item, None):  # 5 维 visibility 过滤
         raise A2AError(404, f"KnowledgeItem {req.name} not visible")
-    return GetKnowledgeItemResponse(item=item, item_ref=ItemReference(name=item.metadata.name, version=item.spec.version))
+    return GetKnowledgeItemResponse(
+        item=item, item_ref=ItemReference(name=item.metadata.name, version=item.spec.version)
+    )
 ```
 
 **wire 同步矩阵（与 L2-4 Spec v0.2.0 §6.3 字段 1:1 对齐）**：
@@ -1011,6 +1099,7 @@ from superteam_a2a.knowledge_service.l3_6_in_process import record_memory_async
 
 class RecordMemoryRequest(BaseModel):
     """recordMemory 入参 · wire alias camelCase（继承 L2-4 §6.4）。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     agent_ref: AgentReference = Field(..., alias="agentRef")
     task_ref: TaskReference | None = Field(default=None, alias="taskRef")
@@ -1021,6 +1110,7 @@ class RecordMemoryRequest(BaseModel):
 
 class RecordMemoryResponse(BaseModel):
     """recordMemory 返回值 · wire alias camelCase。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     memory_ref: MemoryReference = Field(..., alias="memoryRef")
     effective_confidence: float = Field(..., alias="effectiveConfidence", ge=0.0, le=1.0)
@@ -1029,18 +1119,32 @@ class RecordMemoryResponse(BaseModel):
 @runtime_checkable
 class RecordMemoryHandler(Protocol):
     """recordMemory handler Protocol；委托 L3-6。"""
-    async def __call__(self, req: RecordMemoryRequest, ctx: ServerCallContext) -> RecordMemoryResponse: ...
+
+    async def __call__(
+        self, req: RecordMemoryRequest, ctx: ServerCallContext
+    ) -> RecordMemoryResponse: ...
 
 
-async def handle_record_memory(req: RecordMemoryRequest, ctx: ServerCallContext) -> RecordMemoryResponse:
+async def handle_record_memory(
+    req: RecordMemoryRequest, ctx: ServerCallContext
+) -> RecordMemoryResponse:
     """a2a.recordMemory 业务实现（admission 互斥 + 委托 L3-6）。"""
     await validate_knowledge_memory_mutex(req)  # admission 双向互斥校验（§5）
-    mem = Memory(metadata=ObjectMeta(name=...), spec=MemorySpec(
-        subject=req.agent_ref.name, predicate="record", object=req.content,
-        confidence=1.0, decay_days=req.decay_days))
+    mem = Memory(
+        metadata=ObjectMeta(name=...),
+        spec=MemorySpec(
+            subject=req.agent_ref.name,
+            predicate="record",
+            object=req.content,
+            confidence=1.0,
+            decay_days=req.decay_days,
+        ),
+    )
     result = await record_memory_async(mem)  # 委托 L3-6 in-process（§6.2）
-    return RecordMemoryResponse(memory_ref=MemoryReference(name=mem.metadata.name),
-        effective_confidence=result.effective_confidence)
+    return RecordMemoryResponse(
+        memory_ref=MemoryReference(name=mem.metadata.name),
+        effective_confidence=result.effective_confidence,
+    )
 ```
 
 **wire 同步矩阵（与 L2-4 Spec v0.2.0 §6.4 字段 1:1 对齐）**：
@@ -1099,6 +1203,7 @@ from superteam_a2a.knowledge_service.l3_6_in_process import query_memory_async
 
 class QueryMemoryRequest(BaseModel):
     """queryMemory 入参 · wire alias camelCase（继承 L2-4 §6.5）。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     agent_ref: AgentReference = Field(..., alias="agentRef")
     scope_ref: ScopeReference | None = Field(default=None, alias="scopeRef")
@@ -1108,6 +1213,7 @@ class QueryMemoryRequest(BaseModel):
 
 class MemoryReference(BaseModel):
     """Memory 引用（Pydantic · 与 L2-4 §6.5 wire 完全一致）。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     name: str
     subject: str
@@ -1117,6 +1223,7 @@ class MemoryReference(BaseModel):
 
 class QueryMemoryResponse(BaseModel):
     """queryMemory 返回值 · wire alias camelCase。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     items: list[MemoryReference]
     total_count: int = Field(..., ge=0, alias="totalCount")
@@ -1125,17 +1232,31 @@ class QueryMemoryResponse(BaseModel):
 @runtime_checkable
 class QueryMemoryHandler(Protocol):
     """queryMemory handler Protocol；委托 L3-6。"""
-    async def __call__(self, req: QueryMemoryRequest, ctx: ServerCallContext) -> QueryMemoryResponse: ...
+
+    async def __call__(
+        self, req: QueryMemoryRequest, ctx: ServerCallContext
+    ) -> QueryMemoryResponse: ...
 
 
-async def handle_query_memory(req: QueryMemoryRequest, ctx: ServerCallContext) -> QueryMemoryResponse:
+async def handle_query_memory(
+    req: QueryMemoryRequest, ctx: ServerCallContext
+) -> QueryMemoryResponse:
     """a2a.queryMemory 业务实现（effectiveConfidence 过滤 + 委托 L3-6）。"""
     if req.min_confidence is None:  # 默认 0.01（过滤 EXPIRED）
         req = req.model_copy(update={"min_confidence": 0.01})
     result = await query_memory_async(req)  # 委托 L3-6 in-process（§6.2）
-    return QueryMemoryResponse(items=[MemoryReference(name=m.name, subject=m.subject,
-        predicate=m.predicate, effective_confidence=m.effective_confidence) for m in result.items],
-        total_count=result.total_count)
+    return QueryMemoryResponse(
+        items=[
+            MemoryReference(
+                name=m.name,
+                subject=m.subject,
+                predicate=m.predicate,
+                effective_confidence=m.effective_confidence,
+            )
+            for m in result.items
+        ],
+        total_count=result.total_count,
+    )
 ```
 
 **wire 同步矩阵（与 L2-4 Spec v0.2.0 §6.5 字段 1:1 对齐）**：
@@ -1210,22 +1331,29 @@ from typing import Protocol, runtime_checkable
 from pydantic import BaseModel, Field, ConfigDict
 import kopf
 from superteam_a2a.knowledge.crd.knowledgescope import (
-    KnowledgeScope, ScopeReference, ScopeLevel,
+    KnowledgeScope,
+    ScopeReference,
+    ScopeLevel,
 )
 from superteam_a2a.knowledge.crd.knowledgeitem import KnowledgeItem
 from superteam_a2a.knowledge.crd.memory_schema import Memory
 from superteam_a2a.a2a.upstream import A2AError
 from superteam_a2a.knowledge_service.errors import (
-    KNOWLEDGE_ITEM_NOT_FOUND, KNOWLEDGE_PUBLIC_REQUIRES_INDUSTRY,
-    KNOWLEDGE_OWNER_KIND_FORBIDDEN, KNOWLEDGE_ADMISSION_TIMEOUT,
-    MEMORY_SCOPE_NOT_FOUND, MEMORY_DECAY_DAYS_EXCEEDED,
-    MEMORY_AGENT_NOT_FOUND, MEMORY_ADMISSION_TIMEOUT,
+    KNOWLEDGE_ITEM_NOT_FOUND,
+    KNOWLEDGE_PUBLIC_REQUIRES_INDUSTRY,
+    KNOWLEDGE_OWNER_KIND_FORBIDDEN,
+    KNOWLEDGE_ADMISSION_TIMEOUT,
+    MEMORY_SCOPE_NOT_FOUND,
+    MEMORY_DECAY_DAYS_EXCEEDED,
+    MEMORY_AGENT_NOT_FOUND,
+    MEMORY_ADMISSION_TIMEOUT,
 )
 
 
 @runtime_checkable
 class AdmissionDecision(Protocol):
     """Admission 决策契约（Kopf AdmissionResponse 子集）。"""
+
     allowed: bool
     reason: str | None = None
 
@@ -1233,6 +1361,7 @@ class AdmissionDecision(Protocol):
 @runtime_checkable
 class KnowledgeMemoryMutexValidator(Protocol):
     """KnowledgeItem ↔ Memory 互斥校验 Protocol。"""
+
     async def validate_ki_memory_mutex(self, ki: KnowledgeItem) -> AdmissionDecision: ...
     async def validate_scope_chain(self, scope: KnowledgeScope) -> AdmissionDecision: ...
 
@@ -1240,11 +1369,13 @@ class KnowledgeMemoryMutexValidator(Protocol):
 # 50ms fail-closed 装饰器（asyncio.wait_for）
 def fail_closed_50ms(coro):
     """admission 超时 50ms 返回 fail-closed（拒绝）。"""
+
     async def wrapper(*args, **kwargs):
         try:
             return await asyncio.wait_for(coro(*args, **kwargs), timeout=0.050)
         except asyncio.TimeoutError:
             return AdmissionDecision(allowed=False, reason="admission timeout (>50ms)")
+
     return wrapper
 
 
@@ -1319,6 +1450,7 @@ async def validate_memory(spec, **kwargs):
 # 5 步算法 · 校验 KnowledgeItem 与 Memory 同 scope_ref + 同 content 哈希是否冲突
 # 详细实现见 admission_validator.py:KnowledgeMemoryMutexValidator.validate_ki_memory_mutex
 
+
 async def validate_ki_memory_mutex(ki: KnowledgeItem) -> AdmissionDecision:
     """5 步算法实现（与 L2-4 Spec §5.1 1:1 对齐）。"""
     # 1. 计算 content_hash（sha256 前 16 位 · 与 wire 名一致）
@@ -1327,8 +1459,10 @@ async def validate_ki_memory_mutex(ki: KnowledgeItem) -> AdmissionDecision:
     # 2. 查询同 content_hash 的 Memory CRD（K8s API label selector）
     k8s = get_k8s_client()
     memories = await k8s.list_namespaced_custom_object(
-        group="memory.superteam-a2a.io", version="v1alpha1",
-        namespace=ki.spec.scope_ref.namespace, plural="memories",
+        group="memory.superteam-a2a.io",
+        version="v1alpha1",
+        namespace=ki.spec.scope_ref.namespace,
+        plural="memories",
         label_selector=f"contentHash={content_hash}",
     )
 
@@ -1370,6 +1504,7 @@ async def validate_ki_memory_mutex(ki: KnowledgeItem) -> AdmissionDecision:
 # 4 步算法 · 校验 scope_ref.parent_ref 链是否存在循环引用
 # 详细实现见 admission_validator.py:KnowledgeMemoryMutexValidator.validate_scope_chain
 
+
 async def validate_scope_chain(scope_ref: ScopeReference) -> AdmissionDecision:
     """4 步算法实现（与 L2-4 Spec §5.3 1:1 对齐）。"""
     k8s = get_k8s_client()
@@ -1382,11 +1517,15 @@ async def validate_scope_chain(scope_ref: ScopeReference) -> AdmissionDecision:
         # 2. 沿链向上追溯至 system scope
         if current_ref.name in visited:
             # 3. 校验链中无重复 scope_level（出现重复 → 循环）
-            raise kopf.AdmissionError("scope circular reference")  # -32009 (逻辑拒绝，无独立 wire 错误码)
+            raise kopf.AdmissionError(
+                "scope circular reference"
+            )  # -32009 (逻辑拒绝，无独立 wire 错误码)
         visited.add(current_ref.name)
         current_scope = await k8s.get_namespaced_custom_object(
-            group="knowledge.superteam-a2a.io", version="v1alpha1",
-            namespace=current_ref.namespace, plural="knowledgescopes",
+            group="knowledge.superteam-a2a.io",
+            version="v1alpha1",
+            namespace=current_ref.namespace,
+            plural="knowledgescopes",
             name=current_ref.name,
         )
         ks = KnowledgeScope.model_validate(current_scope)
@@ -1461,11 +1600,14 @@ async def validate_scope_chain(scope_ref: ScopeReference) -> AdmissionDecision:
 # L3-5 仅 @kopf.validation · L3-6 独占 @kopf.timer
 import kopf
 
+
 @kopf.validation("knowledgeitem.create", "knowledgeitem.update")  # L3-5 独占
 async def validate_knowledge_item(spec, **kwargs): ...
 
+
 @kopf.validation("memory.create", "memory.update")  # L3-5 独占（双向互斥右侧）
 async def validate_memory(spec, **kwargs): ...
+
 
 # L3-6 独占（不在 L3-5 实现）：
 # @kopf.timer(interval=60.0, id="memory-reconciler")
@@ -1591,6 +1733,7 @@ from datetime import datetime
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
 
+
 class KnowledgeLogEvent(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     timestamp: datetime
@@ -1611,6 +1754,7 @@ class KnowledgeLogEvent(BaseModel):
 from enum import StrEnum
 from kubernetes_asyncio.client import CoreV1Api
 
+
 class EventReason(StrEnum):
     KNOWLEDGE_ITEM_CREATED = "KnowledgeItemCreated"
     KNOWLEDGE_ITEM_UPDATED = "KnowledgeItemUpdated"
@@ -1621,12 +1765,24 @@ class EventReason(StrEnum):
     ADMISSION_REJECTED = "AdmissionRejected"
     SCOPE_CIRCULAR_REFERENCE_DETECTED = "ScopeCircularReferenceDetected"
 
-async def emit_event(core: CoreV1Api, namespace: str, involved_object: dict[str, object],
-                     reason: EventReason, message: str, *, type_: str = "Normal") -> None:
+
+async def emit_event(
+    core: CoreV1Api,
+    namespace: str,
+    involved_object: dict[str, object],
+    reason: EventReason,
+    message: str,
+    *,
+    type_: str = "Normal",
+) -> None:
     if type_ not in {"Normal", "Warning"}:
         raise ValueError("type_ must be Normal or Warning")
-    body = {"involvedObject": involved_object, "reason": reason.value,
-            "type": type_, "message": message[:1024]}
+    body = {
+        "involvedObject": involved_object,
+        "reason": reason.value,
+        "type": type_,
+        "message": message[:1024],
+    }
     await core.create_namespaced_event(namespace=namespace, body=body)
 ```
 
@@ -1667,8 +1823,11 @@ async def emit_event(core: CoreV1Api, namespace: str, involved_object: dict[str,
 
 ```python
 from enum import IntEnum
+
+
 class KnowledgeErrorCode(IntEnum):
     """Knowledge Service 错误码（JSON-RPC code 范围 -32008 ~ -32018）。"""
+
     KNOWLEDGE_SCOPE_NOT_FOUND = -32008
     KNOWLEDGE_QUERY_TOO_LONG = -32009
     KNOWLEDGE_INVALID_TYPE = -32010
@@ -1701,8 +1860,11 @@ class KnowledgeErrorCode(IntEnum):
 
 ```python
 from enum import IntEnum
+
+
 class MemoryErrorCode(IntEnum):
     """Memory backend 错误码（JSON-RPC code 范围 -32101 ~ -32112）。"""
+
     MEMORY_SCOPE_NOT_FOUND = -32101
     MEMORY_INVALID_CONTENT = -32102
     MEMORY_FORBIDDEN = -32103
@@ -2120,6 +2282,8 @@ spec:
 
 ```python
 import kopf
+
+
 @kopf.validation("superteam-a2a.io", "v1alpha1", "knowledgeitems")
 async def validate_knowledge_item(spec: dict[str, object], **_: object) -> None:
     await admission_validator.validate_knowledge_item(spec, timeout_ms=50)
