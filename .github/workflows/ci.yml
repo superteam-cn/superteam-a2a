@@ -60,7 +60,7 @@ jobs:
           strict: false
 
       - name: Markdown lint
-        uses: DavidAnson/markdownlint-cli2-action@v18
+        uses: DavidAnson/markdownlint-cli2-action@v24.1.0
 
       - name: Helm lint
         if: hashFiles('helm/**/Chart.yaml') != ''
