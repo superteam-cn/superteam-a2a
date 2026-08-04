@@ -133,12 +133,17 @@ reportUnnecessaryCast = "warning"
 [tool.pytest.ini_options]
 minversion = "8.0"
 testpaths = ["tests/unit"]
+# 注意：superteam_a2a 是 PEP 420 implicit namespace package（5 个 workspace 成员合并）。
+# knowledge_memory 子包位于 services/knowledge-memory-service/src，operator 子包位于
+# packages/operator/src。Python 在 sys.path 找到第一个 superteam_a2a/__init__.py 后停止
+# 搜索后续子目录，因此 services 必须最前，operator 紧接其后（operator 在 backend/memory.py
+# 中被 knowledge_memory 子包内部 import）。
 pythonpath = [
-    "packages/operator/src",
-    "packages/a2a-core/src",
-    "packages/adapter-sdk/src",
     "services/knowledge-memory-service/src",
+    "packages/operator/src",
     "agents/hello/src",
+    "packages/adapter-sdk/src",
+    "packages/a2a-core/src",
 ]
 addopts = [
     "-ra",
