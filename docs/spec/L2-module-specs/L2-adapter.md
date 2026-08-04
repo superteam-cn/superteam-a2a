@@ -469,19 +469,28 @@ class AgentCardConverter(Protocol):
 ```python
 class DefaultAgentCardConverter:
     """默认 AgentCard 转换器（反射实现）。"""
-    
+
     def convert(
         self,
         framework_agent: Any,
         required_fields: tuple[str, ...] = ("name", "description"),
     ) -> AgentCard:
         # 1. 反射调用 5 个关键方法
-        name = getattr(framework_agent, "name", None) or getattr(framework_agent, "get_name", lambda: None)()
-        description = getattr(framework_agent, "description", None) or getattr(framework_agent, "get_description", lambda: None)()
-        tools = getattr(framework_agent, "tools", None) or getattr(framework_agent, "get_tools", lambda: [])()
+        name = (
+            getattr(framework_agent, "name", None)
+            or getattr(framework_agent, "get_name", lambda: None)()
+        )
+        description = (
+            getattr(framework_agent, "description", None)
+            or getattr(framework_agent, "get_description", lambda: None)()
+        )
+        tools = (
+            getattr(framework_agent, "tools", None)
+            or getattr(framework_agent, "get_tools", lambda: [])()
+        )
         memory_caps = getattr(framework_agent, "memory_capabilities", None) or MemoryCapabilities()
         streaming = getattr(framework_agent, "streaming", False)
-        
+
         # 2. 必填字段缺失 → -32003
         if not name:
             raise AdapterError(
@@ -493,10 +502,10 @@ class DefaultAgentCardConverter:
                 code=AdapterErrorCode.CARD_CONVERSION_FAILED,
                 message=f"Missing required field: description",
             )
-        
+
         # 3. tools → skills 转换
         skills = [self._tool_to_skill(t) for t in tools]
-        
+
         # 4. 构造 AgentCard
         return AgentCard(
             name=name,
@@ -505,7 +514,7 @@ class DefaultAgentCardConverter:
             memory_capabilities=memory_caps,
             streaming=streaming,
         )
-    
+
     def _tool_to_skill(self, tool: Any) -> AgentSkill:
         """framework tool → A2A AgentSkill 转换。"""
         # 各 framework 实现覆盖此方法
@@ -515,7 +524,7 @@ class DefaultAgentCardConverter:
             input_modes=["text/plain"],  # 降级（JSON Schema 推导失败时）
             output_modes=["text/plain"],
         )
-    
+
     def required_fields(self) -> tuple[str, ...]:
         return ("name", "description")
 ```
@@ -603,13 +612,13 @@ from superteam_a2a.a2a.upstream import AgentCard, Message, Task
 
 class LangChainAdapter(Adapter, FrameworkAdapter):
     """LangChain framework adapter（v0.2 同进程 plugin）。
-    
+
     Args:
         runnable: langchain_core.runnables.Runnable（用户 LCEL chain）
         config: LangChainAdapterConfig（framework-specific 配置）
         card_converter: AgentCardConverter Protocol 实现（可选，默认使用反射转换）
     """
-    
+
     def __init__(
         self,
         runnable: Runnable,
@@ -621,7 +630,7 @@ class LangChainAdapter(Adapter, FrameworkAdapter):
         self._card_converter = card_converter or DefaultAgentCardConverter()
         # Card 在启动时构建并缓存
         self._card = self._card_converter.convert(runnable)
-    
+
     async def on_message(
         self,
         message: Message,
@@ -632,7 +641,8 @@ class LangChainAdapter(Adapter, FrameworkAdapter):
             lc_input = self._convert_message_to_lc(message)
             # 2. 调用 framework（CPU 工作通过 anyio.to_thread offload）
             lc_output = await anyio.to_thread.run_sync(
-                self._runnable.invoke, lc_input,
+                self._runnable.invoke,
+                lc_input,
             )
             # 3. 转换 framework output → A2A Task
             return self._convert_lc_to_task(lc_output, context_id)
@@ -644,14 +654,14 @@ class LangChainAdapter(Adapter, FrameworkAdapter):
                 message=f"LangChain invocation failed: {e!s}",
                 framework_error={"exception_type": type(e).__name__},
             )
-    
+
     def agent_card(self) -> AgentCard:
         return self._card
-    
+
     async def health_check(self) -> bool:
         # LangChain 总是 loaded（同进程 plugin）
         return self._runnable is not None
-    
+
     async def on_framework_event(self, event: dict[str, Any]) -> None:
         # LangChain callback handler（可选）
         # 记录到 OTel Span event
@@ -817,61 +827,63 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 class AdapterConfig(BaseSettings):
     """Adapter 通用配置（从 env / ConfigMap / Secret 三层加载）。
-    
+
     优先级（高 → 低）：Secret > ConfigMap > Env
     """
-    
+
     model_config = SettingsConfigDict(
         env_prefix="ADAPTER_",
         env_file=".env",
         extra="forbid",
         case_sensitive=False,
     )
-    
+
     # 必填
-    framework: Literal["langchain", "autogen", "crewai", "semantic_kernel", "strands", "smolagents", "hello"]
-    
+    framework: Literal[
+        "langchain", "autogen", "crewai", "semantic_kernel", "strands", "smolagents", "hello"
+    ]
+
     # A2A Server
     port: int = Field(default=8080, ge=1024, le=65535)
     host: str = Field(default="0.0.0.0")
-    
+
     # Agent container 通信（Sidecar 模式）
     agent_service_host: str = Field(default="localhost")
     agent_service_port: int = Field(default=7080, ge=1024, le=65535)
-    
+
     # 部署模式（v0.2+）
     embedded: bool = Field(default=False)  # True = 同进程 plugin；False = Sidecar
-    
+
     # 可观测性
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = Field(default="INFO")
     otlp_endpoint: str | None = Field(default="http://otel-collector:4317")
     metrics_enabled: bool = Field(default=True)
-    
+
     # mTLS（cert-manager mounted）
     mtls_cert_path: str | None = Field(default="/etc/tls/tls.crt")
     mtls_key_path: str | None = Field(default="/etc/tls/tls.key")
     mtls_ca_path: str | None = Field(default="/etc/tls/ca.crt")
     mtls_spiffe_required: bool = Field(default=True)
-    
+
     # 框架特定配置（CRD spec.adapter.config 加载）
     framework_config_path: str | None = Field(default=None)  # 指向挂载的 framework 配置 YAML
-    
+
     # 健康检查
     health_check_path: str = Field(default="/healthz")
     readiness_path: str = Field(default="/readyz")
-    
+
     # 优雅停机
     shutdown_grace_period_seconds: int = Field(default=30, ge=5, le=120)
 
 
 class FrameworkAdapterConfig(BaseModel):
     """Framework 特定配置（从 Agent CRD spec.adapter.config 加载）。
-    
+
     各 framework adapter 子包扩展此基类。
     """
-    
+
     model_config = ConfigDict(extra="forbid", frozen=True)
-    
+
     # framework-specific 字段（如 LangChain max_iterations）
     # 各 framework adapter 子包扩展
 ```
@@ -1349,11 +1361,21 @@ import structlog
 
 
 # 敏感字段（永不进入日志）
-_SENSITIVE_KEYS = frozenset({
-    "api_key", "token", "password", "secret",
-    "user_data", "memory_content", "knowledge_body",
-    "cert", "private_key", "mtls_cert", "llm_api_key",
-})
+_SENSITIVE_KEYS = frozenset(
+    {
+        "api_key",
+        "token",
+        "password",
+        "secret",
+        "user_data",
+        "memory_content",
+        "knowledge_body",
+        "cert",
+        "private_key",
+        "mtls_cert",
+        "llm_api_key",
+    }
+)
 
 
 def _redact_sensitive(_, __, event_dict: dict) -> dict:
@@ -1366,11 +1388,11 @@ def _redact_sensitive(_, __, event_dict: dict) -> dict:
 
 def configure_logging(level: str = "INFO") -> None:
     """配置 structlog JSON 输出。
-    
+
     强制字段：framework / framework.version / adapter.version / method / task_id / agent.name / level / ts / msg
     """
     log_level = getattr(logging, level.upper(), logging.INFO)
-    
+
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,

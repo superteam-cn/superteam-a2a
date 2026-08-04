@@ -116,54 +116,91 @@ L2-4 Knowledge / Memory 是 `superteam-a2a` **运行时层（Runtime Layer）** 
 # knowledge 公共 API（业务层可 import）
 from superteam_a2a.knowledge import (
     # CRD types（Pydantic v2 BaseModel）
-    KnowledgeScope, KnowledgeScopeSpec, KnowledgeScopeStatus,
-    KnowledgeItem, KnowledgeItemSpec, KnowledgeItemStatus,
+    KnowledgeScope,
+    KnowledgeScopeSpec,
+    KnowledgeScopeStatus,
+    KnowledgeItem,
+    KnowledgeItemSpec,
+    KnowledgeItemStatus,
     # 引用类型
-    ScopeReference, SubjectReference, ItemReference, InheritRules,
+    ScopeReference,
+    SubjectReference,
+    ItemReference,
+    InheritRules,
     # 枚举
-    ScopeLevel, ScopePhase, KnowledgeType, KnowledgeVisibility,
+    ScopeLevel,
+    ScopePhase,
+    KnowledgeType,
+    KnowledgeVisibility,
     # 算法抽象
-    ScopeResolver, RealScopeResolver, resolve_effective_scopes,
-    InvertedIndex, RealInvertedIndex,
+    ScopeResolver,
+    RealScopeResolver,
+    resolve_effective_scopes,
+    InvertedIndex,
+    RealInvertedIndex,
     # admission webhook（Kopf validation）
-    validate_knowledge_item, validate_knowledge_scope,
+    validate_knowledge_item,
+    validate_knowledge_scope,
     # 错误
-    ScopeNotFound, ScopeCycle, ScopeHierarchyViolation,
-    KNOWLEDGE_PUBLIC_REQUIRES_INDUSTRY, KNOWLEDGE_AGENT_PRIVATE_V0_5_PLUS,
-    KNOWLEDGE_OWNER_KIND_FORBIDDEN, KNOWLEDGE_ADMISSION_TIMEOUT,
+    ScopeNotFound,
+    ScopeCycle,
+    ScopeHierarchyViolation,
+    KNOWLEDGE_PUBLIC_REQUIRES_INDUSTRY,
+    KNOWLEDGE_AGENT_PRIVATE_V0_5_PLUS,
+    KNOWLEDGE_OWNER_KIND_FORBIDDEN,
+    KNOWLEDGE_ADMISSION_TIMEOUT,
 )
 
 # memory 公共 API（业务层可 import）
 from superteam_a2a.memory import (
     # CRD types
-    Memory, MemorySpec, MemoryStatus,
+    Memory,
+    MemorySpec,
+    MemoryStatus,
     # 引用类型
     AgentReference,
     # 枚举
-    MemoryPhase, MemoryVisibility,
+    MemoryPhase,
+    MemoryVisibility,
     # 算法抽象
-    MemoryVisibilityFilter, RealMemoryVisibilityFilter, is_memory_visible_to,
+    MemoryVisibilityFilter,
+    RealMemoryVisibilityFilter,
+    is_memory_visible_to,
     # lifecycle 纯函数（Clock 注入）
-    apply_decay, apply_reinforce, gc_expired, is_eligible_for_promotion,
+    apply_decay,
+    apply_reinforce,
+    gc_expired,
+    is_eligible_for_promotion,
     # admission webhook
     validate_memory,
     # 错误
-    MEMORY_SCOPE_NOT_FOUND, MEMORY_INVALID_CONTENT, MEMORY_FORBIDDEN,
-    MEMORY_RATE_LIMIT, MEMORY_QUERY_TOO_BROAD, MEMORY_ADMISSION_TIMEOUT,
+    MEMORY_SCOPE_NOT_FOUND,
+    MEMORY_INVALID_CONTENT,
+    MEMORY_FORBIDDEN,
+    MEMORY_RATE_LIMIT,
+    MEMORY_QUERY_TOO_BROAD,
+    MEMORY_ADMISSION_TIMEOUT,
 )
 
 # shared 跨模块共享（clock / leader / observability / errors）
 from superteam_a2a.shared import (
-    Clock, RealClock, FakeClock,
-    LeaseLeader, RealLeaseLeader,
-    ObjectMeta, Condition, AwareDatetime,
+    Clock,
+    RealClock,
+    FakeClock,
+    LeaseLeader,
+    RealLeaseLeader,
+    ObjectMeta,
+    Condition,
+    AwareDatetime,
     # 错误基类
-    ScopeError, AdmissionTimeoutError,
+    ScopeError,
+    AdmissionTimeoutError,
 )
 
 # shared-visibility 5 维矩阵复用（Knowledge v0.5+ + Memory 共享）
 from superteam_a2a.shared.visibility import (
-    VisibilityMatrix, RealVisibilityMatrix,
+    VisibilityMatrix,
+    RealVisibilityMatrix,
     MEMORY_VISIBILITY_SCOPE_MATRIX,  # 4 × 3 矩阵定义
 )
 ```
@@ -421,7 +458,8 @@ from superteam_a2a.shared.meta import ObjectMeta, Condition
 
 class ScopeLevel(StrEnum):
     """4 级作用域枚举（ADR-0002 §3.1 + §4.1）。"""
-    INDUSTRY = "industry"        # cluster-scoped；唯一 1 个
+
+    INDUSTRY = "industry"  # cluster-scoped；唯一 1 个
     ORGANIZATION = "organization"  # namespace-scoped
     TEAM = "team"
     PROJECT = "project"
@@ -429,14 +467,16 @@ class ScopeLevel(StrEnum):
 
 class ScopePhase(StrEnum):
     """KnowledgeScope status.phase 状态机。"""
-    PENDING = "Pending"          # 创建中
-    ACTIVE = "Active"            # 正常
-    ERROR = "Error"              # reconcile 失败
-    DELETING = "Deleting"        # 清理中
+
+    PENDING = "Pending"  # 创建中
+    ACTIVE = "Active"  # 正常
+    ERROR = "Error"  # reconcile 失败
+    DELETING = "Deleting"  # 清理中
 
 
 class SubjectKind(StrEnum):
     """Subject 引用类型（User / Group / ServiceAccount）。"""
+
     USER = "User"
     GROUP = "Group"
     SERVICE_ACCOUNT = "ServiceAccount"
@@ -444,6 +484,7 @@ class SubjectKind(StrEnum):
 
 class SubjectReference(BaseModel):
     """指向 User / Group / ServiceAccount 的引用。"""
+
     model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
 
     kind: SubjectKind = Field(..., description="主体类型")
@@ -452,6 +493,7 @@ class SubjectReference(BaseModel):
 
 class ScopeReference(BaseModel):
     """指向 KnowledgeScope 的引用。"""
+
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     name: str = Field(..., min_length=1, max_length=128)
@@ -460,6 +502,7 @@ class ScopeReference(BaseModel):
 
 class InheritRules(BaseModel):
     """4 级 scope 继承过滤规则（admission webhook 强制）。"""
+
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     include_types: list[str] | None = Field(default=None, max_length=11, alias="includeTypes")
@@ -468,13 +511,17 @@ class InheritRules(BaseModel):
 
 class KnowledgeScopeSpec(BaseModel):
     """KnowledgeScope CRD spec（6 字段 · ADR-0002 §3.1 + L1 v0.2.0 §5.2.2）。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     level: ScopeLevel = Field(..., description="作用域级别")
     display_name: str = Field(..., alias="displayName", min_length=1, max_length=64)
     description: str | None = Field(default=None, max_length=512)
-    parent_ref: ScopeReference | None = Field(default=None, alias="parentRef",
-        description="industry 必须为 None；其他 level 必须 parent 严格递增 1 级")
+    parent_ref: ScopeReference | None = Field(
+        default=None,
+        alias="parentRef",
+        description="industry 必须为 None；其他 level 必须 parent 严格递增 1 级",
+    )
     owner_ref: SubjectReference = Field(..., alias="ownerRef")
     inherit_rules: InheritRules | None = Field(default=None, alias="inheritRules")
     # 6 spec 字段（含引用类型 + labels 可选 · 不计 spec 字段数）
@@ -482,6 +529,7 @@ class KnowledgeScopeSpec(BaseModel):
 
 class KnowledgeScopeStatus(BaseModel):
     """KnowledgeScope CRD status（6 字段）。"""
+
     model_config = ConfigDict(extra="forbid")
 
     phase: ScopePhase | None = None
@@ -494,6 +542,7 @@ class KnowledgeScopeStatus(BaseModel):
 
 class KnowledgeScope(BaseModel):
     """KnowledgeScope CRD 顶层。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     api_version: str = Field(default="knowledge.superteam-a2a.io/v1alpha1", alias="apiVersion")
@@ -517,12 +566,14 @@ from enum import StrEnum
 from pydantic import BaseModel, Field, ConfigDict, AwareDatetime
 from superteam_a2a.shared.meta import ObjectMeta, Condition
 from superteam_a2a.knowledge.apis.v1alpha1.knowledgescope import (
-    ScopeReference, SubjectReference,
+    ScopeReference,
+    SubjectReference,
 )
 
 
 class KnowledgeType(StrEnum):
     """KnowledgeItem 11 类枚举（ADR-0002 §3.2）。"""
+
     DOCUMENT = "document"
     RUNBOOK = "runbook"
     API_SPEC = "api-spec"
@@ -538,14 +589,16 @@ class KnowledgeType(StrEnum):
 
 class KnowledgeVisibility(StrEnum):
     """KnowledgeItem visibility 4 类（admission 强制 scope 校验）。"""
-    SCOPE_ONLY = "scope-only"                      # 仅当前作用域成员可见
-    SCOPE_AND_CHILDREN = "scope-and-children"      # 当前 + 子作用域（默认）
-    PUBLIC_READABLE = "public-readable"            # 必须 industry scope
-    AGENT_PRIVATE = "agent-private"                # v0.1 禁用（保留 v0.5+）
+
+    SCOPE_ONLY = "scope-only"  # 仅当前作用域成员可见
+    SCOPE_AND_CHILDREN = "scope-and-children"  # 当前 + 子作用域（默认）
+    PUBLIC_READABLE = "public-readable"  # 必须 industry scope
+    AGENT_PRIVATE = "agent-private"  # v0.1 禁用（保留 v0.5+）
 
 
 class KnowledgeItemPhase(StrEnum):
     """KnowledgeItem status.phase 状态机。"""
+
     DRAFT = "Draft"
     PUBLISHED = "Published"
     DEPRECATED = "Deprecated"
@@ -553,6 +606,7 @@ class KnowledgeItemPhase(StrEnum):
 
 class ItemReference(BaseModel):
     """KnowledgeItem 引用类型（Memory.source_knowledge_ref 使用）。"""
+
     model_config = ConfigDict(extra="forbid", frozen=True)
 
     name: str = Field(..., min_length=1, max_length=128)
@@ -561,6 +615,7 @@ class ItemReference(BaseModel):
 
 class KnowledgeItemSpec(BaseModel):
     """KnowledgeItem CRD spec（9 字段 · ADR-0002 §3.2 + L1 v0.2.0 §5.2.3）。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     scope_ref: ScopeReference = Field(..., alias="scopeRef")
@@ -570,8 +625,9 @@ class KnowledgeItemSpec(BaseModel):
     summary: str | None = Field(default=None, max_length=512)
     tags: list[str] | None = Field(default=None, max_length=20)
     visibility: KnowledgeVisibility = Field(default=KnowledgeVisibility.SCOPE_AND_CHILDREN)
-    owner_ref: SubjectReference = Field(..., alias="ownerRef",
-        description="必须 User / Group；ServiceAccount 由 admission 拒绝")
+    owner_ref: SubjectReference = Field(
+        ..., alias="ownerRef", description="必须 User / Group；ServiceAccount 由 admission 拒绝"
+    )
     source_uri: str | None = Field(default=None, alias="sourceUri", max_length=512)
     version: int = Field(default=1, ge=1)
     # 9 spec + 引用类型（距上限 15 距离 6）
@@ -579,6 +635,7 @@ class KnowledgeItemSpec(BaseModel):
 
 class KnowledgeItemStatus(BaseModel):
     """KnowledgeItem CRD status（4 字段）。"""
+
     model_config = ConfigDict(extra="forbid")
 
     phase: KnowledgeItemPhase | None = None
@@ -589,6 +646,7 @@ class KnowledgeItemStatus(BaseModel):
 
 class KnowledgeItem(BaseModel):
     """KnowledgeItem CRD 顶层。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     api_version: str = Field(default="knowledge.superteam-a2a.io/v1alpha1", alias="apiVersion")
@@ -607,21 +665,25 @@ from enum import StrEnum
 from pydantic import BaseModel, Field, ConfigDict, AwareDatetime
 from superteam_a2a.shared.meta import ObjectMeta, Condition
 from superteam_a2a.knowledge.apis.v1alpha1.knowledgescope import (
-    ScopeReference, SubjectReference, SubjectKind,
+    ScopeReference,
+    SubjectReference,
+    SubjectKind,
 )
 
 
 class MemoryPhase(StrEnum):
     """Memory status.phase 状态机（5 态）。"""
-    ACTIVE = "Active"            # effective_confidence > 0.5
-    DECAYING = "Decaying"        # 0.01 ≤ effective_confidence ≤ 0.5
-    PROMOTABLE = "Promotable"    # eligible_for_promotion = true（v0.1 仅算不触发）
-    EXPIRED = "Expired"          # effective_confidence < 0.01
-    ERROR = "Error"              # reconcile 失败
+
+    ACTIVE = "Active"  # effective_confidence > 0.5
+    DECAYING = "Decaying"  # 0.01 ≤ effective_confidence ≤ 0.5
+    PROMOTABLE = "Promotable"  # eligible_for_promotion = true（v0.1 仅算不触发）
+    EXPIRED = "Expired"  # effective_confidence < 0.01
+    ERROR = "Error"  # reconcile 失败
 
 
 class MemoryVisibility(StrEnum):
     """Memory visibility 3 类（5 维矩阵 · agent-private 短路）。"""
+
     SCOPE_ONLY = "scope-only"
     SCOPE_AND_CHILDREN = "scope-and-children"
     AGENT_PRIVATE = "agent-private"
@@ -629,32 +691,43 @@ class MemoryVisibility(StrEnum):
 
 class AgentReference(BaseModel):
     """指向 Agent（ServiceAccount）的引用。"""
+
     model_config = ConfigDict(extra="forbid", frozen=True)
 
-    kind: SubjectKind = Field(default=SubjectKind.SERVICE_ACCOUNT,
-        description="Memory 仅支持 ServiceAccount；与 KI 互斥")
+    kind: SubjectKind = Field(
+        default=SubjectKind.SERVICE_ACCOUNT, description="Memory 仅支持 ServiceAccount；与 KI 互斥"
+    )
     name: str = Field(..., min_length=1, max_length=253)
 
 
 class MemorySpec(BaseModel):
     """Memory CRD spec（12 字段 · ADR-0003 §3 + L1 v0.2.0 §5.2.4）。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     scope_ref: ScopeReference = Field(..., alias="scopeRef")
-    agent_ref: AgentReference = Field(..., alias="agentRef",
-        description="必须 ServiceAccount；与 KI.User/Group 互斥")
-    content: dict[str, str] = Field(..., min_length=1, max_length=20,
-        description="键值对结构化记忆内容；最多 20 个键")
+    agent_ref: AgentReference = Field(
+        ..., alias="agentRef", description="必须 ServiceAccount；与 KI.User/Group 互斥"
+    )
+    content: dict[str, str] = Field(
+        ..., min_length=1, max_length=20, description="键值对结构化记忆内容；最多 20 个键"
+    )
     summary: str = Field(..., min_length=1, max_length=512)
     confidence: float = Field(default=1.0, ge=0.0, le=1.0)
-    decay_days: int = Field(default=30, ge=1, le=3650,
-        description="decay 半衰期；超过 3650 拒绝")
+    decay_days: int = Field(default=30, ge=1, le=3650, description="decay 半衰期；超过 3650 拒绝")
     reinforced_count: int = Field(default=0, ge=0, alias="reinforcedCount")
     last_reinforced_at: AwareDatetime | None = Field(default=None, alias="lastReinforcedAt")
-    memory_key_pattern: str | None = Field(default=None, alias="memoryKeyPattern",
-        max_length=128, description="Memory 唯一键模式（SA-scoped）")
-    source_knowledge_ref: ItemReference | None = Field(default=None, alias="sourceKnowledgeRef",
-        description="追溯的 KnowledgeItem（宪法 §2.9 记忆可追溯）")
+    memory_key_pattern: str | None = Field(
+        default=None,
+        alias="memoryKeyPattern",
+        max_length=128,
+        description="Memory 唯一键模式（SA-scoped）",
+    )
+    source_knowledge_ref: ItemReference | None = Field(
+        default=None,
+        alias="sourceKnowledgeRef",
+        description="追溯的 KnowledgeItem（宪法 §2.9 记忆可追溯）",
+    )
     tags: list[str] | None = Field(default=None, max_length=10)
     visibility: MemoryVisibility = Field(default=MemoryVisibility.SCOPE_AND_CHILDREN)
     # 12 spec（距上限 15 距离 3 · 临界）
@@ -662,6 +735,7 @@ class MemorySpec(BaseModel):
 
 class MemoryStatus(BaseModel):
     """Memory CRD status（7 字段）。"""
+
     model_config = ConfigDict(extra="forbid")
 
     phase: MemoryPhase | None = None
@@ -669,13 +743,16 @@ class MemoryStatus(BaseModel):
     conditions: list[Condition] = Field(default_factory=list)
     last_decayed_at: AwareDatetime | None = Field(default=None, alias="lastDecayedAt")
     last_reinforced_at: AwareDatetime | None = Field(default=None, alias="lastReinforcedAt")
-    effective_confidence: float | None = Field(default=None, alias="effectiveConfidence", ge=0.0, le=1.0)
+    effective_confidence: float | None = Field(
+        default=None, alias="effectiveConfidence", ge=0.0, le=1.0
+    )
     eligible_for_promotion: bool | None = Field(default=None, alias="eligibleForPromotion")
     observed_generation: int | None = Field(default=None, alias="observedGeneration", ge=0)
 
 
 class Memory(BaseModel):
     """Memory CRD 顶层。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
 
     api_version: str = Field(default="memory.superteam-a2a.io/v1alpha1", alias="apiVersion")
@@ -742,7 +819,10 @@ class Memory(BaseModel):
 # packages/knowledge/src/supteam_a2a/knowledge/scope/inheritance.py
 from typing import Protocol, runtime_checkable
 from superteam_a2a.knowledge.apis.v1alpha1 import (
-    KnowledgeScope, KnowledgeScopeSpec, ScopeLevel, ScopeReference,
+    KnowledgeScope,
+    KnowledgeScopeSpec,
+    ScopeLevel,
+    ScopeReference,
 )
 from superteam_a2a.shared.errors import ScopeNotFound, ScopeCycle, ScopeHierarchyViolation
 
@@ -794,7 +874,9 @@ class RealScopeResolver:
 
             scope = await self.get_scope(current_name)
             if scope is None:
-                raise ScopeNotFound(f"KnowledgeScope {current_name} not found during inheritance resolution")
+                raise ScopeNotFound(
+                    f"KnowledgeScope {current_name} not found during inheritance resolution"
+                )
 
             chain.insert(0, scope.metadata.name)  # 顶层在前
 
@@ -966,7 +1048,9 @@ async def query_memory(
         if agent_filter and mem.spec.agent_ref.name != agent_filter:
             continue
         # memory key pattern 过滤
-        if memory_key_pattern and not _match_key_pattern(memory_key_pattern, mem.spec.memory_key_pattern):
+        if memory_key_pattern and not _match_key_pattern(
+            memory_key_pattern, mem.spec.memory_key_pattern
+        ):
             continue
         # tag 过滤
         if tag_filter and not (set(mem.spec.tags or []) & set(tag_filter)):
@@ -1004,6 +1088,7 @@ from typing import Callable, Awaitable
 
 class VisibilityRule(StrEnum):
     """可见性规则枚举（Knowledge 4 类 + Memory 3 类共享）。"""
+
     SCOPE_ONLY = "scope-only"
     SCOPE_AND_CHILDREN = "scope-and-children"
     PUBLIC_READABLE = "public-readable"
@@ -1029,13 +1114,16 @@ VISIBILITY_MATRIX: dict[tuple[VisibilityRule, str], Callable[..., Awaitable[bool
 from typing import Any
 import kopf
 from superteam_a2a.knowledge.apis.v1alpha1 import (
-    KnowledgeItem, KnowledgeVisibility,
+    KnowledgeItem,
+    KnowledgeVisibility,
 )
 from superteam_a2a.shared.errors import AdmissionTimeoutError
 
 
 @kopf.validation(
-    "knowledge.superteam-a2a.io", "v1alpha1", "knowledgeitems",
+    "knowledge.superteam-a2a.io",
+    "v1alpha1",
+    "knowledgeitems",
     timeout=0.05,  # 50ms 超时 fail-closed
     operations=["CREATE", "UPDATE"],
 )
@@ -1111,7 +1199,9 @@ async def _fetch_scope_with_timeout(name: str, timeout_ms: int) -> "KnowledgeSco
 ```python
 # packages/knowledge/src/supteam_a2a/knowledge/admission/scope_webhook.py
 @kopf.validation(
-    "knowledge.superteam-a2a.io", "v1alpha1", "knowledgescopes",
+    "knowledge.superteam-a2a.io",
+    "v1alpha1",
+    "knowledgescopes",
     timeout=0.05,
     operations=["CREATE", "UPDATE"],
 )
@@ -1167,7 +1257,9 @@ async def validate_knowledge_scope(spec: dict[str, Any], **kwargs) -> None:
 ```python
 # packages/memory/src/supteam_a2a/memory/admission/m_webhook.py
 @kopf.validation(
-    "memory.superteam-a2a.io", "v1alpha1", "memories",
+    "memory.superteam-a2a.io",
+    "v1alpha1",
+    "memories",
     timeout=0.05,
     operations=["CREATE", "UPDATE"],
 )
@@ -1221,7 +1313,8 @@ async def validate_memory(spec: dict[str, Any], **kwargs) -> None:
     # 规则 4：source_knowledge_ref scope 匹配
     if memory.spec.source_knowledge_ref is not None:
         ki = await _fetch_knowledge_item_with_timeout(
-            memory.spec.source_knowledge_ref.name, timeout_ms=50,
+            memory.spec.source_knowledge_ref.name,
+            timeout_ms=50,
         )
         if ki is None:
             raise kopf.AdmissionError(
@@ -1238,10 +1331,9 @@ async def validate_memory(spec: dict[str, Any], **kwargs) -> None:
             )
 
     # 规则 5：agent-private 必须 agent_ref.name != ""
-    if (memory.spec.visibility == MemoryVisibility.AGENT_PRIVATE
-            and not memory.spec.agent_ref.name):
+    if memory.spec.visibility == MemoryVisibility.AGENT_PRIVATE and not memory.spec.agent_ref.name:
         raise kopf.AdmissionError(
-            "Memory.visibility=agent-private requires agentRef.name != \"\". "
+            'Memory.visibility=agent-private requires agentRef.name != "". '
             "Error code: MEMORY_AGENT_PRIVATE_REQUIRES_NAME",
             code=400,
         )
@@ -1428,12 +1520,16 @@ class KnowledgeServiceCard(BaseModel):
 from pydantic import BaseModel, Field, ConfigDict
 from superteam_a2a.a2a.upstream import A2AError, ErrorCode
 from superteam_a2a.knowledge_service.handlers.errors import (
-    KNOWLEDGE_SCOPE_NOT_FOUND, KNOWLEDGE_QUERY_TOO_LONG,
-    KNOWLEDGE_INVALID_TYPE, KNOWLEDGE_INTERNAL_ERROR,
+    KNOWLEDGE_SCOPE_NOT_FOUND,
+    KNOWLEDGE_QUERY_TOO_LONG,
+    KNOWLEDGE_INVALID_TYPE,
+    KNOWLEDGE_INTERNAL_ERROR,
     KNOWLEDGE_ADMISSION_TIMEOUT,
 )
 from superteam_a2a.knowledge_service.deps import (
-    get_scope_resolver, get_inverted_index, get_visibility_filter,
+    get_scope_resolver,
+    get_inverted_index,
+    get_visibility_filter,
 )
 
 
@@ -1523,7 +1619,7 @@ async def handle_query_knowledge(
         results.append((item, score))
 
     # 7. 去重：同 ID 保留最新 version
-    results = _dedupe_by_id_keep_latest(results)[:req.max_results]
+    results = _dedupe_by_id_keep_latest(results)[: req.max_results]
 
     # 8. 构造 response
     items = [
@@ -1770,9 +1866,7 @@ async def handle_query_memory(
     - MEMORY_ADMISSION_TIMEOUT (-32112)
     """
     # 1. query too broad 校验（scope=industry + 无 tag/confidence 过滤 → 拒绝）
-    if (req.scope_filter == "industry"
-            and not req.tag_filter
-            and req.min_confidence is None):
+    if req.scope_filter == "industry" and not req.tag_filter and req.min_confidence is None:
         raise A2AError(
             MEMORY_QUERY_TOO_BROAD,
             "Querying industry scope requires tagFilter or minConfidence",
@@ -1891,13 +1985,17 @@ from datetime import datetime, timedelta
 from typing import Protocol, runtime_checkable
 import kopf
 from superteam_a2a.memory.lifecycle import (
-    apply_decay, apply_reinforce, gc_expired, is_eligible_for_promotion,
+    apply_decay,
+    apply_reinforce,
+    gc_expired,
+    is_eligible_for_promotion,
 )
 from superteam_a2a.memory.apis.v1alpha1 import Memory, MemoryPhase, MemoryVisibility
 from superteam_a2a.shared.clock import Clock, RealClock
 from superteam_a2a.shared.leader import LeaseLeader
 from superteam_a2a.shared.observability import (
-    SUPTEAM_MEMORY_DECAY_TOTAL, SUPTEAM_MEMORY_RECONCILE_DURATION_SECONDS,
+    SUPTEAM_MEMORY_DECAY_TOTAL,
+    SUPTEAM_MEMORY_RECONCILE_DURATION_SECONDS,
 )
 
 
@@ -1913,6 +2011,7 @@ class MemoryReconcilerService(Protocol):
 @dataclass
 class ReconcileSummary:
     """Reconcile 计数摘要。"""
+
     decayed: int = 0
     expired: int = 0
     promoted_eligible: int = 0
@@ -1952,7 +2051,10 @@ class RealMemoryReconcilerService:
             return summary
 
     async def _reconcile_one(
-        self, mem: Memory, now: datetime, summary: ReconcileSummary,
+        self,
+        mem: Memory,
+        now: datetime,
+        summary: ReconcileSummary,
     ) -> None:
         """单 Memory reconcile（decay + GC + promotion 计算）。"""
         # 1. decay 公式（数学等价于 L2-2 §5.6）
@@ -1963,7 +2065,8 @@ class RealMemoryReconcilerService:
         if new_effective < 0.01 and mem.spec.decay_days > 0:
             await self._store.delete_memory(mem.metadata.name)
             SUPTEAM_MEMORY_DECAY_TOTAL.labels(
-                phase_from=old_phase.value, phase_to=MemoryPhase.EXPIRED.value,
+                phase_from=old_phase.value,
+                phase_to=MemoryPhase.EXPIRED.value,
             ).inc()
             summary.expired += 1
             return
@@ -1973,17 +2076,21 @@ class RealMemoryReconcilerService:
 
         # 4. status 写回（partial update，避免覆盖 spec）
         new_phase = _phase_for(new_effective)
-        await self._store.patch_status(mem.metadata.name, {
-            "phase": new_phase.value,
-            "effectiveConfidence": new_effective,
-            "lastDecayedAt": now.isoformat(),
-            "eligibleForPromotion": eligible,
-            "observedGeneration": mem.metadata.generation,
-        })
+        await self._store.patch_status(
+            mem.metadata.name,
+            {
+                "phase": new_phase.value,
+                "effectiveConfidence": new_effective,
+                "lastDecayedAt": now.isoformat(),
+                "eligibleForPromotion": eligible,
+                "observedGeneration": mem.metadata.generation,
+            },
+        )
 
         if old_phase != new_phase:
             SUPTEAM_MEMORY_DECAY_TOTAL.labels(
-                phase_from=old_phase.value, phase_to=new_phase.value,
+                phase_from=old_phase.value,
+                phase_to=new_phase.value,
             ).inc()
             summary.decayed += 1
 
@@ -2013,22 +2120,27 @@ async def memory_reconcile_timer(
         "memory_reconciler",
         lambda: RealMemoryReconcilerService(
             clock=memo.get_or_create("clock", lambda: RealClock()),
-            leader=memo.get_or_create("leader", lambda: RealLeaseLeader(
-                lease_name="superteam-a2a-operator-leader",
-                lease_namespace="superteam-a2a-system",
-            )),
+            leader=memo.get_or_create(
+                "leader",
+                lambda: RealLeaseLeader(
+                    lease_name="superteam-a2a-operator-leader",
+                    lease_namespace="superteam-a2a-system",
+                ),
+            ),
             memory_store=memo.get_or_create("memory_store", lambda: RealMemoryStore()),
         ),
     )
     now = reconciler._clock.now()
     try:
         summary = await reconciler.reconcile_all(now)
-        logger.info("memory reconcile completed",
-                    decayed=summary.decayed,
-                    expired=summary.expired,
-                    promoted_eligible=summary.promoted_eligible,
-                    reinforced=summary.reinforced,
-                    errors=summary.errors)
+        logger.info(
+            "memory reconcile completed",
+            decayed=summary.decayed,
+            expired=summary.expired,
+            promoted_eligible=summary.promoted_eligible,
+            reinforced=summary.reinforced,
+            errors=summary.errors,
+        )
     except Exception as e:
         logger.exception("memory reconcile failed", error=str(e))
         # Kopf backoff 自动重试（指数退避，上限 5min）
@@ -2068,7 +2180,9 @@ def apply_decay(memory: Memory, now: datetime) -> float:
 
 
 # packages/memory/src/supteam_a2a/memory/lifecycle/reinforce.py
-def apply_reinforce(memory: Memory, now: datetime, min_interval_seconds: int = 3600) -> tuple[Memory, bool]:
+def apply_reinforce(
+    memory: Memory, now: datetime, min_interval_seconds: int = 3600
+) -> tuple[Memory, bool]:
     """reinforce Memory（频次节流）。
 
     频次节流：上次 reinforce 后 < 1h（可配）→ 不重复更新 last_reinforced_at。
@@ -2144,6 +2258,7 @@ class RealClock:
 
     def now(self) -> datetime:
         from datetime import UTC
+
         return datetime.now(UTC)
 
 
@@ -2152,6 +2267,7 @@ class FakeClock:
 
     def __init__(self, start: datetime | None = None) -> None:
         from datetime import UTC
+
         self._now = start or datetime.now(UTC)
 
     def now(self) -> datetime:
@@ -2263,7 +2379,8 @@ class RealLeaseLeader:
         try:
             # 尝试获取 lease
             lease = await k8s_client.CoordinationV1Api().read_namespaced_lease(
-                name=self._name, namespace=self._namespace,
+                name=self._name,
+                namespace=self._namespace,
             )
             now = datetime.now(UTC)
             renew_time = lease.spec.renew_time
@@ -2290,7 +2407,9 @@ class RealLeaseLeader:
         lease.spec.renew_time = datetime.now(UTC)
         lease.spec.lease_duration_seconds = self._renew_deadline + self._retry_period
         await k8s_client.CoordinationV1Api().replace_namespaced_lease(
-            name=self._name, namespace=self._namespace, body=lease,
+            name=self._name,
+            namespace=self._namespace,
+            body=lease,
         )
         self._is_leader = True
         self._last_renew = datetime.now(UTC)
@@ -2430,8 +2549,8 @@ from superteam_a2a.knowledge.apis.v1alpha1 import KnowledgeItem
 
 
 # BM25 参数（与 v0.1.0 Go baseline 完全一致）
-BM25_K1 = 1.5   # 词频饱和参数
-BM25_B = 0.75   # 文档长度归一化参数
+BM25_K1 = 1.5  # 词频饱和参数
+BM25_B = 0.75  # 文档长度归一化参数
 
 
 @runtime_checkable
@@ -2439,7 +2558,9 @@ class InvertedIndex(Protocol):
     """内存倒排索引抽象（ADR-0005 §3.4）。"""
 
     async def search(
-        self, query: str, scope_chain: list[str],
+        self,
+        query: str,
+        scope_chain: list[str],
         type_filter: list[str] | None = None,
         tag_filter: list[str] | None = None,
         max_results: int = 10,
@@ -2481,7 +2602,9 @@ class RealInvertedIndex:
         self._lock = asyncio.Lock()  # single-writer 多 reader
 
     async def search(
-        self, query: str, scope_chain: list[str],
+        self,
+        query: str,
+        scope_chain: list[str],
         type_filter: list[str] | None = None,
         tag_filter: list[str] | None = None,
         max_results: int = 10,
@@ -2489,11 +2612,17 @@ class RealInvertedIndex:
         """异步入口 + 受控线程 offload（满足 ADR-0005 §6.3 + L1 §11.5 event-loop lag 门禁）。"""
         return await to_thread.run_sync(
             self._search_blocking,
-            query, scope_chain, type_filter, tag_filter, max_results,
+            query,
+            scope_chain,
+            type_filter,
+            tag_filter,
+            max_results,
         )
 
     def _search_blocking(
-        self, query: str, scope_chain: list[str],
+        self,
+        query: str,
+        scope_chain: list[str],
         type_filter: list[str] | None,
         tag_filter: list[str] | None,
         max_results: int,
@@ -2511,19 +2640,18 @@ class RealInvertedIndex:
         # 2. scope 过滤
         scope_set = set(scope_chain)
         candidates = {
-            name for name in candidates
-            if self._items[name].spec.scope_ref.name in scope_set
+            name for name in candidates if self._items[name].spec.scope_ref.name in scope_set
         }
 
         # 3. typeFilter / tagFilter 过滤
         if type_filter:
             candidates = {
-                name for name in candidates
-                if self._items[name].spec.type.value in type_filter
+                name for name in candidates if self._items[name].spec.type.value in type_filter
             }
         if tag_filter:
             candidates = {
-                name for name in candidates
+                name
+                for name in candidates
                 if set(self._items[name].spec.tags or []) & set(tag_filter)
             }
 
@@ -2558,13 +2686,16 @@ class RealInvertedIndex:
                 continue
             df = len(self._postings.get(term, set()))
             idf = math.log(1 + (N - df + 0.5) / (df + 0.5))
-            tf_norm = (tf * (BM25_K1 + 1)) / (tf + BM25_K1 * (1 - BM25_B + BM25_B * doc_len / self._avg_doc_len))
+            tf_norm = (tf * (BM25_K1 + 1)) / (
+                tf + BM25_K1 * (1 - BM25_B + BM25_B * doc_len / self._avg_doc_len)
+            )
             score += idf * tf_norm
         return score
 
     def _tokenize(self, text: str) -> list[str]:
         """简单 tokenizer（lowercase + ASCII alphanumeric split；与 Go baseline 等价）。"""
         import re
+
         return re.findall(r"[a-z0-9]+", text.lower())
 
     def _is_visible(self, item: KnowledgeItem, scope_chain: list[str]) -> bool:
@@ -2724,6 +2855,7 @@ from superteam_a2a.a2a.upstream import A2AError, ErrorCode  # L2-1 边界
 
 class KnowledgeErrorCode(IntEnum):
     """Knowledge Service 错误码（JSON-RPC code 范围 -32008~-32018）。"""
+
     KNOWLEDGE_SCOPE_NOT_FOUND = -32008
     KNOWLEDGE_QUERY_TOO_LONG = -32009
     KNOWLEDGE_INVALID_TYPE = -32010
@@ -2739,6 +2871,7 @@ class KnowledgeErrorCode(IntEnum):
 
 class MemoryErrorCode(IntEnum):
     """Memory backend 错误码（JSON-RPC code 范围 -32101~-32112）。"""
+
     MEMORY_SCOPE_NOT_FOUND = -32101
     MEMORY_INVALID_CONTENT = -32102
     MEMORY_FORBIDDEN = -32103
@@ -2784,7 +2917,10 @@ def memory_error(code: MemoryErrorCode, message: str, **data) -> A2AError:
 ```python
 # packages/shared/src/supteam_a2a/shared/retry.py
 from tenacity import (
-    retry, stop_after_attempt, wait_exponential, retry_if_exception_type,
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
 )
 from superteam_a2a.a2a.upstream import A2AError
 from superteam_a2a.knowledge_service.handlers.errors import KnowledgeErrorCode
@@ -2795,9 +2931,12 @@ from superteam_a2a.memory_backend.handlers.errors import MemoryErrorCode
 retry_admission_timeout = retry(
     stop=stop_after_attempt(3),
     wait=wait_exponential(multiplier=0.1, max=0.4),
-    retry=retry_if_exception_type(A2AError) & retry_if_exception_code(
-        [KnowledgeErrorCode.KNOWLEDGE_ADMISSION_TIMEOUT.value,
-         MemoryErrorCode.MEMORY_ADMISSION_TIMEOUT.value],
+    retry=retry_if_exception_type(A2AError)
+    & retry_if_exception_code(
+        [
+            KnowledgeErrorCode.KNOWLEDGE_ADMISSION_TIMEOUT.value,
+            MemoryErrorCode.MEMORY_ADMISSION_TIMEOUT.value,
+        ],
     ),
     reraise=True,
 )
@@ -2806,9 +2945,12 @@ retry_admission_timeout = retry(
 # internal error 重试（仅 1 次立即重试）
 retry_internal_error = retry(
     stop=stop_after_attempt(1),
-    retry=retry_if_exception_type(A2AError) & retry_if_exception_code(
-        [KnowledgeErrorCode.KNOWLEDGE_INTERNAL_ERROR.value,
-         MemoryErrorCode.MEMORY_INTERNAL_ERROR.value],
+    retry=retry_if_exception_type(A2AError)
+    & retry_if_exception_code(
+        [
+            KnowledgeErrorCode.KNOWLEDGE_INTERNAL_ERROR.value,
+            MemoryErrorCode.MEMORY_INTERNAL_ERROR.value,
+        ],
     ),
     reraise=True,
 )
@@ -2900,7 +3042,9 @@ SUPTEAM_KNOWLEDGE_GET_ITEM_TOTAL = Counter(
 SUPTEAM_KNOWLEDGE_ADMISSION_REJECT_TOTAL = Counter(
     "superteam_knowledge_admission_reject_total",
     "Total KnowledgeItem admission rejections",
-    labelnames=("reason",),  # KNOWLEDGE_OWNER_KIND_FORBIDDEN / KNOWLEDGE_PUBLIC_REQUIRES_INDUSTRY / etc.
+    labelnames=(
+        "reason",
+    ),  # KNOWLEDGE_OWNER_KIND_FORBIDDEN / KNOWLEDGE_PUBLIC_REQUIRES_INDUSTRY / etc.
 )
 
 # 10. visibility filter 命中数
@@ -3085,16 +3229,16 @@ logger.info(
 import kopf
 
 
-@kopf.event("knowledge.superteam-a2a.io", "v1alpha1", "knowledgescopes",
-            labels={"event": "lifecycle"})
+@kopf.event(
+    "knowledge.superteam-a2a.io", "v1alpha1", "knowledgescopes", labels={"event": "lifecycle"}
+)
 async def knowledge_scope_created(spec, name, namespace, **kwargs):
     """KnowledgeScopeCreated event 触发。"""
     pass  # 实际由 kopf 自动生成 K8s Event
 
 
 # MemoryReconciler events
-@kopf.event("memory.superteam-a2a.io", "v1alpha1", "memories",
-            labels={"event": "lifecycle"})
+@kopf.event("memory.superteam-a2a.io", "v1alpha1", "memories", labels={"event": "lifecycle"})
 async def memory_lifecycle_event(spec, name, namespace, status, old, new, **kwargs):
     """Memory lifecycle event（reinforced / decayed / expired / gc）。"""
     pass  # 实际由 kopf 自动生成 K8s Event

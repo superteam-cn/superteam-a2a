@@ -313,12 +313,20 @@
   ```python
   from superteam_a2a.memory_backend.errors import MemoryErrorCode
   from superteam_a2a.knowledge_service.errors import MemoryErrorCode as KsMemoryErrorCode
+
   L2_4_AUTHORITATIVE = {
-      "MEMORY_SCOPE_NOT_FOUND", "MEMORY_INVALID_CONTENT", "MEMORY_FORBIDDEN",
-      "MEMORY_RATE_LIMIT", "MEMORY_INTERNAL_ERROR", "MEMORY_QUERY_TOO_BROAD",
-      "MEMORY_SOURCE_KI_NOT_FOUND", "MEMORY_SOURCE_KI_SCOPE_MISMATCH",
-      "MEMORY_AGENT_PRIVATE_REQUIRES_NAME", "MEMORY_DECAY_DAYS_EXCEEDED",
-      "MEMORY_AGENT_NOT_FOUND", "MEMORY_ADMISSION_TIMEOUT",
+      "MEMORY_SCOPE_NOT_FOUND",
+      "MEMORY_INVALID_CONTENT",
+      "MEMORY_FORBIDDEN",
+      "MEMORY_RATE_LIMIT",
+      "MEMORY_INTERNAL_ERROR",
+      "MEMORY_QUERY_TOO_BROAD",
+      "MEMORY_SOURCE_KI_NOT_FOUND",
+      "MEMORY_SOURCE_KI_SCOPE_MISMATCH",
+      "MEMORY_AGENT_PRIVATE_REQUIRES_NAME",
+      "MEMORY_DECAY_DAYS_EXCEEDED",
+      "MEMORY_AGENT_NOT_FOUND",
+      "MEMORY_ADMISSION_TIMEOUT",
   }
   assert {m.name for m in MemoryErrorCode} == L2_4_AUTHORITATIVE
   assert {m.value for m in MemoryErrorCode} == set(range(-32101, -32112 + 1))

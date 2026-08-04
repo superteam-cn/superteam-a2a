@@ -188,13 +188,15 @@
 - **Kopf 实现**：
   ```python
   # operator/handlers/agent.py（示意，详见 L2-2 / L3-1 Spec）
-  @kopf.on.create('superteam-a2a.io', 'v1alpha1', 'agents')
+  @kopf.on.create("superteam-a2a.io", "v1alpha1", "agents")
   async def on_agent_create(spec, name, namespace, **kwargs): ...
-  
-  @kopf.on.update('superteam-a2a.io', 'v1alpha1', 'agents')
+
+
+  @kopf.on.update("superteam-a2a.io", "v1alpha1", "agents")
   async def on_agent_update(spec, status, name, namespace, **kwargs): ...
-  
-  @kopf.on.delete('superteam-a2a.io', 'v1alpha1', 'agents')
+
+
+  @kopf.on.delete("superteam-a2a.io", "v1alpha1", "agents")
   async def on_agent_delete(name, namespace, **kwargs): ...
   ```
 - **动作**：
@@ -306,18 +308,23 @@ helm/templates/crds/*.yaml（checked-in，由 CI 验证无 diff）
 - **Python 实现**：
   ```python
   # 示意，详见 L2-1 / L3-2 Spec
-  from a2a.server import A2AServer          # 官方 a2a-sdk
+  from a2a.server import A2AServer  # 官方 a2a-sdk
   from superteam_a2a.a2a.extension import (
-      QueryKnowledgeRouter, GetKnowledgeItemRouter,
-      RecordMemoryRouter, QueryMemoryRouter,
+      QueryKnowledgeRouter,
+      GetKnowledgeItemRouter,
+      RecordMemoryRouter,
+      QueryMemoryRouter,
   )
-  
-  app = A2AServer(card=agent_card, handlers=[
-      QueryKnowledgeRouter(...),  # 项目 extension
-      GetKnowledgeItemRouter(...),
-      RecordMemoryRouter(...),
-      QueryMemoryRouter(...),
-  ])  # 标准 method 由 SDK 提供
+
+  app = A2AServer(
+      card=agent_card,
+      handlers=[
+          QueryKnowledgeRouter(...),  # 项目 extension
+          GetKnowledgeItemRouter(...),
+          RecordMemoryRouter(...),
+          QueryMemoryRouter(...),
+      ],
+  )  # 标准 method 由 SDK 提供
   ```
 - **compatibility adapter**：所有 4 个扩展 method 注册在 `superteam_a2a.a2a.upstream` 边界外（ADR-0005 §3.2），防止 SDK 升级扩散到业务模块
 
@@ -647,16 +654,17 @@ spec:
 from pydantic import BaseModel, Field, ConfigDict
 from typing import Literal
 
+
 class ResourceRequirements(BaseModel):
     model_config = ConfigDict(extra="forbid")
     requests: dict[str, str]  # {"cpu": "100m", "memory": "256Mi"}
     limits: dict[str, str]
 
+
 class AgentSpec(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    
-    framework: Literal["langchain", "autogen", "crewai", "sk",
-                       "strands", "smolagents", "custom"]
+
+    framework: Literal["langchain", "autogen", "crewai", "sk", "strands", "smolagents", "custom"]
     version: str = Field(pattern=r"^\d+\.\d+\.\d+$")
     image: str
     image_pull_policy: str | None = Field(None, alias="imagePullPolicy")
@@ -880,20 +888,23 @@ adapter:
 from typing import Protocol, runtime_checkable
 from a2a import AgentCard, Message, Task, Part
 
+
 @runtime_checkable
 class Adapter(Protocol):
     """Adapter 与 A2A Server 之间的协议边界（ADR-0005 §3.3）。"""
-    
+
     async def on_message(
-        self, message: Message, context_id: str | None,
+        self,
+        message: Message,
+        context_id: str | None,
     ) -> Task:
         """处理 A2A sendMessage；返回 Task + 状态。"""
         ...
-    
+
     def agent_card(self) -> AgentCard:
         """返回 Agent Card。"""
         ...
-    
+
     async def health_check(self) -> bool:
         """健康检查。"""
         ...
@@ -901,7 +912,7 @@ class Adapter(Protocol):
 
 class FrameworkAdapter(Protocol):
     """框架特定扩展钩子（v0.1 Hello Agent 必实现）。"""
-    
+
     async def on_framework_event(self, event: dict) -> None:
         """框架事件回调（如 LangChain chain run）。"""
         ...

@@ -96,6 +96,7 @@ from datetime import datetime
 from enum import Enum
 from pydantic import BaseModel, ConfigDict, Field
 
+
 class Phase(str, Enum):
     PENDING = "Pending"
     AVAILABLE = "Available"
@@ -182,6 +183,7 @@ spec:
 from enum import StrEnum
 from pydantic import BaseModel, ConfigDict, Field, HttpUrl
 
+
 class Framework(str, Enum):
     LANGCHAIN = "langchain"
     AUTOGEN = "autogen"
@@ -206,6 +208,7 @@ class ResourceRequirements(BaseModel):
 
 class AgentCardSpec(BaseModel):
     """Agent Card（wire shape 不变；a2a-sdk 标准类型优先复用）。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     name: str = Field(pattern=r"^[a-z][a-z0-9-]*[a-z0-9]$", max_length=64)
     description: str = Field(min_length=1, max_length=512)
@@ -242,8 +245,9 @@ class RuntimeConfig(BaseModel):
 
 class AgentSpec(BaseModel):
     """Agent CRD Spec（wire alias 保留 YAML camelCase）。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    
+
     framework: Framework
     version: str = Field(pattern=r"^\d+\.\d+\.\d+$")
     image: str
@@ -1295,6 +1299,7 @@ class MemoryVisibility(str, Enum):
 
 class AgentReference(BaseModel):
     """schema 硬编码 ServiceAccount（admission 强制）。"""
+
     model_config = ConfigDict(extra="forbid")
     name: str = Field(min_length=1, max_length=128)
     namespace: str | None = Field(None, max_length=64)
@@ -1393,7 +1398,8 @@ async def resolve_effective_scopes(
 **Knowledge 查询算法**：
 ```python
 async def query_knowledge(
-    scope: str, query: str,
+    scope: str,
+    query: str,
     type_filter: list[KnowledgeType] | None = None,
     tag_filter: list[str] | None = None,
     max_results: int = 10,
@@ -1440,7 +1446,8 @@ def is_memory_visible_to(
 
 
 async def query_memory(
-    scope: str, caller_agent: str,
+    scope: str,
+    caller_agent: str,
     confidence_min: float | None = None,
     memory_key_pattern: str | None = None,
     tag_filter: list[str] | None = None,
@@ -1448,10 +1455,7 @@ async def query_memory(
 ) -> list[Memory]:
     caller_chain = await resolve_effective_scopes(scope, k8s)
     all_memories = await list_all_memories(confidence_min, memory_key_pattern, tag_filter)
-    visible = [
-        m for m in all_memories
-        if is_memory_visible_to(m, caller_agent, caller_chain)
-    ]
+    visible = [m for m in all_memories if is_memory_visible_to(m, caller_agent, caller_chain)]
     return visible[:max_results]
 ```
 
@@ -1477,6 +1481,7 @@ async def query_memory(
 ```python
 import math
 from datetime import datetime, timezone
+
 
 def apply_decay(memory: Memory, now: datetime) -> float:
     if memory.spec.decay_days <= 0:

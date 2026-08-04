@@ -339,26 +339,40 @@ from __future__ import annotations
 import re
 from enum import StrEnum
 from typing import Annotated, Literal
-from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
+from pydantic import (
+    AwareDatetime,
+    BaseModel,
+    ConfigDict,
+    Field,
+    StringConstraints,
+    field_validator,
+    model_validator,
+)
 
 DNS_LABEL = re.compile(r"^[a-z0-9](?:[-a-z0-9]*[a-z0-9])?$")
-LABEL_KEY = re.compile(r"^(?:[a-z0-9]([-a-z0-9_.]*[a-z0-9])?/)?[A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?$")
+LABEL_KEY = re.compile(
+    r"^(?:[a-z0-9]([-a-z0-9_.]*[a-z0-9])?/)?[A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?$"
+)
 LABEL_VALUE = re.compile(r"^$|^[A-Za-z0-9]([-A-Za-z0-9_.]*[A-Za-z0-9])?$")
 DnsLabel = Annotated[str, StringConstraints(min_length=1, max_length=63)]
+
 
 class BackendType(StrEnum):
     DICT = "dict"
     IN_MEMORY = "in-memory"
     REDIS = "redis"
 
+
 class MemoryScope(StrEnum):
     SESSION = "session"
     USER = "user"
     TENANT = "tenant"
 
+
 class EvictionPolicy(StrEnum):
     FIFO = "FIFO"
     LRU = "LRU"
+
 
 class BindingPhase(StrEnum):
     PENDING = "Pending"
@@ -367,6 +381,7 @@ class BindingPhase(StrEnum):
     RELEASED = "Released"
     ERROR = "Error"
 
+
 class MemoryPhase(StrEnum):
     ACTIVE = "Active"
     DECAYING = "Decaying"
@@ -374,10 +389,12 @@ class MemoryPhase(StrEnum):
     EXPIRED = "Expired"
     ERROR = "Error"
 
+
 class MemoryVisibility(StrEnum):
     SCOPE_ONLY = "scope-only"
     SCOPE_AND_CHILDREN = "scope-and-children"
     AGENT_PRIVATE = "agent-private"
+
 
 class ObjectMeta(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
@@ -414,18 +431,22 @@ class ScopeReference(BaseModel):
     name: str = Field(min_length=1, max_length=128)
     level: Literal["industry", "organization", "team", "project"] | None = None
 
+
 class AgentReference(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     kind: Literal["ServiceAccount"] = "ServiceAccount"
     name: str = Field(min_length=1, max_length=253)
+
 
 class ItemReference(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
     name: str = Field(min_length=1, max_length=253)
     namespace: DnsLabel | None = None
 
+
 class MemorySpec(BaseModel):
     """L2-4 §3.4 的 12 字段 source-of-truth。"""
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     scope_ref: ScopeReference = Field(alias="scopeRef")
     agent_ref: AgentReference = Field(alias="agentRef")
@@ -452,7 +473,9 @@ class MemorySpec(BaseModel):
     @field_validator("tags")
     @classmethod
     def unique_tags(cls, value: list[str] | None) -> list[str] | None:
-        if value is not None and (any(not t or len(t) > 64 for t in value) or len(value) != len(set(value))):
+        if value is not None and (
+            any(not t or len(t) > 64 for t in value) or len(value) != len(set(value))
+        ):
             raise ValueError("tags must be unique non-empty values <= 64 chars")
         return value
 
@@ -462,10 +485,13 @@ class MemorySpec(BaseModel):
             raise ValueError("MEMORY_AGENT_PRIVATE_REQUIRES_NAME")
         return self
 
+
 class EncryptionSpec(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
     enabled: bool = False
-    key_rotation: str | None = Field(default=None, alias="keyRotation", pattern=r"^(?:[1-9][0-9]*)(?:h|d)$")
+    key_rotation: str | None = Field(
+        default=None, alias="keyRotation", pattern=r"^(?:[1-9][0-9]*)(?:h|d)$"
+    )
 
     @model_validator(mode="after")
     def rotation_requires_encryption(self) -> "EncryptionSpec":
@@ -473,17 +499,27 @@ class EncryptionSpec(BaseModel):
             raise ValueError("keyRotation requires encryption.enabled=true")
         return self
 
+
 class BackendBindingSpec(BaseModel):
     """由 MemorySpec/Helm policy 派生的 8 字段后端绑定投影，不改变 CRD source wire。"""
+
     model_config = ConfigDict(extra="forbid", frozen=True, populate_by_name=True)
     size: int = Field(default=1024, ge=1, le=1_048_576)
     backend_type: BackendType = Field(default=BackendType.DICT, alias="backendType")
     ttl: int | None = Field(default=None, ge=1, le=31_536_000)
     scope: MemoryScope = MemoryScope.SESSION
-    namespace_prefix: str = Field(default="memory", alias="namespacePrefix", min_length=1, max_length=48, pattern=r"^[a-z0-9](?:[-a-z0-9]*[a-z0-9])?$")
+    namespace_prefix: str = Field(
+        default="memory",
+        alias="namespacePrefix",
+        min_length=1,
+        max_length=48,
+        pattern=r"^[a-z0-9](?:[-a-z0-9]*[a-z0-9])?$",
+    )
     policy: EvictionPolicy = EvictionPolicy.LRU
     encryption: EncryptionSpec = Field(default_factory=EncryptionSpec)
-    key_rotation: str | None = Field(default=None, alias="keyRotation", pattern=r"^(?:[1-9][0-9]*)(?:h|d)$")
+    key_rotation: str | None = Field(
+        default=None, alias="keyRotation", pattern=r"^(?:[1-9][0-9]*)(?:h|d)$"
+    )
 
     @model_validator(mode="after")
     def backend_constraints(self) -> "BackendBindingSpec":
@@ -510,6 +546,7 @@ class Condition(BaseModel):
     last_transition_time: AwareDatetime = Field(alias="lastTransitionTime")
     observed_generation: int | None = Field(default=None, alias="observedGeneration", ge=0)
 
+
 class MemoryStatus(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     phase: MemoryPhase | None = None
@@ -517,9 +554,12 @@ class MemoryStatus(BaseModel):
     conditions: list[Condition] = Field(default_factory=list, max_length=16)
     last_decayed_at: AwareDatetime | None = Field(default=None, alias="lastDecayedAt")
     last_reinforced_at: AwareDatetime | None = Field(default=None, alias="lastReinforcedAt")
-    effective_confidence: float | None = Field(default=None, alias="effectiveConfidence", ge=0.0, le=1.0)
+    effective_confidence: float | None = Field(
+        default=None, alias="effectiveConfidence", ge=0.0, le=1.0
+    )
     eligible_for_promotion: bool | None = Field(default=None, alias="eligibleForPromotion")
     observed_generation: int | None = Field(default=None, alias="observedGeneration", ge=0)
+
 
 class BackendBindingStatus(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
@@ -529,9 +569,12 @@ class BackendBindingStatus(BaseModel):
     last_reconcile_time: AwareDatetime | None = Field(default=None, alias="lastReconcileTime")
     conditions: list[Condition] = Field(default_factory=list, max_length=16)
 
+
 class Memory(BaseModel):
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
-    api_version: Literal["memory.superteam-a2a.io/v1alpha1"] = Field(default="memory.superteam-a2a.io/v1alpha1", alias="apiVersion")
+    api_version: Literal["memory.superteam-a2a.io/v1alpha1"] = Field(
+        default="memory.superteam-a2a.io/v1alpha1", alias="apiVersion"
+    )
     kind: Literal["Memory"] = "Memory"
     metadata: ObjectMeta
     spec: MemorySpec
@@ -583,9 +626,13 @@ class Memory(BaseModel):
 ```python
 import kopf
 
+
 @kopf.timer(
-    "memory.superteam-a2a.io", "v1alpha1", "memories",
-    interval=60.0, id="memory-reconciler",
+    "memory.superteam-a2a.io",
+    "v1alpha1",
+    "memories",
+    interval=60.0,
+    id="memory-reconciler",
 )
 async def memory_reconciler_timer(*, memo: kopf.Memo, **_: object) -> None:
     service: MemoryReconcilerService = memo["memory_reconciler"]
@@ -636,8 +683,10 @@ class MemoryReconcilerService:
                         await self.backend.bind(token, memory)
                         status = calculate_status(memory, self.clock)
                         await self.backend.patch_status(
-                            memory.metadata.namespace, memory.metadata.name,
-                            status, expected_generation=memory.metadata.generation,
+                            memory.metadata.namespace,
+                            memory.metadata.name,
+                            status,
+                            expected_generation=memory.metadata.generation,
                         )
                         await self.backend.commit(token)
                         summary.bound += 1
@@ -663,16 +712,20 @@ K8s 5xx 1/2/4/8s 最多 4 次；429 尊重 `Retry-After`；4xx 不重试；admis
 ```python
 MEMORY_FINALIZER = "memory.superteam-a2a.io/cleanup"
 
+
 @kopf.on.delete("memory.superteam-a2a.io", "v1alpha1", "memories", id="memory-finalize")
 async def finalize_memory(*, body: dict, memo: kopf.Memo, **_: object) -> None:
     await memo["memory_reconciler"].finalize(Memory.model_validate(body))
 
+
 async def finalize(self, memory: Memory) -> None:
-    await self.backend.mark_releasing(memory)                 # 1. phase=Releasing
-    await self.backend.quiesce(memory.metadata.namespace, memory.metadata.name) # 2. drain <=5s
-    await self.backend.release(memory)                        # 3. 幂等删除 data/TTL/Redis namespace
-    await self.index.remove(memory.metadata.namespace, memory.metadata.name)    # 4. BM25/cache + Released
-    await self.backend.remove_finalizer(memory, MEMORY_FINALIZER)               # 5. 成功才移除
+    await self.backend.mark_releasing(memory)  # 1. phase=Releasing
+    await self.backend.quiesce(memory.metadata.namespace, memory.metadata.name)  # 2. drain <=5s
+    await self.backend.release(memory)  # 3. 幂等删除 data/TTL/Redis namespace
+    await self.index.remove(
+        memory.metadata.namespace, memory.metadata.name
+    )  # 4. BM25/cache + Released
+    await self.backend.remove_finalizer(memory, MEMORY_FINALIZER)  # 5. 成功才移除
 ```
 
 cleanup 失败保留 finalizer 供 Kopf 重试；release 与 index.remove 必须幂等。
@@ -712,7 +765,10 @@ class Clock(Protocol):
     async def sleep(self, delay: float) -> None: ...
     def monotonic(self) -> float: ...
 
-def elapsed_non_negative(start: datetime, end: datetime, *, tolerance_seconds: float = 5.0) -> float:
+
+def elapsed_non_negative(
+    start: datetime, end: datetime, *, tolerance_seconds: float = 5.0
+) -> float:
     skew = (end - start).total_seconds()
     if skew < -tolerance_seconds:
         raise ClockSkewError("wall clock moved backward beyond tolerance")
@@ -727,22 +783,29 @@ wall clock 仅用于 wire timestamps；deadline、节流与重试使用 `monoton
 class SystemClock:
     def now(self) -> datetime:
         return datetime.now(UTC)
+
     async def sleep(self, delay: float) -> None:
         await asyncio.sleep(delay)
+
     def monotonic(self) -> float:
         return time.monotonic()
+
 
 class FakeClock:
     def __init__(self, start: datetime) -> None:
         if start.tzinfo is None:
             raise ValueError("FakeClock requires aware datetime")
         self._now, self._mono = start.astimezone(UTC), 0.0
+
     def now(self) -> datetime:
         return self._now
+
     def monotonic(self) -> float:
         return self._mono
+
     async def sleep(self, delay: float) -> None:
         self.advance(timedelta(seconds=delay))
+
     def advance(self, delta: timedelta) -> None:
         if delta.total_seconds() < 0:
             raise ValueError("FakeClock is monotonic")
@@ -755,7 +818,14 @@ class FakeClock:
 ### 5.3 PUT 纯函数（validate + immutable record）
 
 ```python
-def put(state: Mapping[str, Memory], memory: Memory, *, clock: Clock, max_size: int, ttl_seconds: int | None) -> PutResult:
+def put(
+    state: Mapping[str, Memory],
+    memory: Memory,
+    *,
+    clock: Clock,
+    max_size: int,
+    ttl_seconds: int | None,
+) -> PutResult:
     key = canonical_key(memory)
     if key not in state and len(state) >= max_size:
         raise MemoryContractError("MEMORY_FORBIDDEN", "backend capacity reached")
@@ -764,7 +834,9 @@ def put(state: Mapping[str, Memory], memory: Memory, *, clock: Clock, max_size: 
     expires_at = now + timedelta(seconds=ttl_seconds) if ttl_seconds else None
     output = dict(state)
     output[key] = stored
-    return PutResult(state=MappingProxyType(output), memory=stored, stored_at=now, expires_at=expires_at)
+    return PutResult(
+        state=MappingProxyType(output), memory=stored, stored_at=now, expires_at=expires_at
+    )
 ```
 
 同 key PUT 为原子 replace；idempotency key 重复 PUT 返回同 result。schema/content 错误映射 `MEMORY_INVALID_CONTENT`，无写权限与容量拒绝映射 `MEMORY_FORBIDDEN`。
@@ -784,10 +856,14 @@ def get(state: Mapping[str, StoredMemory], namespace: str, name: str, *, clock: 
 ### 5.5 DELETE 纯函数（幂等 tombstone）
 
 ```python
-def delete(state: Mapping[str, StoredMemory], namespace: str, name: str, *, clock: Clock) -> DeleteResult:
+def delete(
+    state: Mapping[str, StoredMemory], namespace: str, name: str, *, clock: Clock
+) -> DeleteResult:
     output = dict(state)
     removed = output.pop(canonical_key_parts(namespace, name), None)
-    return DeleteResult(state=MappingProxyType(output), deleted=removed is not None, deleted_at=clock.now())
+    return DeleteResult(
+        state=MappingProxyType(output), deleted=removed is not None, deleted_at=clock.now()
+    )
 ```
 
 重复 DELETE 成功且 `deleted=False`；权限错误 `MEMORY_FORBIDDEN`，后端失败 `MEMORY_INTERNAL_ERROR`。
@@ -795,12 +871,14 @@ def delete(state: Mapping[str, StoredMemory], namespace: str, name: str, *, cloc
 ### 5.6 LIST 纯函数（稳定排序 + snapshot pagination）
 
 ```python
-def list_memories(state: Mapping[str, StoredMemory], query: QueryMemoryRequest, *, clock: Clock) -> ListResult:
+def list_memories(
+    state: Mapping[str, StoredMemory], query: QueryMemoryRequest, *, clock: Clock
+) -> ListResult:
     if query.scope == "industry" and not (query.tags or query.min_confidence is not None):
         raise MemoryContractError("MEMORY_QUERY_TOO_BROAD")
     visible = [r for r in state.values() if not expired(r, clock.now()) and visible_to(r, query)]
     ordered = sorted(visible, key=lambda r: (r.memory.metadata.namespace, r.memory.metadata.name))
-    page = ordered[query.offset:query.offset + query.limit]
+    page = ordered[query.offset : query.offset + query.limit]
     return ListResult(items=tuple(snapshot(r.memory) for r in page), total=len(ordered))
 ```
 
@@ -815,7 +893,9 @@ class MemoryBackend(Protocol):
     async def get(self, namespace: str, name: str) -> Memory | None: ...
     async def delete(self, namespace: str, name: str) -> DeleteResult: ...
     async def list(self, query: QueryMemoryRequest) -> ListResult: ...
-    async def patch_status(self, namespace: str, name: str, status: MemoryStatus, *, expected_generation: int) -> None: ...
+    async def patch_status(
+        self, namespace: str, name: str, status: MemoryStatus, *, expected_generation: int
+    ) -> None: ...
     async def health(self) -> BackendHealth: ...
 ```
 
@@ -869,8 +949,12 @@ class MemoryBackend(Protocol):
 ```python
 @runtime_checkable
 class MemoryBackendInProcessService(Protocol):
-    async def record_memory_async(self, memory: Memory, *, context: InProcessContext) -> MemoryRecordResult: ...
-    async def query_memory_async(self, request: QueryMemoryRequest, *, context: InProcessContext) -> QueryMemoryResult: ...
+    async def record_memory_async(
+        self, memory: Memory, *, context: InProcessContext
+    ) -> MemoryRecordResult: ...
+    async def query_memory_async(
+        self, request: QueryMemoryRequest, *, context: InProcessContext
+    ) -> QueryMemoryResult: ...
 ```
 
 **Clock 边界**：L3-6 在 `record_memory_async` / `query_memory_async` handler 入口将 `Clock.monotonic()` 通过 `InProcessContext` 暴露给 L3-5 调用方（用于 deadline/timeout/idempotency window 一致性）；L3-5 不得使用 `asyncio.get_event_loop().time()` 或本地 `time.monotonic()` 独立计算 deadline，必须读取 `context.clock.monotonic()`。`InProcessContext` 必须携带与 L3-6 §5.1 `Clock` 协议同源的 `clock` 字段（`RealClock` / `FakeClock`），且为 frozen 不可变。
@@ -922,7 +1006,9 @@ L3-5 与 L3-6 合并为单 Python 进程（services/knowledge-memory-service）�
 5. **propagate/commit**：L3-6 原样返回或抛权威异常；L3-5 只包装 envelope。超时/取消 rollback，禁止 fail-open。
 
 ```python
-async def admitted_record_memory(req: RecordMemoryRequest, context: InProcessContext) -> MemoryRecordResult:
+async def admitted_record_memory(
+    req: RecordMemoryRequest, context: InProcessContext
+) -> MemoryRecordResult:
     memory = Memory.model_validate(req.memory).model_copy(deep=True)
     # 50ms admission deadline 必须以 L3-6 暴露的 Clock.monotonic() 为基准，与 handler
     # 内部 deadline/timeout/idempotency window 保持同一时间源。
@@ -985,7 +1071,7 @@ MEMORY_RECONCILE_DURATION = Histogram(
     "superteam_memory_reconcile_duration_seconds",
     "Memory reconcile batch duration.",
     ("phase",),
-    buckets=(.005, .01, .025, .05, .1, .25, .5, 1, 2.5, 5, 10, 30, 50),
+    buckets=(0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 30, 50),
 )
 MEMORY_PROMOTION_ELIGIBLE = Gauge(
     "superteam_memory_promotion_eligible_total",
@@ -1002,6 +1088,7 @@ MEMORY_PROMOTION_ELIGIBLE = Gauge(
 from datetime import datetime
 from typing import Literal
 from pydantic import BaseModel, ConfigDict, Field
+
 
 class MemoryLogEvent(BaseModel):
     model_config = ConfigDict(extra="forbid", frozen=True)
@@ -1021,6 +1108,7 @@ class MemoryLogEvent(BaseModel):
 
 ```python
 from enum import StrEnum
+
 
 class MemoryEventReason(StrEnum):
     MEMORY_DECAY_APPLIED = "MemoryDecayApplied"
@@ -1066,14 +1154,24 @@ L3-5 的 `MemoryConflictDetected/Resolved` 仍归 admission owner，不在 L3-6 
 from superteam_a2a.memory_backend.errors import MemoryErrorCode
 from superteam_a2a.knowledge_service.errors import MemoryErrorCode as KsMemoryErrorCode
 
-L2_4_AUTHORITATIVE_NAMES: frozenset[str] = frozenset({
-    "MEMORY_SCOPE_NOT_FOUND", "MEMORY_INVALID_CONTENT", "MEMORY_FORBIDDEN",
-    "MEMORY_RATE_LIMIT", "MEMORY_INTERNAL_ERROR", "MEMORY_QUERY_TOO_BROAD",
-    "MEMORY_SOURCE_KI_NOT_FOUND", "MEMORY_SOURCE_KI_SCOPE_MISMATCH",
-    "MEMORY_AGENT_PRIVATE_REQUIRES_NAME", "MEMORY_DECAY_DAYS_EXCEEDED",
-    "MEMORY_AGENT_NOT_FOUND", "MEMORY_ADMISSION_TIMEOUT",
-})
+L2_4_AUTHORITATIVE_NAMES: frozenset[str] = frozenset(
+    {
+        "MEMORY_SCOPE_NOT_FOUND",
+        "MEMORY_INVALID_CONTENT",
+        "MEMORY_FORBIDDEN",
+        "MEMORY_RATE_LIMIT",
+        "MEMORY_INTERNAL_ERROR",
+        "MEMORY_QUERY_TOO_BROAD",
+        "MEMORY_SOURCE_KI_NOT_FOUND",
+        "MEMORY_SOURCE_KI_SCOPE_MISMATCH",
+        "MEMORY_AGENT_PRIVATE_REQUIRES_NAME",
+        "MEMORY_DECAY_DAYS_EXCEEDED",
+        "MEMORY_AGENT_NOT_FOUND",
+        "MEMORY_ADMISSION_TIMEOUT",
+    }
+)
 L2_4_AUTHORITATIVE_CODES: frozenset[int] = frozenset(range(-32101, -32112 + 1))
+
 
 def test_test_mem_051_memory_error_codes_match_l2_4_authoritative() -> None:
     assert {m.name for m in MemoryErrorCode} == L2_4_AUTHORITATIVE_NAMES
@@ -1089,6 +1187,7 @@ CI 门禁顺序（§11.6）将 `conformance → errors exact set` 列为强制�
 from enum import IntEnum
 from typing import Any
 from superteam_a2a.a2a.upstream import A2AError
+
 
 class MemoryErrorCode(IntEnum):
     MEMORY_SCOPE_NOT_FOUND = -32101
@@ -1584,6 +1683,7 @@ L3-6 不开放公网 TLS endpoint，但与 L3-5 共享 Secret/CA 以验证 Pod �
 
 ```python
 import kopf
+
 
 @kopf.timer(
     "superteam-a2a.io",

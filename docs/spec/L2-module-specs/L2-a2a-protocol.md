@@ -68,17 +68,29 @@ L2-1 是 `superteam-a2a` 通信层的唯一实现。完整使命陈述、系统�
 Public surface: re-export upstream types + 4 routers + factory functions.
 All business modules import from here, never from `a2a` directly.
 """
+
 from superteam_a2a.a2a.upstream import (
     # SDK re-exports（仅枚举，禁止业务层绕过）
-    AgentCard, Message, Part, Task, Artifact, TaskState,
-    JSONRPCRequest, JSONRPCResponse, JSONRPCError,
+    AgentCard,
+    Message,
+    Part,
+    Task,
+    Artifact,
+    TaskState,
+    JSONRPCRequest,
+    JSONRPCResponse,
+    JSONRPCError,
 )
 from superteam_a2a.a2a.upstream_types import (
     # 项目私有 DTO
-    QueryKnowledgeRequest, QueryKnowledgeResponse,
-    GetKnowledgeItemRequest, GetKnowledgeItemResponse,
-    RecordMemoryRequest, RecordMemoryResponse,
-    QueryMemoryRequest, QueryMemoryResponse,
+    QueryKnowledgeRequest,
+    QueryKnowledgeResponse,
+    GetKnowledgeItemRequest,
+    GetKnowledgeItemResponse,
+    RecordMemoryRequest,
+    RecordMemoryResponse,
+    QueryMemoryRequest,
+    QueryMemoryResponse,
 )
 from superteam_a2a.a2a.server.app import create_app
 from superteam_a2a.a2a.client.client import A2AClient
@@ -86,8 +98,10 @@ from superteam_a2a.a2a.errors import StandardRpcError, ProjectRpcError
 from superteam_a2a.a2a.mtls import MtlsConfig, build_server_ssl_context, extract_spiffe_id
 from superteam_a2a.a2a.extensions import (
     ExtensionRouter,
-    QueryKnowledgeRouter, GetKnowledgeItemRouter,
-    RecordMemoryRouter, QueryMemoryRouter,
+    QueryKnowledgeRouter,
+    GetKnowledgeItemRouter,
+    RecordMemoryRouter,
+    QueryMemoryRouter,
 )
 ```
 
@@ -192,9 +206,7 @@ class ExtensionRouter(Protocol):
 
     method_name: str  # e.g. "a2a.queryKnowledge"
 
-    async def handle(
-        self, request: JSONRPCRequest
-    ) -> JSONRPCResponse | JSONRPCError:
+    async def handle(self, request: JSONRPCRequest) -> JSONRPCResponse | JSONRPCError:
         """处理单个 JSON-RPC 请求；返回响应或错误。"""
         ...
 ```
@@ -212,6 +224,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 class KnowledgeScopeLevel(StrEnum):
     """4 级 scope（ADR-0002 §3）。"""
+
     INDUSTRY = "industry"
     ORGANIZATION = "organization"
     TEAM = "team"
@@ -220,6 +233,7 @@ class KnowledgeScopeLevel(StrEnum):
 
 class QueryKnowledgeRequest(BaseModel):
     """a2a.queryKnowledge 请求 params。"""
+
     model_config = ConfigDict(
         extra="forbid",
         str_strip_whitespace=True,
@@ -237,6 +251,7 @@ class QueryKnowledgeRequest(BaseModel):
 
 class KnowledgeItemSummary(BaseModel):
     """查询结果条目（不含 body）。"""
+
     item_id: str
     title: str
     scope_level: KnowledgeScopeLevel
@@ -249,6 +264,7 @@ class KnowledgeItemSummary(BaseModel):
 
 class QueryKnowledgeResponse(BaseModel):
     """a2a.queryKnowledge 响应 result。"""
+
     items: list[KnowledgeItemSummary]
     total: int
     next_cursor: str | None = None  # 分页游标（base64 opaque）
@@ -294,6 +310,7 @@ class RecordMemoryRequest(BaseModel):
     idempotency_key 必填 — ADR-0003 §6 + L2-4 Design §6.2 要求
     recordMemory 不可重试除非 idempotency key。
     """
+
     model_config = ConfigDict(extra="forbid", populate_by_name=True)
     idempotency_key: str = Field(min_length=8, max_length=128)
     scope_level: KnowledgeScopeLevel
@@ -330,6 +347,7 @@ class MemoryVisibility(StrEnum):
     - inherited：scope 继承规则（见 L2-4 Design §5）
     - agent_private：仅 agent_id 自己可见
     """
+
     INHERITED = "inherited"
     AGENT_PRIVATE = "agent-private"
 
@@ -504,9 +522,7 @@ def validate_spiffe_id(spiffe_id: str, expected_trust_domain: str) -> None:
         SpiffeIdFormatError: trust_domain 不匹配
     """
     if not spiffe_id.startswith(f"spiffe://{expected_trust_domain}/"):
-        raise SpiffeIdFormatError(
-            f"SPIFFE ID trust_domain mismatch: {spiffe_id}"
-        )
+        raise SpiffeIdFormatError(f"SPIFFE ID trust_domain mismatch: {spiffe_id}")
     path = spiffe_id.removeprefix(f"spiffe://{expected_trust_domain}/")
     if not path:
         raise SpiffeIdFormatError("SPIFFE ID path is empty")
@@ -641,8 +657,7 @@ class Discovery:
         k8s_client: kubernetes_asyncio.client.CoreV1Api,
         agent_card_ttl_seconds: float = 300.0,
         watch_reconnect_seconds: float = 5.0,
-    ):
-        ...
+    ): ...
 
     async def start(self) -> None:
         """启动 EndpointSlice watch；触发首次 list + 后续 watch。"""
@@ -718,12 +733,9 @@ class A2AClient:
         max_keepalive: int = DEFAULT_MAX_KEEPALIVE,
         discovery: Discovery | None = None,
         metrics: A2aMetrics | None = None,
-    ):
-        ...
+    ): ...
 
-    async def send_message(
-        self, target: str, message: Message
-    ) -> Task:
+    async def send_message(self, target: str, message: Message) -> Task:
         """a2a.sendMessage 调用；受 retry + CB 保护。
 
         Returns: Task（同步调用返回）
@@ -756,9 +768,7 @@ class A2AClient:
         """a2a.recordMemory 调用；idempotency_key 强制。"""
         ...
 
-    async def query_memory(
-        self, target: str, request: QueryMemoryRequest
-    ) -> QueryMemoryResponse:
+    async def query_memory(self, target: str, request: QueryMemoryRequest) -> QueryMemoryResponse:
         """a2a.queryMemory 调用。"""
         ...
 
@@ -777,20 +787,23 @@ from enum import StrEnum
 
 class RetryDecision(StrEnum):
     """按 method + error code 判断是否重试。"""
+
     DO_RETRY = "do-retry"
     DO_NOT_RETRY = "do-not-retry"
     METHOD_NOT_IDEMPOTENT = "method-not-idempotent"
 
 
 # method_idempotency 表（与 Design §8.3 + ADR-0003 §6 一致）
-METHOD_IDEMPOTENT = frozenset({
-    "a2a.sendMessage",   # 业务侧按 idempotency_key 决定
-    "a2a.getTask",
-    "a2a.getKnowledgeItem",
-    "a2a.queryKnowledge",
-    "a2a.queryMemory",
-    # "a2a.recordMemory" — NOT idempotent（除非 idempotency_key）
-})
+METHOD_IDEMPOTENT = frozenset(
+    {
+        "a2a.sendMessage",  # 业务侧按 idempotency_key 决定
+        "a2a.getTask",
+        "a2a.getKnowledgeItem",
+        "a2a.queryKnowledge",
+        "a2a.queryMemory",
+        # "a2a.recordMemory" — NOT idempotent（除非 idempotency_key）
+    }
+)
 
 
 @dataclass(frozen=True)
@@ -819,7 +832,7 @@ class RetryPolicy:
     def compute_delay(self, attempt: int) -> float:
         """指数退避 + 抖动；attempt 从 0 开始。"""
         base = min(
-            self.initial_delay_seconds * (self.backoff_multiplier ** attempt),
+            self.initial_delay_seconds * (self.backoff_multiplier**attempt),
             self.max_delay_seconds,
         )
         jitter = base * self.jitter_factor * (2 * random.random() - 1)
@@ -877,6 +890,7 @@ class CircuitBreaker:
 
     实例化：每个 target 一个 CircuitBreaker（per-endpoint）；key = (namespace, name)
     """
+
     ...
 
 
@@ -885,11 +899,10 @@ class P2CSelector:
 
     用于 AgentSet 多副本选择：每个 AgentSet 多个 Pod 端点。
     """
+
     ...
 
-    async def select(
-        self, endpoints: list[Endpoint]
-    ) -> Endpoint:
+    async def select(self, endpoints: list[Endpoint]) -> Endpoint:
         """P2C 选择；endpoints 长度 < 2 时直接 random choice。"""
         ...
 ```
@@ -1124,6 +1137,7 @@ class StandardRpcError(IntEnum):
 
     数字与 L1 Spec §5.7 + v0.1.0 Go baseline 完全一致；contract test 锁定。
     """
+
     # 标准 JSON-RPC
     PARSE_ERROR = -32700
     INVALID_REQUEST = -32600
@@ -1159,6 +1173,7 @@ class StandardRpcError(IntEnum):
 
 class ProjectRpcError(IntEnum):
     """项目扩展错误码子集（仅 Knowledge + Memory）。"""
+
     KNOWLEDGE_SCOPE_NOT_FOUND = StandardRpcError.KNOWLEDGE_SCOPE_NOT_FOUND
     # ... 同上
 ```
@@ -1295,10 +1310,18 @@ import logging
 import structlog
 
 
-_SENSITIVE_KEYS = frozenset({
-    "api_key", "token", "password", "private_key", "cert",
-    "memory_content", "knowledge_body", "user_data",
-})
+_SENSITIVE_KEYS = frozenset(
+    {
+        "api_key",
+        "token",
+        "password",
+        "private_key",
+        "cert",
+        "memory_content",
+        "knowledge_body",
+        "user_data",
+    }
+)
 
 
 def _redact_processor(logger, method_name, event_dict):
