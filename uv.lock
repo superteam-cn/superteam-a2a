@@ -1285,8 +1285,6 @@ dev = [
     { name = "pyright", specifier = ">=1.1,<2" },
     { name = "pytest", specifier = ">=8.3,<9" },
     { name = "pytest-asyncio", specifier = ">=1.4.0,<2" },
-    { name = "pytest-cov", specifier = ">=6.0,<7" },
-    { name = "pytest-asyncio", specifier = ">=0.24,<1" },
     { name = "pytest-cov", specifier = ">=7.1.0,<8" },
     { name = "ruff", specifier = ">=0.8,<1" },
 ]
@@ -1339,12 +1337,14 @@ name = "superteam-a2a-knowledge-memory-service"
 version = "0.1.0"
 source = { editable = "services/knowledge-memory-service" }
 dependencies = [
+    { name = "kopf" },
     { name = "pydantic" },
     { name = "superteam-a2a-a2a-core" },
 ]
 
 [package.metadata]
 requires-dist = [
+    { name = "kopf", specifier = ">=1.37,<2" },
     { name = "pydantic", specifier = ">=2.10,<3" },
     { name = "superteam-a2a-a2a-core", editable = "packages/a2a-core" },
 ]
