@@ -7,6 +7,16 @@ L4 Phase 1 MVP Core 入口；合并 L3-5 + L3-6 为单 Python 进程。
 
 from __future__ import annotations
 
+from superteam_a2a.knowledge_memory.api.context import InProcessContext
+from superteam_a2a.knowledge_memory.api.results import (
+    MemoryRecordResult,
+    QueryMemoryResult,
+)
+from superteam_a2a.knowledge_memory.api.service import (
+    ADMISSION_TIMEOUT_SECONDS,
+    MemoryBackendInProcessService,
+    MemoryBackendInProcessServiceImpl,
+)
 from superteam_a2a.knowledge_memory.backend import (
     RETRYABLE_CODES,
     BackendHealth,
@@ -41,10 +51,15 @@ from superteam_a2a.knowledge_memory.backend import (
     pure_list_memories,
     pure_put,
 )
+from superteam_a2a.knowledge_memory.handlers.memory_handler import (
+    on_memory_create,
+    on_memory_update,
+)
 
 __version__ = "0.1.0"
 
 __all__ = [
+    "ADMISSION_TIMEOUT_SECONDS",
     "RETRYABLE_CODES",
     "BackendHealth",
     "BackendMetadata",
@@ -55,17 +70,22 @@ __all__ = [
     "FakeClock",
     "GetResult",
     "InMemoryBackend",
+    "InProcessContext",
     "ItemReference",
     "ListResult",
     "Memory",
     "MemoryBackend",
     "MemoryBackendError",
+    "MemoryBackendInProcessService",
+    "MemoryBackendInProcessServiceImpl",
     "MemoryContractError",
     "MemoryErrorCode",
+    "MemoryRecordResult",
     "MemoryScope",
     "ObjectMeta",
     "PutResult",
     "QueryMemoryRequest",
+    "QueryMemoryResult",
     "StoredMemory",
     "SystemClock",
     "__version__",
@@ -74,6 +94,8 @@ __all__ = [
     "elapsed_non_negative",
     "is_retryable",
     "memory_error_data",
+    "on_memory_create",
+    "on_memory_update",
     "pure_delete",
     "pure_get",
     "pure_list_memories",
