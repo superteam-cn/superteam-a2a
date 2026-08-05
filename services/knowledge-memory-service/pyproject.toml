@@ -9,11 +9,12 @@ authors = [
     { name = "superteam-a2a contributors" },
 ]
 
-# L4 Step 1：仅声明运行所需核心依赖；runtime 完整依赖（uvicorn/kopf/mTLS/otel 等）
-# 推迟到 #76-#78 实施期按需添加，避免 uv 解析失败阻塞骨架落地。
+# L4 Step 1+2：核心依赖 + kopf（§4.1 timer + §4.4 finalize decorators）。
+# 2026-08-05 #78 L4-Step3：加 kopf >=1.37 for @kopf.timer + @kopf.on.delete。
 dependencies = [
     "pydantic>=2.10,<3",
     "superteam-a2a-a2a-core>=0.1.0",  # workspace 内部依赖
+    "kopf>=1.37,<2",  # L3-6 §4.1 @kopf.timer 60s + L3-6 §4.4 @kopf.on.delete finalize
 ]
 
 [build-system]
