@@ -205,8 +205,8 @@ async def test_list_concurrent_with_put_stable_sort(fake_clock, make_service, ma
     mem_a = Memory(
         metadata=ObjectMeta(name="mem-a", namespace="ns-b"),
         spec=MemorySpec(
-            scope_ref=ScopeReference(name="industry-ai"),
-            agent_ref=AgentReference(name="hello-agent-sa"),
+            scopeRef=ScopeReference(name="industry-ai"),
+            agentRef=AgentReference(name="hello-agent-sa"),
             content={"k": "v"},
             summary="A",
             confidence=1.0,
@@ -215,8 +215,8 @@ async def test_list_concurrent_with_put_stable_sort(fake_clock, make_service, ma
     mem_b = Memory(
         metadata=ObjectMeta(name="mem-a", namespace="ns-a"),
         spec=MemorySpec(
-            scope_ref=ScopeReference(name="industry-ai"),
-            agent_ref=AgentReference(name="hello-agent-sa"),
+            scopeRef=ScopeReference(name="industry-ai"),
+            agentRef=AgentReference(name="hello-agent-sa"),
             content={"k": "v"},
             summary="B",
             confidence=1.0,
@@ -225,8 +225,8 @@ async def test_list_concurrent_with_put_stable_sort(fake_clock, make_service, ma
     mem_c = Memory(
         metadata=ObjectMeta(name="mem-b", namespace="ns-a"),
         spec=MemorySpec(
-            scope_ref=ScopeReference(name="industry-ai"),
-            agent_ref=AgentReference(name="hello-agent-sa"),
+            scopeRef=ScopeReference(name="industry-ai"),
+            agentRef=AgentReference(name="hello-agent-sa"),
             content={"k": "v"},
             summary="C",
             confidence=1.0,
@@ -305,8 +305,8 @@ async def test_query_happy_path_filters_confidence(fake_clock, make_service, mak
     high = Memory(
         metadata=ObjectMeta(name="mem-high"),
         spec=MemorySpec(
-            scope_ref=ScopeReference(name="industry-ai"),
-            agent_ref=AgentReference(name="hello-agent-sa"),
+            scopeRef=ScopeReference(name="industry-ai"),
+            agentRef=AgentReference(name="hello-agent-sa"),
             content={"k": "v"},
             summary="high",
             confidence=0.9,
@@ -315,8 +315,8 @@ async def test_query_happy_path_filters_confidence(fake_clock, make_service, mak
     low = Memory(
         metadata=ObjectMeta(name="mem-low"),
         spec=MemorySpec(
-            scope_ref=ScopeReference(name="industry-ai"),
-            agent_ref=AgentReference(name="hello-agent-sa"),
+            scopeRef=ScopeReference(name="industry-ai"),
+            agentRef=AgentReference(name="hello-agent-sa"),
             content={"k": "v"},
             summary="low",
             confidence=0.1,

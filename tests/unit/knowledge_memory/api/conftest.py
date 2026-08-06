@@ -87,12 +87,12 @@ def _make_memory(
     return Memory(
         metadata=ObjectMeta(name=name, namespace=namespace),
         spec=MemorySpec(
-            scope_ref=ScopeReference(name="industry-ai"),
-            agent_ref=AgentReference(name="hello-agent-sa"),
+            scopeRef=ScopeReference(name="industry-ai"),
+            agentRef=AgentReference(name="hello-agent-sa"),
             content={"k": "v"},
             summary=summary,
             confidence=confidence,
-            decay_days=decay_days,
+            decayDays=decay_days,
             tags=tags,
             visibility=MemoryVisibility(visibility),
         ),

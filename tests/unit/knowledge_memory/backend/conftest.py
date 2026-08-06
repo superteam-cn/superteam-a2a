@@ -41,6 +41,7 @@ from superteam_a2a.knowledge_memory import (  # noqa: E402
     FakeClock,
     Memory,
     ObjectMeta,
+    StoredMemory,
 )
 from superteam_a2a.operator.models.memory import (  # noqa: E402
     AgentReference,
@@ -86,12 +87,12 @@ def _make_memory(
     return Memory(
         metadata=ObjectMeta(name=name, namespace=namespace),
         spec=MemorySpec(
-            scope_ref=ScopeReference(name="industry-ai"),
-            agent_ref=AgentReference(name="hello-agent-sa"),
+            scopeRef=ScopeReference(name="industry-ai"),
+            agentRef=AgentReference(name="hello-agent-sa"),
             content={"k": "v"},
             summary=summary,
             confidence=confidence,
-            decay_days=decay_days,
+            decayDays=decay_days,
             tags=tags,
             visibility=MemoryVisibility(visibility),
         ),
@@ -117,7 +118,7 @@ def sample_memories() -> list[Memory]:
 @pytest.fixture
 def sample_state(
     sample_memories: list[Memory], fake_clock: FakeClock
-) -> dict[tuple[str, str], object]:
+) -> dict[tuple[str, str], StoredMemory]:
     """预填充 state（3 个 StoredMemory 记录）。
 
     返回 dict 兼容 pure.py 的 state 入参类型。

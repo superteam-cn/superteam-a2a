@@ -50,7 +50,7 @@ def _make_service(
     return MemoryReconcilerService(
         backend=backend or InMemoryBackend(),
         leader=leader or InProcessLeaderElector(),
-        clock=clock,
+        clock=clock,  # type: ignore[arg-type]
         admission=admission or _admission_pass(),
         index=index or _index_pass(),
         max_retries=max_retries,
@@ -134,8 +134,8 @@ async def test_pending_to_bound_success_path(sample_memory, fake_clock):
     final = await backend.get(sample_memory.metadata.namespace, sample_memory.metadata.name)
     assert final is not None
     assert final.status is not None
-    assert final.status["phase"] == "Active"
-    assert final.status["observedGeneration"] == 1
+    assert final.status["phase"] == "Active"  # type: ignore[index]
+    assert final.status["observedGeneration"] == 1  # type: ignore[index]
 
 
 # TEST-MEM-022
@@ -154,7 +154,7 @@ async def test_pending_to_error_validation_path(sample_memory, fake_clock):
     final = await backend.get(sample_memory.metadata.namespace, sample_memory.metadata.name)
     assert final is not None
     assert final.status is not None
-    assert final.status["phase"] == "Error"
+    assert final.status["phase"] == "Error"  # type: ignore[index]
 
 
 # TEST-MEM-023
@@ -168,11 +168,13 @@ async def test_error_retry_then_bound(sample_memory, fake_clock):
     call_count = {"n": 0}
     original_patch = backend.patch_status
 
-    async def flaky(ns, name, status, *, expected_generation):
+    async def flaky(namespace: str, name: str, status: object, *, expected_generation: int):
         call_count["n"] += 1
         if call_count["n"] <= 2:
             raise MemoryBackendError(MemoryErrorCode.MEMORY_INTERNAL_ERROR, "503 retryable")
-        return await original_patch(ns, name, status, expected_generation=expected_generation)
+        return await original_patch(
+            namespace, name, status, expected_generation=expected_generation
+        )
 
     backend.patch_status = flaky
     summary = await service.reconcile_all(now=fake_clock.now())
@@ -215,9 +217,9 @@ async def test_status_patch_writes_status_only(sample_memory, fake_clock):
     captured = []
     original = backend.patch_status
 
-    async def spy(ns, name, status, *, expected_generation):
-        captured.append((ns, name, dict(status), expected_generation))
-        return await original(ns, name, status, expected_generation=expected_generation)
+    async def spy(namespace: str, name: str, status: object, *, expected_generation: int):
+        captured.append((namespace, name, dict(status), expected_generation))  # type: ignore[arg-type]
+        return await original(namespace, name, status, expected_generation=expected_generation)
 
     backend.patch_status = spy
     service = _make_service(backend=backend, leader=leader, clock=fake_clock)
@@ -240,7 +242,7 @@ async def test_k8s_5xx_retry_1_2_4_8_seconds(sample_memory, fake_clock):
     await leader.try_acquire_or_renew()
     call_count = {"n": 0}
 
-    async def flaky_patch(ns, name, status, *, expected_generation):
+    async def flaky_patch(namespace: str, name: str, status: object, *, expected_generation: int):
         call_count["n"] += 1
         if call_count["n"] <= 3:
             raise MemoryBackendError(MemoryErrorCode.MEMORY_RATE_LIMIT, "rate limit")
@@ -271,7 +273,7 @@ async def test_4xx_no_retry_canonical_code_preserved(sample_memory, fake_clock):
     await leader.try_acquire_or_renew()
     call_count = {"n": 0}
 
-    async def fail_patch(ns, name, status, *, expected_generation):
+    async def fail_patch(namespace: str, name: str, status: object, *, expected_generation: int):
         call_count["n"] += 1
         raise MemoryBackendError(MemoryErrorCode.MEMORY_INVALID_CONTENT, "invalid content")
 
@@ -293,7 +295,7 @@ async def test_prepare_bind_then_exception_calls_rollback(sample_memory, fake_cl
     await leader.try_acquire_or_renew()
     call_count = {"n": 0}
 
-    async def fail_patch(ns, name, status, *, expected_generation):
+    async def fail_patch(namespace: str, name: str, status: object, *, expected_generation: int):
         call_count["n"] += 1
         raise MemoryBackendError(MemoryErrorCode.MEMORY_INVALID_CONTENT, "bind fail")
 

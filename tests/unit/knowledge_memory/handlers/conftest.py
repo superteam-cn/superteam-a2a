@@ -41,8 +41,8 @@ def sample_memory() -> Memory:
     return Memory(
         metadata=ObjectMeta(name="mem-handler", namespace="default"),
         spec=MemorySpec(
-            scope_ref=ScopeReference(name="industry-ai"),
-            agent_ref=AgentReference(name="hello-agent-sa"),
+            scopeRef=ScopeReference(name="industry-ai"),
+            agentRef=AgentReference(name="hello-agent-sa"),
             content={"k": "v"},
             summary="handler test",
             confidence=1.0,
