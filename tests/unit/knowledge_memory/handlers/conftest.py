@@ -23,6 +23,7 @@ if _OP_PATH not in sys.path:
         sys.path.insert(0, _OP_PATH)
 
 from superteam_a2a.knowledge_memory import (  # noqa: E402
+    FakeClock,
     Memory,
     ObjectMeta,
 )
@@ -67,3 +68,11 @@ def sample_body(sample_memory: Memory) -> dict:
 def sample_meta() -> dict:
     """kopf meta dict（uid 提取用）。"""
     return {"uid": "test-uid-12345"}
+
+
+@pytest.fixture
+def fake_clock():
+    """FakeClock 实例 · §M-1.5 handler memo["clock"] 注入用。"""
+    from datetime import UTC, datetime
+
+    return FakeClock(datetime(2026, 8, 6, 10, 0, 0, tzinfo=UTC))

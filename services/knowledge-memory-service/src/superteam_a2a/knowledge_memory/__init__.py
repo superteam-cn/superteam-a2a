@@ -51,16 +51,43 @@ from superteam_a2a.knowledge_memory.backend import (
     pure_list_memories,
     pure_put,
 )
+from superteam_a2a.knowledge_memory.handlers.admission_validator import (
+    AdmissionValidatorImpl,
+)
 from superteam_a2a.knowledge_memory.handlers.memory_handler import (
+    handle_query_memory,
     on_memory_create,
     on_memory_update,
+)
+from superteam_a2a.knowledge_memory.index.bm25_index import BM25Index
+from superteam_a2a.knowledge_memory.reconciler.finalize import (
+    MEMORY_FINALIZER,
+    finalize_memory,
+)
+from superteam_a2a.knowledge_memory.reconciler.leader import (
+    InProcessLeaderElector,
+    K8sLeaseLeaderElector,
+    LeaderElector,
+)
+from superteam_a2a.knowledge_memory.reconciler.memory_reconciler import (
+    AdmissionValidatorProtocol,
+    MemoryReconcilerService,
+    memory_reconciler_timer,
+)
+from superteam_a2a.knowledge_memory.reconciler.types import (
+    MemoryReconcilerError,
+    ReconcileSummary,
 )
 
 __version__ = "0.1.0"
 
 __all__ = [
     "ADMISSION_TIMEOUT_SECONDS",
+    "MEMORY_FINALIZER",
     "RETRYABLE_CODES",
+    "AdmissionValidatorImpl",
+    "AdmissionValidatorProtocol",
+    "BM25Index",
     "BackendHealth",
     "BackendMetadata",
     "BackendType",
@@ -71,7 +98,10 @@ __all__ = [
     "GetResult",
     "InMemoryBackend",
     "InProcessContext",
+    "InProcessLeaderElector",
     "ItemReference",
+    "K8sLeaseLeaderElector",
+    "LeaderElector",
     "ListResult",
     "Memory",
     "MemoryBackend",
@@ -80,20 +110,26 @@ __all__ = [
     "MemoryBackendInProcessServiceImpl",
     "MemoryContractError",
     "MemoryErrorCode",
+    "MemoryReconcilerError",
+    "MemoryReconcilerService",
     "MemoryRecordResult",
     "MemoryScope",
     "ObjectMeta",
     "PutResult",
     "QueryMemoryRequest",
     "QueryMemoryResult",
+    "ReconcileSummary",
     "StoredMemory",
     "SystemClock",
     "__version__",
     "canonical_key",
     "canonical_key_parts",
     "elapsed_non_negative",
+    "finalize_memory",
+    "handle_query_memory",
     "is_retryable",
     "memory_error_data",
+    "memory_reconciler_timer",
     "on_memory_create",
     "on_memory_update",
     "pure_delete",
