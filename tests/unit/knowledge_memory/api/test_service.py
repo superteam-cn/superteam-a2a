@@ -361,3 +361,53 @@ def test_query_invalid_scope_rejected():
 
     with pytest.raises(ValidationError):
         QueryMemoryRequest(scope="bogus")  # type: ignore[arg-type]
+
+
+async def test_record_memory_invokes_admission_when_provided(sample_memory, fake_clock):
+    """注入 admission 时触发 validate(frozen, timeout=ADMISSION_TIMEOUT_SECONDS)。"""
+    from superteam_a2a.knowledge_memory.api.service import ADMISSION_TIMEOUT_SECONDS
+    from superteam_a2a.knowledge_memory.handlers.admission_validator import (
+        AdmissionValidatorImpl,
+    )
+
+    backend = InMemoryBackend(clock=fake_clock)
+    admission = AsyncMock(spec=AdmissionValidatorImpl)
+    service = MemoryBackendInProcessServiceImpl(backend=backend, admission=admission)
+    ctx = InProcessContext(clock=fake_clock, trace_id="test-admission-invoke")
+    result = await service.record_memory_async(sample_memory, context=ctx)
+    admission.validate.assert_awaited_once_with(result.memory, timeout=ADMISSION_TIMEOUT_SECONDS)
+    assert result.resource_version == 1
+
+
+async def test_record_memory_skips_admission_when_none(sample_memory, fake_clock):
+    """admission=None 时不调用 validate（向后兼容）。"""
+    backend = InMemoryBackend(clock=fake_clock)
+    service = MemoryBackendInProcessServiceImpl(backend=backend)
+    ctx = InProcessContext(clock=fake_clock, trace_id="test-admission-skip")
+    result = await service.record_memory_async(sample_memory, context=ctx)
+    assert result.resource_version == 1
+
+
+async def test_record_memory_admission_exception_propagates(sample_memory, fake_clock):
+    """admission validate 抛 MemoryBackendError → service 原样透传。"""
+    from superteam_a2a.knowledge_memory.handlers.admission_validator import (
+        AdmissionValidatorImpl,
+    )
+
+    original_cause = ValueError("admission inner")
+    err = MemoryBackendError(
+        MemoryErrorCode.MEMORY_INVALID_CONTENT,
+        "admission rejected",
+        cause=original_cause,
+    )
+    admission = AsyncMock(spec=AdmissionValidatorImpl)
+    admission.validate = AsyncMock(side_effect=err)
+
+    backend = InMemoryBackend(clock=fake_clock)
+    service = MemoryBackendInProcessServiceImpl(backend=backend, admission=admission)
+    ctx = InProcessContext(clock=fake_clock, trace_id="test-admission-propagate")
+
+    with pytest.raises(MemoryBackendError) as exc_info:
+        await service.record_memory_async(sample_memory, context=ctx)
+    assert exc_info.value.code == MemoryErrorCode.MEMORY_INVALID_CONTENT
+    assert exc_info.value.cause is original_cause
