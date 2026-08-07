@@ -15,6 +15,7 @@ dependencies = [
     "pydantic>=2.10,<3",
     "superteam-a2a-a2a-core>=0.1.0",  # workspace 内部依赖
     "kopf>=1.37,<2",  # L3-6 §4.1 @kopf.timer 60s + L3-6 §4.4 @kopf.on.delete finalize
+    "kubernetes_asyncio>=29.0.0",  # PR-2 K8sLeaseLeaderElector Lease client (coordination.k8s.io/v1)
 ]
 
 [build-system]
