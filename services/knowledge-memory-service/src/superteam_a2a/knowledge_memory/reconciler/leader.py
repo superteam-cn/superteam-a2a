@@ -1,8 +1,8 @@
 """Leader Election · L3-6 §4.2 · 30s grace + renew 失败 3 次让位.
 
-两种实现:
-- InProcessLeaderElector: 单进程 / 测试 / v0.1 single-instance (D 方案)
-- K8sLeaseLeaderElector: coordination.k8s.io/v1 Lease (integration 环境 TODO)
+两种实现 (PR-2 完整实装后):
+- InProcessLeaderElector: 单进程 / 测试 / v0.1 single-instance (D 方案默认)
+- K8sLeaseLeaderElector: coordination.k8s.io/v1 Lease (Helm `leaderElection.backend=k8s` 显式启用)
 
 §4.2 invariant:
 - duration=15s, renew_deadline=10s, retry_period=5s
@@ -14,6 +14,10 @@
 from __future__ import annotations
 
 from typing import Protocol, runtime_checkable
+
+from superteam_a2a.knowledge_memory.reconciler.k8s_lease_leader_elector import (
+    K8sLeaseLeaderElector,
+)
 
 
 @runtime_checkable
@@ -77,29 +81,9 @@ class InProcessLeaderElector:
         self._is_leader = False
 
 
-class K8sLeaseLeaderElector:
-    """K8s coordination.k8s.io/v1 Lease backed leader elector.
+__all__ = ["InProcessLeaderElector", "K8sLeaseLeaderElector", "LeaderElector"]
 
-    Status: STUB - integration environment only.
-    Implementation TODO 留给 #79 Subagent 隔离 + integration spike.
-    For unit tests, always use InProcessLeaderElector.
-    """
 
-    def __init__(
-        self,
-        *,
-        lease_name: str = "memory-reconciler-leader",
-        namespace: str = "superteam-a2a-system",
-    ) -> None:
-        self._lease_name = lease_name
-        self._namespace = namespace
-
-    def is_leader(self) -> bool:
-        raise NotImplementedError(
-            "K8sLeaseLeaderElector is a stub; requires integration test environment"
-        )
-
-    async def try_acquire_or_renew(self) -> bool:
-        raise NotImplementedError(
-            "K8sLeaseLeaderElector is a stub; requires integration test environment"
-        )
+# Backward compatibility re-export
+# K8sLeaseLeaderElector 现已从独立模块导入 (PR-2 · 替换原 stub)
+# 使用方式保持不变: `from .leader import K8sLeaseLeaderElector`
