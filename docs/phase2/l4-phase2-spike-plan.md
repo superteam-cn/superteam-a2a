@@ -2,13 +2,14 @@
 
 | 字段 | 值 |
 |---|---|
-| 文档版本 | **v0.2-draft**（2026-08-07）|
+| 文档版本 | **v1.0 推荐**（2026-08-07）|
 | 上游 Spec 锁定版本 | L3-6 v0.2.0 + v0.2.1 + L3-5 v0.2.1 + ADR-0006 v1.0 Accepted + L1 v0.2.0 §4.1 |
 | 5 项关键不变量来源 | L3-6 §1.2 line 100-106 |
 | 主 Agent 水位 | 5-8%（writing）· Subagent 隔离调研 + 评审（2026-08-07）|
 | 计划周期 | 5 个 PR 串行 · PR-1 ~ PR-5 · 预计 3-5 周 |
 | Phase 1 起点 | main HEAD `7eecf41`（PR #17/#18/#19/#20/#21 merged · 138/138 PASS）|
-| 评审文件 | `docs/phase2/l4-phase2-spike-plan-review.md`（v0.2-draft 评审意见）|
+| 评审文件 | `docs/phase2/l4-phase2-spike-plan-review.md`（v0.2-draft 评审意见 · 已全部采纳）|
+| 决策状态 | 15 项决策全部采纳 · 等待项目发起人最终审批后启动 PR-1 |
 
 ---
 
@@ -519,7 +520,8 @@
 | 版本 | 日期 | 作者 | 变更 |
 |---|---|---|---|
 | v0.1-draft | 2026-08-07 | 主 Agent（Subagent 隔离调研） | 初稿：9 项决策 + 5 PR 串行 + 10 风险 + 6 验收 |
-| **v0.2-draft** | **2026-08-07** | **主 Agent（评审采纳）** | **采纳评审意见：8 调整 + 2 微调 + 6 遗漏补充** · §2.1 加 cleanup + worker_id 隔离 · §2.2 schema enum + 条件挂载 · §2.3 schema 交叉验证 replicaCount>=2 + chart README · §2.4 yield fixture cleanup · §2.5 PR label 触发 + 错峰 cron 30 1 * * * UTC + concurrency + timeout-minutes · §2.6 明确 leader spike 核心断言 · §2.7 tls.enabled=false 行为明确（port 8443 + http A2A）· §2.9 覆盖率 ≥ 92% · §2.10-§2.15 6 项遗漏决策补充（60s 周期 E2E vs IT / Mock K8s API / A2A wire 范围 / 宪法不升级 / 测试基础设施 / Phase 2→Phase 3 交接）|
+| v0.2-draft | 2026-08-07 | 主 Agent（评审采纳） | 采纳评审意见：8 调整 + 2 微调 + 6 遗漏补充 · §2.1 加 cleanup + worker_id 隔离 · §2.2 schema enum + 条件挂载 · §2.3 schema 交叉验证 replicaCount>=2 + chart README · §2.4 yield fixture cleanup · §2.5 PR label 触发 + 错峰 cron 30 1 * * * UTC + concurrency + timeout-minutes · §2.6 明确 leader spike 核心断言 · §2.7 tls.enabled=false 行为明确（port 8443 + http A2A）· §2.9 覆盖率 ≥ 92% · §2.10-§2.15 6 项遗漏决策补充 |
+| **v1.0 推荐** | **2026-08-07** | **主 Agent（项目发起人决策后）** | **v1.0 推荐提交项目发起人最终审批** · 15 项决策全部采纳 · 等启动 PR-1 RBAC §M-1.4 修复 |
 
 ### §7.2 关键引用
 
@@ -566,8 +568,9 @@
 - **作者**：主 Agent（MiniMax-M3 via Claude Code）· 2026-08-07
 - **调研**：Subagent 隔离 `a94e9944c377b6e54` · 41 tool uses · 7 分钟
 - **评审**：主 Agent 5-8% 水位 · 9 项评审 + 6 项遗漏决策补充 · `docs/phase2/l4-phase2-spike-plan-review.md`
-- **状态**：**v0.2-draft** · 15 项决策（9 原始 + 6 补充）· 待项目发起人最终审批 → 启动 PR-1 RBAC 修复
+- **状态**：**v1.0 推荐** · 15 项决策全部采纳 · 项目发起人最终审批中
+- **下一步**：项目发起人决策 → 启动 PR-1 RBAC §M-1.4 修复（前置 PR · 不可调整）
 
 ---
 
-> **计划就绪 · 等待启动**：本计划文档交付后进入 v1.0 推荐 → 项目发起人决策 15 项 → 启动 PR-1 RBAC 修复 → 串行 5 PR 收口
+> **计划就绪 · 等待启动**：v1.0 推荐提交后 → 项目发起人最终审批 15 项决策 → 启动 PR-1 RBAC §M-1.4 修复 → 串行 5 PR 收口
