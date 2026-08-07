@@ -1,0 +1,24 @@
+apiVersion: v2
+name: knowledge-memory-service
+description: |
+  Knowledge Memory Service — A2A protocol + Memory backend (Phase 1 MVP single-process).
+  Phase 1 ADR-0006 D 方案：单 Pod 单 Container 单进程 replicaCount=1。
+  Phase 2 spike 计划：kind cluster + K8sLeaseLeaderElector（默认 in_process · k8s opt-in）。
+type: application
+version: 0.1.0  # Phase 1 MVP · 与 services/knowledge-memory-service pyproject.toml version 同步
+appVersion: "0.1.0"
+home: https://github.com/superteam-cn/superteam-a2a
+sources:
+  - https://github.com/superteam-cn/superteam-a2a
+keywords:
+  - a2a
+  - memory
+  - knowledge
+  - kopf
+  - operator
+maintainers:
+  - name: superteam-cn
+    url: https://github.com/superteam-cn
+annotations:
+  category: AI Infrastructure
+  licenses: Apache-2.0

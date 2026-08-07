@@ -1,0 +1,34 @@
+{{- if .Values.rbac.create -}}
+# RoleBinding for both read and write Roles → same ServiceAccount.
+# Reference: docs/spec/L3-file-specs/L3-memory-backend.md §9.5 line 1364
+# Phase 2 §2.3 · 共享 SA 双 Role 绑定（部署折中 · Service Account 单一权限单元）
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "knowledge-memory-service.fullname" . }}-read
+  labels:
+    {{- include "knowledge-memory-service.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "knowledge-memory-service.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "knowledge-memory-service.fullname" . }}-read
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ include "knowledge-memory-service.fullname" . }}-write
+  labels:
+    {{- include "knowledge-memory-service.labels" . | nindent 4 }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ include "knowledge-memory-service.serviceAccountName" . }}
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ include "knowledge-memory-service.fullname" . }}-write
+{{- end }}

@@ -1,0 +1,40 @@
+{{- if .Values.rbac.create -}}
+# Read-only Role for Knowledge Memory Service.
+# Reference: docs/spec/L3-file-specs/L3-memory-backend.md §9.5 line 1334-1341
+# Phase 1 ADR-0006 D 方案：read Role 不含 create/update/patch/delete
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "knowledge-memory-service.fullname" . }}-read
+  labels:
+    {{- include "knowledge-memory-service.labels" . | nindent 4 }}
+rules:
+  # Core CRD resources (read-only)
+  - apiGroups: ["superteam-a2a.io"]
+    resources:
+      - knowledgescopes
+      - knowledgeitems
+      - memories
+    verbs:
+      - get
+      - list
+      - watch
+  # ConfigMaps for service configuration
+  - apiGroups: [""]
+    resources:
+      - configmaps
+    verbs:
+      - get
+      - list
+      - watch
+  # Secrets for mTLS certs (resourceNames restricted per L3-6 §9.5)
+  - apiGroups: [""]
+    resources:
+      - secrets
+    verbs:
+      - get
+      - watch
+    resourceNames:
+      - knowledge-service-tls
+      - superteam-client-ca
+{{- end }}
