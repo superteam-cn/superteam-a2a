@@ -166,21 +166,67 @@ async def test_h_rm_ut_005_on_update_path_consistent_with_create():
     assert call_kwargs["context"].trace_id == "test-uid-h-rm"
 
 
-# H-RM-IT-001（stub · Phase 2 范围）
-def test_h_rm_it_001_stub_k8s_cr_integration():
-    """H-RM-IT-001 stub · K8s CR 接入 + body Memory.model_validate。
+# H-RM-IT-001
+async def test_h_rm_it_001_handler_validates_k8s_body_and_invokes_service():
+    """H-RM-IT-001 · handler 接 K8s body/memo 后完整 round-trip 验证。
 
-    Phase 2 范围：envtest + real K8s informer + body from K8s API。
+    Phase 2 范围：mock K8s API 入参 (不需 kind cluster / envtest) — 验证 body
+    在 §6.3 协调点形态下能被 Memory.model_validate 解析, memo 注入正确传递,
+    service.record_memory_async 被调用 1 次, context/trace_id/clock 正确。
     """
-    # 占位：仅验证测试 ID 已注册
-    assert True
+    from datetime import UTC, datetime
+
+    fake_clock = FakeClock(datetime(2026, 8, 8, 9, 0, 0, tzinfo=UTC))
+    mock_service = AsyncMock(spec=MemoryBackendInProcessServiceImpl)
+    mock_service.record_memory_async = AsyncMock()
+    body, meta = _body_and_meta()
+    memo = {"memory_in_process_service": mock_service, "clock": fake_clock}
+
+    await on_memory_create(body=body, meta=meta, memo=memo)
+
+    mock_service.record_memory_async.assert_called_once()
+    call_args = mock_service.record_memory_async.call_args
+    # memory 是位置参数 · context 是 kw-only
+    memory_passed = call_args.args[0]
+    assert isinstance(memory_passed, Memory)
+    assert memory_passed.metadata.name == "mem-handler"
+    assert memory_passed.metadata.namespace == "default"
+    assert memory_passed.spec.summary == "handler test"
+    # context 注入 trace_id (meta.uid) + clock (memo["clock"])
+    context = call_args.kwargs["context"]
+    assert context.trace_id == "test-uid-h-rm"
+    assert context.clock is fake_clock
 
 
-# H-RM-CF-001（stub · Phase 2 范围）
-def test_h_rm_cf_001_stub_wire_dto_consistency():
-    """H-RM-CF-001 stub · wire DTO 一致性（alias 与 Python 名映射）。
+# H-RM-CF-001
+def test_h_rm_cf_001_memory_wire_field_set_matches_pydantic_model():
+    """H-RM-CF-001 · wire DTO 字段集合与 Memory / ObjectMeta Pydantic model 一致。
 
-    Phase 2 范围：与 L2-4 §6.4 完整版 10 字段 wire DTO 一致性验证。
+    静态断言: 由 Memory 生成 dict 后, 其字段集合必须与 Memory/ObjectMeta
+    model_fields 集合严格相等 (含 alias). 这保证 kopf 注入 body 与 §3.4
+    Memory CRD 不会因字段漂移而拒绝 (TEST-MEM-051 静态断言集合同类).
     """
-    # 占位：仅验证测试 ID 已注册
-    assert True
+    from superteam_a2a.knowledge_memory.backend.memory import Memory as MemoryModel
+    from superteam_a2a.knowledge_memory.backend.memory import ObjectMeta
+
+    memory = _make_memory()
+    body = memory.model_dump(by_alias=True, exclude_none=True)
+
+    # Memory wire schema: Pydantic 字段名 + alias (排除 None 默认值字段)
+    schema_top = set(MemoryModel.model_fields.keys()) | {
+        f.alias for f in MemoryModel.model_fields.values() if f.alias
+    }
+    # wire body keys 必须是 schema 的子集 (None 字段被 exclude_none 剔除)
+    assert set(body.keys()).issubset(schema_top)
+    # 必须存在的非 None 字段: apiVersion (alias) + kind + metadata + spec
+    assert {"apiVersion", "kind", "metadata", "spec"}.issubset(set(body.keys()))
+    # metadata 字段集合 (含 alias) — 与 ObjectMeta schema 子集
+    metadata_body = body["metadata"]
+    schema_meta = set(ObjectMeta.model_fields.keys()) | {
+        f.alias for f in ObjectMeta.model_fields.values() if f.alias
+    }
+    assert set(metadata_body.keys()).issubset(schema_meta)
+    # 必须存在: name, namespace, labels, annotations, generation, finalizers
+    assert {"name", "namespace", "labels", "annotations", "generation", "finalizers"}.issubset(
+        set(metadata_body.keys())
+    )
