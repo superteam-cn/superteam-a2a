@@ -17,13 +17,20 @@ import kopf
 from superteam_a2a.knowledge_memory.api.service import (
     MemoryBackendInProcessServiceImpl,
 )
+from superteam_a2a.knowledge_memory.backend.clock import SystemClock
 from superteam_a2a.knowledge_memory.backend.in_memory import InMemoryBackend
+from superteam_a2a.knowledge_memory.handlers.admission_validator import (
+    AdmissionValidatorImpl,
+)
 from superteam_a2a.knowledge_memory.handlers.memory_handler import (
     on_memory_create,
     on_memory_update,
 )
+from superteam_a2a.knowledge_memory.index.bm25_index import BM25Index
 from superteam_a2a.knowledge_memory.reconciler.finalize import finalize_memory
+from superteam_a2a.knowledge_memory.reconciler.leader import InProcessLeaderElector
 from superteam_a2a.knowledge_memory.reconciler.memory_reconciler import (
+    MemoryReconcilerService,
     memory_reconciler_timer,
 )
 
@@ -57,18 +64,49 @@ async def _timer(
 
 
 def _build_memo() -> dict[str, Any]:
-    """构造 kopf memo · 服务实例注册。
+    """构造 kopf memo · 服务实例注册（Step 5 完整装配）。
 
-    单元测试可通过 _build_memo() 构造 memo dict 并注入到 handler。
-    MemoryReconcilerService 需要 AdmissionValidatorProtocol + Index + Leader + Clock，
-    这里仅构造必要最小集（其他由 Step 3 / Helm 装配）。
+    5 依赖单点注入：
+    - clock: SystemClock（§M-1.5 单实例 · 三方共享）
+    - backend: InMemoryBackend
+    - leader: InProcessLeaderElector
+    - admission: AdmissionValidatorImpl
+    - index: BM25Index
+
+    6 memo key 注册：
+    - clock
+    - memory_backend（测试入口）
+    - memory_admission_validator（测试入口）
+    - memory_index（测试入口）
+    - memory_in_process_service（handler record/query 路径）
+    - memory_reconciler（timer/finalize 路径）
     """
+    clock = SystemClock()
     backend = InMemoryBackend()
-    in_process_service = MemoryBackendInProcessServiceImpl(backend=backend)
-    memo: dict[str, Any] = {
+    leader = InProcessLeaderElector()
+    admission = AdmissionValidatorImpl()
+    index = BM25Index()
+
+    in_process_service = MemoryBackendInProcessServiceImpl(
+        backend=backend,
+        admission=admission,
+    )
+    reconciler_service = MemoryReconcilerService(
+        backend=backend,
+        leader=leader,
+        clock=clock,
+        admission=admission,
+        index=index,
+    )
+
+    return {
+        "clock": clock,
+        "memory_backend": backend,
+        "memory_admission_validator": admission,
+        "memory_index": index,
         "memory_in_process_service": in_process_service,
+        "memory_reconciler": reconciler_service,
     }
-    return memo
 
 
 def main() -> None:

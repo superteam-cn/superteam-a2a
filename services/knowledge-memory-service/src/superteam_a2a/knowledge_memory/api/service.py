@@ -3,11 +3,11 @@
 5 步 admitted_record_memory 契约（§6.4 line 998-1006）：
 1. freeze input — memory.model_copy(deep=True)
 2. 50ms validation — context.clock.monotonic() + 0.050 + asyncio.wait_for
-3. mutex lookup — 委托 backend（§5.7 不变量 2 atomic）
+3. admission validate — 通过可选注入的 validator fail-closed 校验
 4. single handoff — 仅一次 backend.put + idempotency_key 防重
 5. propagate/commit — 直接返回或抛权威异常；禁止 fail-open
 
-实现层仅承担 step 1/2/4/5；step 3 mutex lookup 由 L3-5 admission_validator 负责（§6.4 line 1004）。
+实现层承担完整 step 1~5；admission 默认 None 以保持 PR #19 向后兼容。
 """
 
 from __future__ import annotations
@@ -62,12 +62,14 @@ class MemoryBackendInProcessServiceImpl:
     本实现聚焦：
     - step 1 freeze input（deep copy）
     - step 2 50ms admission deadline（fail-closed → MEMORY_ADMISSION_TIMEOUT）
+    - step 3 admission validate（可选注入；默认 None 跳过）
     - step 4 single handoff（idempotency_key = "{namespace}/{name}"）
     - step 5 propagate / commit（异常原样透传；禁止 fail-open）
     """
 
-    def __init__(self, backend) -> None:
+    def __init__(self, backend, *, admission=None) -> None:
         self._backend = backend
+        self._admission = admission
 
     async def record_memory_async(
         self,
@@ -75,15 +77,18 @@ class MemoryBackendInProcessServiceImpl:
         *,
         context: InProcessContext,
     ) -> MemoryRecordResult:
-        """§6.1 record 路径 · 5 步契约子集（step 1/2/4/5）。
+        """§6.1 record 路径 · 5 步契约。
 
-        step 3（mutex lookup）由 L3-5 admission_validator 在 caller 端完成，
-        此处不重复（§6.4 line 1024）。
+        step 3 admission validate 通过 self._admission 注入（默认 None 跳过；
+        典型实现见 handlers/admission_validator.py）。
         """
         # Step 1: freeze input
         frozen = memory.model_copy(deep=True)
         # Step 2: 50ms admission deadline（fail-closed）
         deadline = context.clock.monotonic() + ADMISSION_TIMEOUT_SECONDS
+        # Step 3: admission validate（可选；None 时跳过；异常原样透传）
+        if self._admission is not None:
+            await self._admission.validate(frozen, timeout=ADMISSION_TIMEOUT_SECONDS)
         remaining = max(0.0, deadline - context.clock.monotonic())
         coro = self._backend.put(
             frozen,

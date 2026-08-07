@@ -32,11 +32,14 @@ def test_on_memory_create_signature():
     assert any(p.kind == inspect.Parameter.VAR_KEYWORD for p in params.values())
 
 
-async def test_on_memory_create_invokes_service(sample_body, sample_meta):
-    """mock service · record_memory_async 被调用。"""
+async def test_on_memory_create_invokes_service(sample_body, sample_meta, fake_clock):
+    """mock service · record_memory_async 被调用。
+
+    §M-1.5：handler 从 memo["clock"] 读取 Clock；测试 memo 必须含 fake_clock。
+    """
     mock_service = AsyncMock(spec=MemoryBackendInProcessServiceImpl)
     mock_service.record_memory_async = AsyncMock()
-    memo = {"memory_in_process_service": mock_service}
+    memo = {"memory_in_process_service": mock_service, "clock": fake_clock}
     await on_memory_create(body=sample_body, meta=sample_meta, memo=memo)
     mock_service.record_memory_async.assert_called_once()
     call_kwargs = mock_service.record_memory_async.call_args.kwargs
