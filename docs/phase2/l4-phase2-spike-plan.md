@@ -2,12 +2,13 @@
 
 | 字段 | 值 |
 |---|---|
-| 文档版本 | v0.1-draft（2026-08-07） |
+| 文档版本 | **v0.2-draft**（2026-08-07）|
 | 上游 Spec 锁定版本 | L3-6 v0.2.0 + v0.2.1 + L3-5 v0.2.1 + ADR-0006 v1.0 Accepted + L1 v0.2.0 §4.1 |
 | 5 项关键不变量来源 | L3-6 §1.2 line 100-106 |
-| 主 Agent 水位 | 5-8%（writing）· Subagent 隔离调研（2026-08-07） |
+| 主 Agent 水位 | 5-8%（writing）· Subagent 隔离调研 + 评审（2026-08-07）|
 | 计划周期 | 5 个 PR 串行 · PR-1 ~ PR-5 · 预计 3-5 周 |
-| Phase 1 起点 | main HEAD `7eecf41`（PR #17/#18/#19/#20/#21 merged · 138/138 PASS） |
+| Phase 1 起点 | main HEAD `7eecf41`（PR #17/#18/#19/#20/#21 merged · 138/138 PASS）|
+| 评审文件 | `docs/phase2/l4-phase2-spike-plan-review.md`（v0.2-draft 评审意见）|
 
 ---
 
@@ -60,7 +61,7 @@
 
 ---
 
-## §2 设计决策（9 项 · 待项目发起人决策）
+## §2 设计决策（15 项 · 9 项原始 + 6 项评审补充 · v0.2-draft 采纳全部评审意见）
 
 ### §2.1 kind cluster 生命周期
 
@@ -69,12 +70,20 @@
 - **备选 B**：per-session shared cluster + namespace reset（快 5s，并行需 xdist 协调）
 - **决策依据**：speed vs isolation trade-off · per-session + uuid 是 PR CI 黄金分割点
 - **并行安全**：配合 `pytest --dist=loadfile` 防同 test 并行
+- **v0.2 补充**：
+  - **加 cleanup**：`kind delete cluster --name e2e-${{ github.run_id }}` 后置清理（防 namespace 累积泄漏）+ CI workflow 加 `if: always()` 保证 cleanup 执行
+  - **worker_id 隔离**：pytest-xdist worker 间用 `worker_id` 区分 namespace（如 `e2e-h-rm-it-001-{worker_id}-{uuid}`）
+  - **CRD 一次 apply**：Memory CRD 是 cluster-scoped，session apply 一次即可，function-scoped 仅清理 namespaced resources（events/leases）
 
 ### §2.2 LeaderElector 默认实现
 
 - **推荐方案**：**InProcessLeaderElector**（保持 D 方案单进程默认 · Helm `leaderElection.backend=in_process`）
 - **备选**：K8sLeaseLeaderElector 默认（违反 L3-6 §1.2 #1 单实例不变量）
 - **决策依据**：ADR-0006 D 方案 + L3-6 §1.2 #1 同 Pod 第二进程 → 单进程
+- **v0.2 补充**：
+  - **`values.schema.json`** 显式声明 `leaderElection.backend` enum=["in_process", "k8s"] · 默认值 "in_process"
+  - **条件挂载**：K8sLeaseLeaderElector 实装后默认 export 但 `_build_memo()` 不挂载（仅当 `leaderElection.backend=k8s` 才挂载 · main.py 条件装配）
+  - **Helm values 注释**：明确说明"生产推荐 in_process；k8s 仅供多副本 spike 测试"
 
 ### §2.3 K8sLeaseLeaderElector 启用方式
 
@@ -82,6 +91,11 @@
 - **备选**：代码层自动启用（违反生产安全原则）
 - **决策依据**：生产安全（默认 in_process；运维显式选择 K8s 才能启用）
 - **额外**：spike 测试通过覆盖 Helm values 临时切换 `leaderElection.backend=k8s` + `replicaCount=2`
+- **v0.2 补充**：
+  - **schema 交叉验证**：`leaderElection.backend=k8s` 时 `replicaCount>=2`（单副本+leader election 无意义）· 反之 `replicaCount==1` 时 `leaderElection.backend` 强制 `in_process`
+  - **k8s 模式默认**：Lease name `memory-reconciler-leader`（与 L3-6 §4.1 line 645 一致）+ namespace `superteam-a2a-system`（L3-6 §9.4）
+  - **chart README**：values.yaml 注释 + chart README 明确示例 values
+  - **关键依赖**：k8s 模式触发 admissionregistration.k8s.io RBAC → **必须先 PR-1 RBAC 修复完成才能启用 k8s 模式**
 
 ### §2.4 Lease 隔离策略
 
@@ -89,40 +103,141 @@
 - **备选**：共享 Lease（测试间 leader 互相干扰 · 仅 1 个测试可持有）
 - **决策依据**：防止多测试并发时 leader 切换不确定性
 - **实现约束**：K8sLeaseLeaderElector 构造参数已支持 `lease_name` 默认值（leader.py line 91）→ 仅需测试 fixture 注入 uuid 名
+- **v0.2 补充**：
+  - **yield fixture cleanup**：测试 fixture 用 yield fixture（自动 cleanup · `kubectl delete lease -n superteam-a2a-system <test-uuid>`）
+  - **共享 namespace**：在 `superteam-a2a-system` 下 per-test Lease uuid → 避免跨 test 干扰，不需 per-test namespace
+  - **生产单 Lease**：实际生产部署用单 Lease `memory-reconciler-leader`（uuid 仅测试）
+  - **fixture 模板**：
+    ```python
+    @pytest.fixture
+    async def per_test_lease():
+        name = f"test-{uuid4().hex[:8]}"
+        yield name
+        await kube.delete_lease(name)  # cleanup
+    ```
 
 ### §2.5 CI 集成策略
 
-- **推荐方案**：**新增 `e2e-envtest.yml` workflow · 手动 workflow_dispatch + nightly schedule**（不阻塞 PR CI）
+- **推荐方案**：**新增 `e2e-envtest.yml` workflow · 手动 workflow_dispatch + nightly schedule + PR label 触发**（不阻塞常规 PR CI）
 - **备选**：常规 PR CI 自动跑（避免 5min+ 阻塞 PR review）
 - **决策依据**：避免 kind cluster 启动 30s + helm install 60s + 测试 60s+ 总开销阻塞 PR review
-- **触发条件**：
+- **v0.2 触发条件**：
   - `workflow_dispatch`（手动 · 项目发起人 / 评审者触发）
-  - `schedule: cron: 0 2 * * *`（nightly UTC 02:00 · 美东 22:00 · 避开白天流量高峰）
-  - **不**触发 PR push（避免阻塞）
+  - `schedule: cron: '30 1 * * *'`（nightly UTC 01:30 · 错峰避开 GitHub Actions 排队高峰 UTC 14:00-22:00）
+  - `pull_request: types: [labeled]`（仅标 `e2e` label 时触发 · 评审者按需启用）
+  - **不**触发普通 PR push（避免阻塞）
+- **v0.2 workflow 配置补充**：
+  - **`concurrency:`** block（防多个 nightly 并发 · `cancel-in-progress: true`）
+  - **`timeout-minutes: 15`**（kind 30s + helm 60s + tests 120s = ~210s < 15min）
+  - **`permissions:`** block 最小权限（`contents: read` + `checks: write`）
+  - **物理隔离**：e2e-envtest.yml 与 ci.yml 完全独立（避免 ci.yml 引入 kind 依赖拖慢 PR CI）
 
 ### §2.6 K8sBackend 是否引入
 
 - **推荐方案**：**Phase 2 不引入 K8sBackend**（沿用 InMemoryBackend + 真实 K8s Lease 验证 leader 机制）
 - **备选**：Phase 2 引入 K8sBackend（范围扩张 · 引入 CustomObjectsApi 状态管理）
 - **决策依据**：范围控制（Phase 3 实装 K8sBackend · Phase 2 验证 leader 机制独立性）
+- **v0.2 核心断言（leader spike 必验证）**：
+  - **leader pod 持 Lease 时** `backend.put/get` 正常
+  - **非 leader pod** backend 操作被 reconciler 跳过（reconcile_all 早返回）
+- **v0.2 spike 测试设计**：在 kind cluster 中启动 2 个 pod，pod-A 持 Lease（leader）执行 reconcile · pod-B 非 leader 不执行 reconcile · 验证 pod-B 的 reconcile log 是空
+- **v0.2 范围限制**：InMemoryBackend 是进程内 dict，多 pod **不共享 state** → spike 仅验证 leader 选举机制本身，**不**验证 backend 状态共享
+- **v0.2 K8sBackend 时机**：v0.3+（OPEN-MEMORY-002 多副本 v0.5+ 决策通过后）
 
 ### §2.7 cert-manager 是否启用
 
 - **推荐方案**：**Phase 2 默认禁用**（`tls.enabled=false` Helm values）
 - **备选**：启用 cert-manager（~60s 证书颁发流程阻塞测试）
 - **决策依据**：测试速度优先；IT/CF 测试使用 httpx + mTLS client cert fixture 验证，E2E 测试可后置证书验证
+- **v0.2 tls.enabled=false 行为明确**：
+  - **port 8443 不 listen**（避免无效监听端口 · main.py 条件判断）
+  - **A2A call 走 http**（httpx client 不传 cert · Phase 2 测试 fixture）
+  - **E2E 测试 fixture**：清晰说明两种模式（tls on / tls off）的配置和预期行为
+- **v0.2 可选强化**：Phase 2 末尾增加一个 IT 用 cert-manager（`tls.enabled=true` + kind cert-manager install）验证 mTLS 链路（确保 Phase 3+ 启用 cert-manager 时有回归测试）
 
 ### §2.8 RBAC §M-1.4 修复时机
 
 - **推荐方案**：**Phase 2 PR-1（前置 PR）**
 - **备选**：延后到 PR-2/3/4 同期
 - **决策依据**：**不修则 K8sLeaseLeaderElector IT/E2E 跑不通**（kind cluster apply 双 Role 必含 3 apiGroups：`admissionregistration.k8s.io` + `authentication.k8s.io` + `authorization.k8s.io`）
+- **状态**：✅ **强制采纳 · 不可调整**
+- **v0.2 补充验证项**：
+  - `tests/conformance/test_rbac.py` 验证集合相等（**resources + verbs + apiGroups 集合**）
+  - 修复同时 review Helm chart 的 NetworkPolicy（如存在）是否允许 admissionregistration API
+  - **关键验证**：PR-1 之后本地 `helm template` + `helm lint` 必须通过
+  - PR 描述引用 L3-6 §9.5 line 1331-1361 + L3-6-review §M-1.4 line 358-376
 
 ### §2.9 测试覆盖率门槛
 
-- **推荐方案**：Phase 2 新增 `k8s_lease_leader_elector` 模块 **≥ 90%** 覆盖率
+- **推荐方案**：Phase 2 新增 `k8s_lease_leader_elector` 模块 **≥ 92%** 覆盖率
+- **v0.2 微调**：原 v0.1-draft 推荐 ≥ 90% · 评审建议改 ≥ 92%（与 9 关键模块 ≥ 95% 基线差距从 5pp 收窄到 3pp · 首次新增模块的合理门槛）
 - **备选**：不强制
-- **决策依据**：L3-6 §10.4 line 1403 9 关键模块 ≥ 95% 覆盖率基线（apply_decay / apply_reinforce / gc_expired / is_eligible_for_promotion / memory_reconciler / clock / memory_backend / admission / leader_election）· 新增 `k8s_lease_leader_elector` 是第 10 个关键模块 · ≥ 90% 是首次新增模块的合理门槛
+- **决策依据**：L3-6 §10.4 line 1403 9 关键模块 ≥ 95% 覆盖率基线（apply_decay / apply_reinforce / gc_expired / is_eligible_for_promotion / memory_reconciler / clock / memory_backend / admission / leader_election）· 新增 `k8s_lease_leader_elector` 是第 10 个关键模块
+- **v0.2 覆盖率配置补充**：
+  - **pytest-cov include pattern**：`services/knowledge-memory-service/src/.../reconciler/k8s_lease_leader_elector.py`
+  - **CI 集成**：覆盖率验证脚本与 ruff/pyright 一起进 CI（`coverage run -m pytest tests/unit && coverage report --fail-under=92 ...`）
+  - **9 关键模块基线不退化**：保持 ≥ 95% 不退化
+  - **反模式避免**：不为追求 100% 覆盖率而写无意义测试（如 `assert True`）· 真实代码路径覆盖即可
+
+### §2.10 MemoryReconciler 60s 周期 E2E 验证策略（评审补充 1）
+
+- **问题**：当前 v0.1-draft §3.4 提到「短周期测试用 helm values 覆盖（仅测试环境）」但未明确决策 E2E 是否覆盖真实 60s 周期
+- **决策**：
+  - **E2E 保留 60s**（验证生产真实周期 + apply_decay/reinforce 时间窗口正确）
+  - **IT 层覆盖**：`interval=5s` 覆盖 helm values 快速验证（PR-3 H-RM/H-QM IT 已涵盖）
+- **E2E 范围限制**：不覆盖 60s 内的事件触发（如 leader election 抢占）→ 改用 IT 层 interval=5s 验证
+- **依据**：L3-6 §11.4 line 1689-1695 60s 周期硬编码 · 测试不修改生产周期
+
+### §2.11 Mock K8s API vs 真实 envtest 选型（评审补充 2）
+
+- **问题**：v0.1-draft §3.3 提到「envtest 或 mock K8s API」未明确决策
+- **决策**：
+  - **IT 层用 mock K8s API**（UT-like fast · 无外部依赖 · 与 UT 速度一致）
+  - **envtest 仅**（kind 集群 E2E 使用）
+  - **理由**：envtest binary 50MB 部署复杂 · mock K8s API 用 pytest fixture + AsyncMock 更轻量
+- **v0.2 测试分布**：
+  - UT（60%）+ IT mock K8s API（15%）+ E2E kind（10%）+ CF（5%）+ TZ（5%）+ DEPLOY/PERF（5%）
+
+### §2.12 A2A protocol wire Phase 2 验证范围（评审补充 3）
+
+- **问题**：v0.1-draft 未提 A2A protocol wire（JSON-RPC over HTTPS）· L3-5 §4.3/§4.4 定义 recordMemory / queryMemory A2A call
+- **决策**：
+  - **H-RM-E2E-001 / H-QM-E2E-001 应通过 A2A call 验证**（不是直连 `service.record_memory_async`）
+  - **测试范围**：A2A JSON-RPC envelope + params + result/error 字段
+  - **错误码映射验证**：12 MEMORY_* 错误码在 A2A error 包装后正确映射（`error.code == -32101` 等）
+- **v0.2 E2E 范围扩展**：H-RM-E2E-001 / H-QM-E2E-001 覆盖 wire format + 业务逻辑两端
+
+### §2.13 Phase 2 是否升级宪法版本（评审补充 4）
+
+- **问题**：当前宪法 v0.5.0 · Phase 2 引入 kind + e2e 是否触发宪法升级？
+- **决策**：**不升级**
+  - 引用宪法 v0.5.0 §14.5 MVP 例外窗口（ADR-0005 Accepted 同模式）
+  - Phase 2 收口时宪法 v0.5.0 兼容（仅追加 §M-5 spike 记录 · 无架构变更）
+  - **触发条件**：如 Phase 2 决定转 production（非 spike）则触发宪法 v0.6.0 升级
+
+### §2.14 Phase 2 测试基础设施升级（评审补充 5）
+
+- **问题**：v0.1-draft 未明确 top-level conftest.py 升级
+- **决策**：新增以下 fixtures
+  - **top-level `tests/conftest.py`**：
+    - `event_loop_policy` fixture（pytest-asyncio 0.21+ 要求）
+    - `reset_memo` fixture（每个 test 清理 `_build_memo()` memo 缓存）
+    - `clock` fixture（提供 FakeClock 用于时间相关测试）
+  - **`tests/unit/knowledge_memory/conftest.py`**：
+    - `in_memory_backend` fixture（共享 InMemoryBackend 实例 · 避免重复创建）
+    - `mock_kopf_event` fixture（模拟 kopf event · 不需真实 kopf daemon）
+
+### §2.15 Phase 2 → Phase 3 交接边界（评审补充 6）
+
+- **问题**：v0.1-draft 未明确 Phase 2 → Phase 3 的交接边界
+- **决策**：
+  - **Phase 3 入口**：K8sBackend 实装（OPEN-MEMORY-002 多副本 v0.5+ 决策通过后启动）
+  - **Phase 2 留在 main 的资产**：
+    - 5 PR 全部 merged
+    - `kind_cluster` fixture 共享给后续 Phase 3 测试
+    - `e2e-envtest.yml` workflow 复用（Phase 3+ e2e 测试统一走此 workflow）
+    - `k8s_lease_leader_elector.py` 复用（Phase 3 K8sBackend 实装时直接用此 leader election 机制）
+- **v0.2 handoff 文档**：PR-5 收口时写 `docs/phase3-handoff.md`（11 节 · 类似 #72 handoff 模板）
 
 ---
 
@@ -354,6 +469,7 @@
 - [ ] LeaderElector Protocol 签名保持不变（runtime_checkable 验证）
 - [ ] InProcessLeaderElector + K8sLeaseLeaderElector 行为对齐（同一组 conformance UT PASS）
 - [ ] 138 + 5~8 = 143~146 pytest PASS in <0.6s · ruff 0 · pyright 0
+- [ ] k8s_lease_leader_elector.py 模块 **≥ 92%** 覆盖率（v0.2 微调 vs 95% 基线 3pp 差距）
 
 ### §6.3 PR-3 H-RM/H-QM IT/CF 实装
 
@@ -376,22 +492,23 @@
 - [ ] L3-6 §M.2 落地记录追加 #83-#86 行
 - [ ] L3-5 §M.2 落地记录追加 #83-#86 行
 - [ ] README.md / ROADMAP.md / CONSTITUTION-CHANGELOG.md 微同步
+- [ ] **docs/phase3-handoff.md** 撰写（11 节 · 列出 Phase 2 留在 main 的复用资产）
 
 ### §6.6 质量门禁（Phase 2 整体）
 
 - [ ] **152~158 PASS**（138 Phase 1 + 8 K8s-LE + 1 RBAC + 4 H-RM/H-QM IT/CF + 6 E2E）
 - [ ] ruff check All passed
 - [ ] pyright 0 errors（warning 数量不增）
-- [ ] 9 关键模块 ≥ 95% 覆盖率 + 新增 `k8s_lease_leader_elector` ≥ 90% 覆盖率
+- [ ] 9 关键模块 ≥ 95% 覆盖率 + 新增 `k8s_lease_leader_elector` **≥ 92%** 覆盖率（v0.2 微调 · 3pp 差距 vs 95% 基线）
 - [ ] 12 MEMORY_* 错误码 100% wire 一致（TEST-MEM-051 集合相等静态断言 PASS）
 - [ ] **5 项关键不变量保持**（L3-6 §1.2 line 100-106）：
-  - [ ] 单 Pod 第二进程 → 单进程
-  - [ ] 60s timer 不变
-  - [ ] L3-5/L3-6 共享 Deployment
-  - [ ] 4 纯函数数学不变
-  - [ ] wire contract 不变
+  - [ ] 单 Pod 第二进程 → 单进程（`leaderElection.backend=in_process` 默认 · replicaCount=1）
+  - [ ] 60s timer 不变（E2E 保留 60s 验证 · IT 用 interval=5s 覆盖）
+  - [ ] L3-5/L3-6 共享 Deployment（Phase 2 不改 Helm chart 主结构）
+  - [ ] 4 纯函数数学不变（K8sLeaseLeaderElector 不涉及算法）
+  - [ ] wire contract 不变（A2A wire 12 字段保持 · H-RM/H-QM E2E 走 A2A call 验证）
 - [ ] ADR-0006 v1.0 Accepted D 方案兼容性 100%
-- [ ] §F 跨文档同步完成（ROADMAP / README / CONSTITUTION-CHANGELOG）
+- [ ] §F 跨文档同步完成（ROADMAP / README / CONSTITUTION-CHANGELOG / phase3-handoff）
 
 ---
 
@@ -402,6 +519,7 @@
 | 版本 | 日期 | 作者 | 变更 |
 |---|---|---|---|
 | v0.1-draft | 2026-08-07 | 主 Agent（Subagent 隔离调研） | 初稿：9 项决策 + 5 PR 串行 + 10 风险 + 6 验收 |
+| **v0.2-draft** | **2026-08-07** | **主 Agent（评审采纳）** | **采纳评审意见：8 调整 + 2 微调 + 6 遗漏补充** · §2.1 加 cleanup + worker_id 隔离 · §2.2 schema enum + 条件挂载 · §2.3 schema 交叉验证 replicaCount>=2 + chart README · §2.4 yield fixture cleanup · §2.5 PR label 触发 + 错峰 cron 30 1 * * * UTC + concurrency + timeout-minutes · §2.6 明确 leader spike 核心断言 · §2.7 tls.enabled=false 行为明确（port 8443 + http A2A）· §2.9 覆盖率 ≥ 92% · §2.10-§2.15 6 项遗漏决策补充（60s 周期 E2E vs IT / Mock K8s API / A2A wire 范围 / 宪法不升级 / 测试基础设施 / Phase 2→Phase 3 交接）|
 
 ### §7.2 关键引用
 
@@ -447,8 +565,9 @@
 
 - **作者**：主 Agent（MiniMax-M3 via Claude Code）· 2026-08-07
 - **调研**：Subagent 隔离 `a94e9944c377b6e54` · 41 tool uses · 7 分钟
-- **状态**：v0.1-draft · 待项目发起人决策 9 项设计（§2）+ 启动 PR-1 RBAC 修复
+- **评审**：主 Agent 5-8% 水位 · 9 项评审 + 6 项遗漏决策补充 · `docs/phase2/l4-phase2-spike-plan-review.md`
+- **状态**：**v0.2-draft** · 15 项决策（9 原始 + 6 补充）· 待项目发起人最终审批 → 启动 PR-1 RBAC 修复
 
 ---
 
-> **计划就绪 · 等待启动**：本计划文档交付后进入 v1.0 推荐 → 项目发起人决策 9 项 → 启动 PR-1 RBAC 修复 → 串行 5 PR 收口
+> **计划就绪 · 等待启动**：本计划文档交付后进入 v1.0 推荐 → 项目发起人决策 15 项 → 启动 PR-1 RBAC 修复 → 串行 5 PR 收口
