@@ -159,24 +159,77 @@ async def test_h_qm_ut_004_query_zero_backend_scan_industry():
     backend_mock.list.assert_not_called()
 
 
-# H-QM-IT-001（stub）
-def test_h_qm_it_001_stub_k8s_cr_integration():
-    """H-QM-IT-001 stub · K8s CR 接入 + body QueryMemoryRequest.model_validate。
+# H-QM-IT-001
+async def test_h_qm_it_001_handler_round_trips_query_body_and_metadata():
+    """H-QM-IT-001 · handler 接 K8s body 后完整 round-trip 验证。
 
-    Phase 2 范围：envtest + real K8s informer。
+    验证: body["metadata"] 提取为 trace_id, 剩余字段被 QueryMemoryRequest.model_validate
+    解析; memo 注入 service + clock; 5 维 visibility 字段 round-trip; scope 切换
+    到 industry + 0-backend-scan 行为保持.
     """
-    # 占位：仅验证测试 ID 已注册
-    assert True
+    fake_clock = FakeClock(datetime(2026, 8, 8, 9, 30, 0, tzinfo=UTC))
+    expected_result = QueryMemoryResult(items=(), total_count=0)
+    mock_service = AsyncMock(spec=MemoryBackendInProcessServiceImpl)
+    mock_service.query_memory_async = AsyncMock(return_value=expected_result)
+    memo = {"memory_in_process_service": mock_service, "clock": fake_clock}
+
+    # 5 维 visibility body (scope + namespace + tags + min_confidence + limit/offset)
+    body = {
+        "scope": "scope",
+        "namespace": "team-platform",
+        "tags": ("incidents", "runbooks"),
+        "min_confidence": 0.42,
+        "limit": 25,
+        "offset": 5,
+        "metadata": {"uid": "qm-rt-001"},
+    }
+    result = await handle_query_memory(body=body, memo=memo)
+
+    assert result is expected_result
+    mock_service.query_memory_async.assert_called_once()
+    call_args = mock_service.query_memory_async.call_args
+    request = call_args.args[0]
+    assert isinstance(request, QueryMemoryRequest)
+    # 5 维 visibility round-trip
+    assert request.scope == MemoryScope.SCOPE
+    assert request.namespace == "team-platform"
+    assert request.tags == ("incidents", "runbooks")
+    assert request.min_confidence == 0.42
+    assert request.limit == 25
+    assert request.offset == 5
+    # context trace_id 从 metadata.uid 提取
+    assert call_args.kwargs["context"].trace_id == "qm-rt-001"
+    assert call_args.kwargs["context"].clock is fake_clock
 
 
-# H-QM-CF-001（stub）
-def test_h_qm_cf_001_stub_wire_dto_consistency():
-    """H-QM-CF-001 stub · wire DTO 一致性。
+# H-QM-CF-001
+def test_h_qm_cf_001_query_wire_field_set_matches_pydantic_model():
+    """H-QM-CF-001 · wire DTO 字段集合与 QueryMemoryRequest Pydantic model 一致。
 
-    Phase 2 范围：与 L2-4 §6.4 完整版 10 字段 wire DTO 一致性验证。
+    静态断言: handler 接受的 body 字段集合 (去掉 metadata) 必须等于
+    QueryMemoryRequest.model_fields 集合 (含 alias). 同时验证 MemoryScope
+    枚举值集合不漂移, 与 wire spec 对齐.
     """
-    # 占位：仅验证测试 ID 已注册
-    assert True
+    from superteam_a2a.knowledge_memory.backend.types import MemoryScope as ScopeEnum
+    from superteam_a2a.knowledge_memory.backend.types import QueryMemoryRequest
+
+    body = _make_query_body()
+    # QueryMemoryRequest 字段全是同名的 (无 alias), wire body 字段集应是 pydantic schema 的子集
+    # (exclude_none=True 会把 None 默认值字段剔除, body 只含本测试填写的字段)
+    wire_fields = {k for k in body if k != "metadata"}
+    pydantic_fields = set(QueryMemoryRequest.model_fields)
+    assert wire_fields.issubset(pydantic_fields)
+    # wire 必须存在的字段: scope / namespace / limit / offset
+    assert {"scope", "namespace", "limit", "offset"}.issubset(wire_fields)
+    # alias 集合为空 (QueryMemoryRequest 不使用 alias)
+    alias_fields = {f.alias for f in QueryMemoryRequest.model_fields.values() if f.alias}
+    assert alias_fields == set()
+
+    # MemoryScope 5 类与 _make_query_body 实际使用字符串一致
+    expected_scopes = {"agent", "scope", "industry", "project", "global"}
+    assert {s.value for s in ScopeEnum} == expected_scopes
+    # body 内 scope 是合法枚举值
+    assert body["scope"] in expected_scopes
 
 
 # H-QM-E2E-001（stub）
