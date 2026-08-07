@@ -1,0 +1,118 @@
+# Default values for knowledge-memory-service.
+# Reference: docs/phase2/l4-phase2-spike-plan.md §2 设计决策
+
+# Number of replicas (Phase 1 ADR-0006 D 方案：单进程 · schema 强制 == 1)
+replicaCount: 1
+
+image:
+  repository: ghcr.io/superteam-cn/knowledge-memory-service
+  pullPolicy: IfNotPresent
+  tag: ""  # 默认与 Chart appVersion 同步
+
+imagePullSecrets: []
+
+# ServiceAccount 配置（PR-1 创建 · Helm 模板管理）
+serviceAccount:
+  create: true
+  name: knowledge-service
+  annotations: {}
+
+# Pod-level 配置（Phase 1 ADR-0006 + L3-6 §9.2 共享 Deployment）
+podAnnotations: {}
+podLabels: {}
+podSecurityContext:
+  fsGroup: 1000
+  runAsNonRoot: true
+  runAsUser: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+# Container-level security context（restricted profile · L3-6 §9.2 line 1284）
+securityContext:
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+      - ALL
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Service 配置（Phase 1 单端口 8080 · A2A + /healthz + /readyz + /metrics）
+service:
+  type: ClusterIP
+  port: 8080
+  targetPort: 8080
+  annotations: {}
+
+# Ingress（默认禁用 · Phase 2+ 可启用）
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts:
+    - host: chart-example.local
+      paths:
+        - path: /
+          pathType: ImplementationSpecific
+  tls: []
+
+# 资源限制（Phase 1 默认 · L3-6 §11.4 line 1689-1695）
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+# 健康检查探针（L3-6 §11.4）
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 8080
+  initialDelaySeconds: 30
+  periodSeconds: 10
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: 8080
+  initialDelaySeconds: 5
+  periodSeconds: 5
+
+# Leader Election 配置（PR-1 schema enum + 交叉验证 · Phase 2 §2.2/§2.3）
+leaderElection:
+  # enum: in_process | k8s
+  # - in_process: 默认 · ADR-0006 D 方案单进程 · Phase 1 MVP
+  # - k8s: Phase 2 spike · 需 replicaCount >= 2 + PR-1 RBAC 修复完成
+  backend: in_process
+
+# TLS / cert-manager 配置（Phase 2 §2.7 默认禁用）
+tls:
+  enabled: false
+  secretName: knowledge-service-tls
+
+# RBAC 配置（PR-1 · 7 apiGroups + 共享 SA）
+rbac:
+  create: true
+
+# ServiceMonitor（Prometheus · L3-6 §9.8 line 1504 · 25 指标聚合）
+serviceMonitor:
+  enabled: false
+  interval: 30s
+  scrapeTimeout: 10s
+
+# PrometheusRule（8 告警 · L3-6 §9.7 line 1387-1486）
+prometheusRule:
+  enabled: false
+
+# NetworkPolicy（default-deny + 显式 allow · L3-6 §9.6 line 1367-1381）
+networkPolicy:
+  enabled: false
+
+# 调度配置（默认不调度到 control-plane · L3-6 §9.9 line 1511）
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# 注解（部署标识）
+annotations: {}

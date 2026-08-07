@@ -129,7 +129,7 @@ reportUnnecessaryCast = "warning"
 # ============================================================================
 [tool.pytest.ini_options]
 minversion = "8.0"
-testpaths = ["tests/unit"]
+testpaths = ["tests/unit", "tests/conformance"]
 # 注意：superteam_a2a 是 PEP 420 implicit namespace package（5 个 workspace 成员合并）。
 # knowledge_memory 子包位于 services/knowledge-memory-service/src，operator 子包位于
 # packages/operator/src。Python 在 sys.path 找到第一个 superteam_a2a/__init__.py 后停止

@@ -1,0 +1,72 @@
+{{- if .Values.rbac.create -}}
+# Write Role for Knowledge Memory Service.
+# Reference: docs/spec/L3-file-specs/L3-memory-backend.md §9.5 line 1343-1349
+# L3-6-review §M-1.4 修复：补充 admissionregistration.k8s.io / authentication.k8s.io / authorization.k8s.io
+#   （admission webhook + token review + subject access review 不修则 kopf 启动 403）
+# Phase 2 §2.3：k8s leader election 模式依赖此 Role（leases 权限）
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ include "knowledge-memory-service.fullname" . }}-write
+  labels:
+    {{- include "knowledge-memory-service.labels" . | nindent 4 }}
+rules:
+  # Memory CRD status patches (with generation CAS)
+  - apiGroups: ["superteam-a2a.io"]
+    resources:
+      - memories/status
+    verbs:
+      - get
+      - patch
+      - update
+  # Memory CRD lifecycle (list/watch/delete for finalize)
+  - apiGroups: ["superteam-a2a.io"]
+    resources:
+      - memories
+    verbs:
+      - get
+      - list
+      - watch
+      - delete
+  # K8s Lease for leader election (Phase 2 §2.3 k8s mode)
+  - apiGroups: ["coordination.k8s.io"]
+    resources:
+      - leases
+    verbs:
+      - get
+      - create
+      - update
+      - patch
+    resourceNames:
+      - memory-reconciler-leader
+  # K8s Events for reconcile lifecycle audit
+  - apiGroups: [""]
+    resources:
+      - events
+    verbs:
+      - create
+      - patch
+  # §M-1.4 修复：admissionregistration.k8s.io
+  # kopf admission webhook + in-process admission_validator 需要 list/watch validatingwebhookconfigurations
+  - apiGroups: ["admissionregistration.k8s.io"]
+    resources:
+      - validatingwebhookconfigurations
+    verbs:
+      - get
+      - list
+      - watch
+  # §M-1.4 修复：authentication.k8s.io
+  # k8s.io/api authentication API 用于 service account token 验证
+  - apiGroups: ["authentication.k8s.io"]
+    resources:
+      - tokenreviews
+    verbs:
+      - create
+  # §M-1.4 修复：authorization.k8s.io
+  # k8s.io/api authorization API 用于 SubjectAccessReview（in-process admission_validator 权限检查）
+  - apiGroups: ["authorization.k8s.io"]
+    resources:
+      - subjectaccessreviews
+    verbs:
+      - create
+{{- end }}
