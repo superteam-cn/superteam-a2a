@@ -147,15 +147,20 @@ class K8sLeaseLeaderElector:
 
             # Read 成功 (None = 404, dict = V1Lease)
             if lease is None:
-                # 404: Lease 不存在 → create
-                try:
-                    created = await self._create_lease(client)
-                except _TerminalK8sError as exc:
-                    raise MemoryBackendError(
-                        MemoryErrorCode.MEMORY_INTERNAL_ERROR,
-                        f"K8s Lease create failed: {exc.reason}",
-                        cause=exc.__cause__ if isinstance(exc.__cause__, Exception) else None,
-                    ) from exc.__cause__
+                # 404: Lease 不存在 → create (允许 429 重试,409 让位)
+                while True:
+                    try:
+                        created = await self._create_lease(client)
+                        break
+                    except _RetryableK8sError as exc:
+                        await asyncio.sleep(exc.delay_seconds)
+                        continue
+                    except _TerminalK8sError as exc:
+                        raise MemoryBackendError(
+                            MemoryErrorCode.MEMORY_INTERNAL_ERROR,
+                            f"K8s Lease create failed: {exc.reason}",
+                            cause=exc.__cause__ if isinstance(exc.__cause__, Exception) else None,
+                        ) from exc.__cause__
                 if created:
                     self._is_holder = True
                     self._consecutive_renew_failures = 0

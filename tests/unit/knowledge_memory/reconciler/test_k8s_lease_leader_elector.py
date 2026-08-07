@@ -357,14 +357,207 @@ def test_k8s_lease_leader_elector_auto_generates_holder_id() -> None:
     assert e1._holder_id != e2._holder_id  # uuid 唯一
 
 
-def test_k8s_lease_leader_elector_lease_body_includes_holder() -> None:
-    """_build_lease_body 必须包含 holderIdentity + annotations + duration."""
-    elector = K8sLeaseLeaderElector(holder_id="pod-body-test", duration_seconds=15.0)
-    body = elector._build_lease_body(holder_only=True)
-    assert body["apiVersion"] == "coordination.k8s.io/v1"
-    assert body["kind"] == "Lease"
-    assert body["metadata"]["name"] == "memory-reconciler-leader"
-    assert body["metadata"]["namespace"] == "superteam-a2a-system"
-    assert body["metadata"]["annotations"]["superteam-a2a.io/holder-id"] == "pod-body-test"
-    assert body["spec"]["holderIdentity"] == "pod-body-test"
-    assert body["spec"]["leaseDurationSeconds"] == 15
+async def test_k8s_lease_create_conflict_retries_read(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A concurrent creator causes a read retry before observing the winner."""
+    winner = _make_lease(holder="pod-winner")
+    client = _make_kube_client(
+        read=[_FakeApiException(404, "missing"), winner],
+        create=_FakeApiException(409, "already exists"),
+    )
+    elector = K8sLeaseLeaderElector(holder_id="pod-self", kube_client=client)
+    monkeypatch.setattr(asyncio, "sleep", AsyncMock())
+
+    assert await elector.try_acquire_or_renew() is False
+    assert client.read_namespaced_lease.await_count == 2
+    client.create_namespaced_lease.assert_awaited_once()
+
+
+async def test_k8s_lease_create_429_retries_with_retry_after(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    """A create rate limit retries and then observes the created Lease."""
+    created = _make_lease(holder="pod-create-429")
+    client = _make_kube_client(
+        read=[_FakeApiException(404, "missing"), created],
+        create=[_FakeApiException(429, "rate limited"), MagicMock()],
+    )
+    elector = K8sLeaseLeaderElector(holder_id="pod-create-429", kube_client=client)
+    sleeps: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+    assert await elector.try_acquire_or_renew() is True
+    assert sleeps == [1.0]
+    assert client.create_namespaced_lease.await_count == 2
+
+
+async def test_k8s_lease_update_409_is_retryable_failure() -> None:
+    """A lost CAS renew clears leadership for the current attempt."""
+    lease = _make_lease(holder="pod-update-409", resource_version="7")
+    client = _make_kube_client(
+        read=lease,
+        replace=_FakeApiException(409, "conflict"),
+    )
+    elector = K8sLeaseLeaderElector(holder_id="pod-update-409", kube_client=client)
+    elector._is_holder = True
+
+    assert await elector.try_acquire_or_renew() is False
+    assert elector._consecutive_renew_failures == 1
+    assert elector.is_leader() is True
+
+
+async def test_k8s_lease_update_429_uses_retry_after(monkeypatch: pytest.MonkeyPatch) -> None:
+    """A renew rate limit records one failure and respects Retry-After."""
+    lease = _make_lease(holder="pod-update-429", resource_version="8")
+    client = _make_kube_client(
+        read=lease,
+        replace=_FakeApiException(429, "rate limited", {"Retry-After": "120"}),
+    )
+    elector = K8sLeaseLeaderElector(holder_id="pod-update-429", kube_client=client)
+    elector._is_holder = True
+    sleeps: list[float] = []
+
+    async def fake_sleep(delay: float) -> None:
+        sleeps.append(delay)
+
+    monkeypatch.setattr(asyncio, "sleep", fake_sleep)
+    assert await elector.try_acquire_or_renew() is False
+    assert elector._consecutive_renew_failures == 1
+    assert sleeps == []
+
+
+def test_k8s_lease_extracts_spec_and_handles_missing_holder() -> None:
+    """The Kubernetes object fallback works when annotations are absent."""
+    lease = MagicMock()
+    lease.annotations = {}
+    lease.spec = MagicMock(holder_identity="spec-holder")
+    assert K8sLeaseLeaderElector._extract_holder_id(lease) == "spec-holder"
+
+    lease.spec = MagicMock(holder_identity=None)
+    lease.spec.holderIdentity = None
+    assert K8sLeaseLeaderElector._extract_holder_id(lease) is None
+
+
+def test_k8s_lease_retry_after_fallback_and_cap() -> None:
+    """Retry-After parsing caps numeric delays and falls back for invalid values."""
+    elector = K8sLeaseLeaderElector(holder_id="pod-retry-after")
+    assert (
+        elector._parse_retry_after(_FakeApiException(429, headers={"Retry-After": "120"})) == 60.0
+    )
+    assert (
+        elector._parse_retry_after(_FakeApiException(429, headers={"Retry-After": "invalid"}))
+        == 1.0
+    )
+    assert elector._parse_retry_after(_FakeApiException(429, "3")) == 3.0
+
+
+async def test_k8s_lease_lazy_client_uses_kube_config(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Without injection, client creation loads kube config after in-cluster failure."""
+    fake_api = MagicMock()
+    fake_api.CoordinationV1Api.return_value = "client"
+    fake_api.ApiClient.return_value = "api-client"
+    fake_k8s = MagicMock(config=MagicMock(), client=fake_api)
+    fake_k8s.config.load_incluster_config.side_effect = RuntimeError("outside cluster")
+    fake_k8s.config.load_kube_config = AsyncMock()
+
+    monkeypatch.setitem(sys.modules, "kubernetes_asyncio", fake_k8s)
+    monkeypatch.setitem(sys.modules, "kubernetes_asyncio.client", fake_api)
+    elector = K8sLeaseLeaderElector(holder_id="pod-lazy")
+
+    assert await elector._ensure_kube_client() == "client"
+    fake_k8s.config.load_incluster_config.assert_called_once()
+    fake_k8s.config.load_kube_config.assert_awaited_once()
+
+
+async def test_k8s_lease_update_5xx_counts_failure() -> None:
+    """A server-side renew failure increments the grace counter."""
+    lease = _make_lease(holder="pod-update-5xx", resource_version="9")
+    client = _make_kube_client(
+        read=lease,
+        replace=_FakeApiException(503, "unavailable"),
+    )
+    elector = K8sLeaseLeaderElector(holder_id="pod-update-5xx", kube_client=client)
+    elector._is_holder = True
+
+    assert await elector.try_acquire_or_renew() is False
+    assert elector._consecutive_renew_failures == 1
+    assert elector.is_leader() is True
+
+
+async def test_k8s_lease_update_4xx_raises_memory_error() -> None:
+    """A non-retryable update failure surfaces as a memory backend error."""
+    lease = _make_lease(holder="pod-update-403", resource_version="10")
+    client = _make_kube_client(
+        read=lease,
+        replace=_FakeApiException(403, "forbidden"),
+    )
+    elector = K8sLeaseLeaderElector(holder_id="pod-update-403", kube_client=client)
+    elector._is_holder = True
+
+    with pytest.raises(MemoryBackendError, match="update"):
+        await elector.try_acquire_or_renew()
+
+
+async def test_k8s_lease_create_403_raises_memory_error() -> None:
+    """A create without RBAC permission raises a memory backend error."""
+    client = _make_kube_client(
+        read=_FakeApiException(404, "missing"),
+        create=_FakeApiException(403, "forbidden"),
+    )
+    elector = K8sLeaseLeaderElector(holder_id="pod-create-403", kube_client=client)
+
+    with pytest.raises(MemoryBackendError, match="create"):
+        await elector.try_acquire_or_renew()
+
+
+async def test_k8s_lease_create_5xx_keeps_retrying() -> None:
+    """5xx on create retries until it succeeds."""
+    created = _make_lease(holder="pod-create-5xx")
+    client = _make_kube_client(
+        read=[_FakeApiException(404, "missing"), created],
+        create=[_FakeApiException(500, "internal"), MagicMock()],
+    )
+    elector = K8sLeaseLeaderElector(holder_id="pod-create-5xx", kube_client=client)
+
+    assert await elector.try_acquire_or_renew() is True
+    assert client.create_namespaced_lease.await_count == 2
+
+
+def test_k8s_lease_retry_after_http_date_falls_back() -> None:
+    """HTTP-date Retry-After values fall back to the default backoff."""
+    elector = K8sLeaseLeaderElector(holder_id="pod-http-date")
+    assert (
+        elector._parse_retry_after(
+            _FakeApiException(429, headers={"Retry-After": "Wed, 21 Oct 2026 07:28:00 GMT"})
+        )
+        == 1.0
+    )
+
+
+def test_k8s_lease_lease_body_renew_carries_resource_version() -> None:
+    """Renew-mode body carries the current resource version for CAS."""
+    elector = K8sLeaseLeaderElector(holder_id="pod-renew-body", duration_seconds=15.0)
+    elector._lease_resource_version = "77"
+    body = elector._build_lease_body(holder_only=False)
+    assert body["metadata"]["resourceVersion"] == "77"
+    assert body["spec"]["holderIdentity"] == "pod-renew-body"
+
+
+async def test_k8s_lease_lazy_client_uses_incluster(monkeypatch: pytest.MonkeyPatch) -> None:
+    """In-cluster kube config succeeds without touching the kubeconfig loader."""
+    fake_api = MagicMock()
+    fake_api.CoordinationV1Api.return_value = "cluster-client"
+    fake_api.ApiClient.return_value = "api-client"
+    fake_k8s = MagicMock(config=MagicMock(), client=fake_api)
+    fake_k8s.config.load_incluster_config.return_value = None
+    fake_k8s.config.load_kube_config = AsyncMock()
+
+    monkeypatch.setitem(sys.modules, "kubernetes_asyncio", fake_k8s)
+    monkeypatch.setitem(sys.modules, "kubernetes_asyncio.client", fake_api)
+    elector = K8sLeaseLeaderElector(holder_id="pod-incluster")
+
+    assert await elector._ensure_kube_client() == "cluster-client"
+    fake_k8s.config.load_incluster_config.assert_called_once()
+    fake_k8s.config.load_kube_config.assert_not_awaited()
