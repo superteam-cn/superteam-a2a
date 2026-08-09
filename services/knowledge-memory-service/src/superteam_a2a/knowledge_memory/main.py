@@ -1,19 +1,28 @@
-"""L3-6 kopf operator 入口 · 装配 timer + on.create + on.update + on.delete。
+"""L3-6 kopf operator 入口 + starlette HTTP server（同 event loop · D 方案单进程）。
 
-D 方案单进程架构（ADR-0006 v1.0 Accepted）：
+依据 ADR-0006 v1.0 Accepted + L4-Phase3 plan §3 PR-1：
 - MemoryReconcilerService 60s timer（§4.1）
 - MemoryBackendInProcessServiceImpl record/query（§6.1）
 - @kopf.on.create / @kopf.on.update 接线（§6）
 - @kopf.on.delete 接入 reconciler.finalize（§4.4）
+- starlette ASGI app: /healthz + /jsonrpc/record_memory + /jsonrpc/query_memory
+
+单进程架构：kopf + uvicorn 共享同一 asyncio event loop（§2.1 starlette 选项 C）；
+不拆 deployment，livenessProbe/readinessProbe 路径统一指向 /healthz（PR-4.1.1 #90 共用）。
 
 实际部署通过 Helm Chart + uv workspace；本入口仅供本地 kopf 启动与单元测试装配。
 """
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
 from typing import Any
 
 import kopf
+import uvicorn
+from starlette.applications import Starlette
+from superteam_a2a.knowledge_memory.api.server import create_app
 from superteam_a2a.knowledge_memory.api.service import (
     MemoryBackendInProcessServiceImpl,
 )
@@ -37,6 +46,10 @@ from superteam_a2a.knowledge_memory.reconciler.memory_reconciler import (
 API_GROUP = "memory.superteam-a2a.io"
 API_VERSION = "v1alpha1"
 KIND = "memory"
+
+# L4-Phase3 PR-1：HTTP server 端口（starlette · 替代 kopf liveness_endpoint）
+HTTP_HOST = "0.0.0.0"
+HTTP_PORT = 8080
 
 
 @kopf.on.create(API_GROUP, API_VERSION, KIND, id="memory-create")
@@ -109,17 +122,68 @@ def _build_memo() -> dict[str, Any]:
     }
 
 
-def main() -> None:
-    """kopf operator 启动入口。
+def _build_app(memo: dict[str, Any]) -> Starlette:
+    """构造 starlette app · 注入 service + clock（L4-Phase3 PR-1）。
 
-    Health endpoint（PR-4.1.1 #90）：kopf 1.44+ 内置 aiohttp health_reporter · 仅支持
-    liveness_endpoint（无 readiness_endpoint 区分）。deployment.yaml 中 livenessProbe +
-    readinessProbe 探针路径均指向 /healthz（共用）。
+    Clock 与 L3-6 §M-1.5 三方共享同源（memo["clock"]）。
     """
-    kopf.run(
-        memo=_build_memo(),
-        liveness_endpoint="http://0.0.0.0:8080/healthz",
+    return create_app(
+        service=memo["memory_in_process_service"],
+        clock=memo["clock"],
     )
+
+
+async def _run_uvicorn(app: Starlette) -> None:
+    """uvicorn.Server 在当前 event loop 中运行（与 kopf 共享 · D 方案单进程）。
+
+    lifespan="off"：starlette startup/shutdown 钩子不需要（service 已在 _build_memo 装配）。
+    log_level="info"：生产等价；测试环境通过 TestClient 不经过 uvicorn。
+    """
+    config = uvicorn.Config(
+        app=app,
+        host=HTTP_HOST,
+        port=HTTP_PORT,
+        log_level="info",
+        loop="asyncio",
+        lifespan="off",
+    )
+    server = uvicorn.Server(config=config)
+    await server.serve()
+
+
+def main() -> None:
+    """kopf operator + starlette HTTP server 同 event loop 启动入口。
+
+    L4-Phase3 PR-1（D 方案单进程 · §2.1 starlette 选项 C）：
+    - uvicorn 在 asyncio.create_task 中运行，与 kopf 共享 event loop
+    - kopf.run() 完成（或 uvicorn 异常）后触发对方 graceful shutdown
+    - /healthz 由 starlette 提供（替代 kopf 内置 liveness_endpoint）
+    - Helm deployment livenessProbe/readinessProbe 路径无需变更（共用 /healthz · PR-4.1.1 #90）
+    """
+    memo = _build_memo()
+    app = _build_app(memo)
+
+    async def _amain() -> None:
+        kopf_task = asyncio.create_task(kopf.run(memo=memo))
+        server_task = asyncio.create_task(_run_uvicorn(app))
+        # 等待任一完成 → 取消对方
+        done, pending = await asyncio.wait(
+            {kopf_task, server_task},
+            return_when=asyncio.FIRST_COMPLETED,
+        )
+        for task in pending:
+            task.cancel()
+        for task in pending:
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await task
+        # 让已完成 task 的异常正常冒泡（如有）
+        for task in done:
+            if not task.cancelled():
+                exc = task.exception()
+                if exc is not None:
+                    raise exc
+
+    asyncio.run(_amain())
 
 
 if __name__ == "__main__":
