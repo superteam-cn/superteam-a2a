@@ -1,0 +1,121 @@
+{{/*
+Deployment for Knowledge Memory Service — Phase 1 ADR-0006 D 方案单进程架构。
+参考:
+- docs/spec/L3-file-specs/L3-memory-backend.md §9.2 (line 1264-1298)
+- docs/phase2/l4-phase2-spike-plan.md §2.2 / §2.3 / §2.9
+- HELM-DEPLOY-002 验证项（§9.10 line 1518）
+
+关键不变量:
+- replicaCount=1（schema 强制 · values.schema.json minimum=1 · ADR-0006 D 单进程）
+- Recreate strategy（§9.9 line 1511：防止两个 Pod 同时活跃）
+- single container 单进程 · port 8080 对外（A2A + /healthz + /readyz + /metrics）
+- 8443 mTLS port 条件渲染（仅 tls.enabled=true 时开启）
+- restricted SecurityContext（runAsNonRoot + readOnlyRootFilesystem + drop ALL caps）
+
+§2.3 schema 交叉验证（JSON Schema 不支持跨字段约束 · 通过 helm template fail 实现）：
+- leaderElection.backend=k8s → replicaCount>=2（单副本+leader election 无意义）
+- replicaCount==1 → leaderElection.backend 强制 in_process（ADR-0006 D 单进程）
+*/}}
+{{- if and (eq .Values.leaderElection.backend "k8s") (lt (int .Values.replicaCount) 2) -}}
+{{- fail (printf "leaderElection.backend=k8s requires replicaCount>=2 (current: %d). See Phase 2 spike plan §2.3." .Values.replicaCount) -}}
+{{- end -}}
+{{- if and (eq (int .Values.replicaCount) 1) (ne .Values.leaderElection.backend "in_process") -}}
+{{- fail (printf "replicaCount=1 forces leaderElection.backend=in_process (current: %s). ADR-0006 D 方案单进程架构。" .Values.leaderElection.backend) -}}
+{{- end }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "knowledge-memory-service.fullname" . }}
+  labels:
+    {{- include "knowledge-memory-service.labels" . | nindent 4 }}
+    app.kubernetes.io/component: knowledge-memory-service
+spec:
+  replicas: {{ .Values.replicaCount }}
+  strategy:
+    type: Recreate  # §9.9: 单进程 D 方案 · 防两个 Pod 同时活跃 · Lease 仍是最终防线
+  selector:
+    matchLabels:
+      {{- include "knowledge-memory-service.selectorLabels" . | nindent 6 }}
+  template:
+    metadata:
+      annotations:
+        # kopf 在 Pod 内启动 operator · 让 kopf 看到自身的 annotations 触发 reconcile
+        kopf-superteam-a2a-io/managed-by: knowledge-memory-service
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "knowledge-memory-service.selectorLabels" . | nindent 8 }}
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "knowledge-memory-service.serviceAccountName" . }}
+      automountServiceAccountToken: true  # kopf + Lease client 需要 SA token
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: knowledge-memory-service
+          {{- with .Values.image }}
+          image: "{{ .repository }}:{{ .tag | default $.Chart.AppVersion }}"
+          imagePullPolicy: {{ .pullPolicy }}
+          {{- end }}
+          ports:
+            - name: http
+              containerPort: {{ .Values.service.targetPort }}
+              protocol: TCP
+            {{- if .Values.tls.enabled }}
+            - name: https
+              containerPort: 8443
+              protocol: TCP
+            {{- end }}
+          env:
+            - name: PYTHONUNBUFFERED
+              value: "1"  # 保证 kopf log 实时输出
+            - name: PYTHONDONTWRITEBYTECODE
+              value: "1"  # readOnlyRootFilesystem=true 下避免容器内写 .pyc
+            - name: KOPF_LOG_LEVEL
+              value: {{ .Values.operator.logLevel | default "INFO" | quote }}
+            - name: LEADER_ELECTION_BACKEND
+              value: {{ .Values.leaderElection.backend | quote }}
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+          {{- if .Values.tls.enabled }}
+          volumeMounts:
+            - name: tls
+              mountPath: /var/run/secrets/tls
+              readOnly: true
+          {{- end }}
+          livenessProbe:
+            {{- toYaml .Values.livenessProbe | nindent 12 }}
+          readinessProbe:
+            {{- toYaml .Values.readinessProbe | nindent 12 }}
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+      {{- if .Values.tls.enabled }}
+      volumes:
+        - name: tls
+          secret:
+            secretName: {{ .Values.tls.secretName | default "knowledge-service-tls" }}
+            defaultMode: 0400
+      {{- end }}
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

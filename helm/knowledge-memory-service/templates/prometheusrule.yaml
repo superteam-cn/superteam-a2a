@@ -1,0 +1,98 @@
+{{/*
+PrometheusRule for Knowledge Memory Service — 8 条共享告警。
+参考:
+- docs/spec/L3-file-specs/L3-memory-backend.md §9.7 (line 1385-1486)
+- HELM-DEPLOY-006 验证项：8 rules 通过 promtool
+
+severity 标签为 warning/critical · service 标签为 knowledge-service 或 memory-backend
+不得使用对象名 label（§9.7 line 1488 约束）
+*/}}
+{{- if .Values.prometheusRule.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: {{ include "knowledge-memory-service.fullname" . }}-rules
+  labels:
+    {{- include "knowledge-memory-service.labels" . | nindent 4 }}
+    app.kubernetes.io/component: observability
+    {{- with .Values.prometheusRule.labels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  groups:
+    - name: knowledge-memory-service.rules
+      interval: 30s
+      rules:
+        - alert: KnowledgeQueryLatencyP99
+          expr: histogram_quantile(0.99, sum by (le) (rate(superteam_knowledge_query_latency_seconds_bucket[5m]))) > 0.1
+          for: 10m
+          labels:
+            severity: warning
+            service: knowledge-service
+          annotations:
+            summary: "Knowledge query p99 latency above 100ms for 10m"
+            runbook_url: "https://runbooks.example.invalid/knowledge-service/query-latency"
+        - alert: KnowledgeBM25IndexStale
+          expr: increase(superteam_knowledge_query_total[10m]) > 0 and max(superteam_knowledge_bm25_index_size) == 0
+          for: 5m
+          labels:
+            severity: critical
+            service: knowledge-service
+          annotations:
+            summary: "BM25 index empty while queries are served"
+            runbook_url: "https://runbooks.example.invalid/knowledge-service/bm25-stale"
+        - alert: KnowledgeMemoryConflictRate
+          expr: sum(rate(superteam_knowledge_memory_conflict_total[5m])) > 0.1
+          for: 10m
+          labels:
+            severity: warning
+            service: knowledge-service
+          annotations:
+            summary: "Knowledge/Memory conflict rate above 0.1/s for 10m"
+            runbook_url: "https://runbooks.example.invalid/knowledge-service/memory-conflict"
+        - alert: KnowledgeAdmissionFailureRate
+          expr: histogram_quantile(0.99, sum by (le) (rate(superteam_knowledge_admission_duration_seconds_bucket[5m]))) > 0.05
+          for: 5m
+          labels:
+            severity: critical
+            service: knowledge-service
+          annotations:
+            summary: "Admission p99 above 50ms for 5m"
+            runbook_url: "https://runbooks.example.invalid/knowledge-service/admission-fail"
+        - alert: KnowledgeServiceDown
+          expr: up{job="knowledge-service"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            service: knowledge-service
+          annotations:
+            summary: "Knowledge Service scrape target down for 2m"
+            runbook_url: "https://runbooks.example.invalid/knowledge-service/down"
+        - alert: KnowledgeMemoryReconcileErrorRate
+          expr: sum(rate(superteam_memory_reconcile_total{result="error"}[5m])) > 0.05
+          for: 10m
+          labels:
+            severity: warning
+            service: memory-backend
+          annotations:
+            summary: "Memory reconcile error rate above 0.05/s for 10m"
+            runbook_url: "https://runbooks.example.invalid/memory-backend/reconcile-error"
+        - alert: MemoryReconcileDeadlineRisk
+          expr: histogram_quantile(0.99, sum by (le) (rate(superteam_memory_reconcile_duration_seconds_bucket[10m]))) > 50
+          for: 5m
+          labels:
+            severity: critical
+            service: memory-backend
+          annotations:
+            summary: "Memory reconcile p99 above 50s for 5m"
+            runbook_url: "https://runbooks.example.invalid/memory-backend/reconcile-deadline"
+        - alert: MemoryBackendNotReady
+          expr: up{job="knowledge-service"} == 1 and absent(superteam_memory_reconcile_total)
+          for: 2m
+          labels:
+            severity: critical
+            service: memory-backend
+          annotations:
+            summary: "Memory backend scrape present but no reconcile metric emitted"
+            runbook_url: "https://runbooks.example.invalid/memory-backend/not-ready"
+{{- end }}

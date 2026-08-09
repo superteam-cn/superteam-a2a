@@ -1,0 +1,220 @@
+# Memory CustomResourceDefinition — knowledge-memory-service
+# Reference: docs/spec/L3-file-specs/L3-memory-backend.md §3 + packages/operator/src/.../memory.py
+# Phase 2 PR-4.1 chart 完整化（#89）
+#
+# wire schema 与 Pydantic v2 模型 (MemorySpec / MemoryStatus / 嵌套类型) 100% 一致。
+# ConfigDict(extra="forbid", populate_by_name=True) 在 K8s schema 层通过 additionalProperties: false 实现。
+#
+# 应用范围：cluster-scoped CRD · apiGroups memory.superteam-a2a.io · API version v1alpha1 · Kind Memory · plural memories
+---
+apiVersion: apiextensions.k8s.io/v1
+kind: CustomResourceDefinition
+metadata:
+  name: memories.memory.superteam-a2a.io
+  labels:
+    app.kubernetes.io/name: knowledge-memory-service
+    app.kubernetes.io/component: crd
+    app.kubernetes.io/part-of: superteam-a2a
+spec:
+  group: memory.superteam-a2a.io
+  scope: Namespaced
+  names:
+    plural: memories
+    singular: memory
+    kind: Memory
+    listKind: MemoryList
+    shortNames:
+      - mem
+  versions:
+    - name: v1alpha1
+      served: true
+      storage: true
+      additionalPrinterColumns:
+        - name: Phase
+          type: string
+          jsonPath: .status.phase
+        - name: Summary
+          type: string
+          jsonPath: .spec.summary
+        - name: Effective Confidence
+          type: number
+          jsonPath: .status.effectiveConfidence
+          priority: 1
+        - name: Age
+          type: date
+          jsonPath: .metadata.creationTimestamp
+        - name: Scope
+          type: string
+          jsonPath: .spec.scopeRef.name
+          priority: 1
+      schema:
+        openAPIV3Schema:
+          type: object
+          additionalProperties: false
+          required:
+            - spec
+          properties:
+            spec:
+              type: object
+              additionalProperties: false
+              required:
+                - scopeRef
+                - agentRef
+                - content
+                - summary
+              properties:
+                scopeRef:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - name
+                  properties:
+                    name:
+                      type: string
+                      minLength: 1
+                      maxLength: 128
+                    level:
+                      type: string
+                      nullable: true
+                agentRef:
+                  type: object
+                  additionalProperties: false
+                  required:
+                    - name
+                  properties:
+                    kind:
+                      type: string
+                      default: ServiceAccount
+                      enum:
+                        - ServiceAccount
+                    name:
+                      type: string
+                      minLength: 1
+                      maxLength: 253
+                content:
+                  type: object
+                  minProperties: 1
+                  maxProperties: 20
+                  additionalProperties:
+                    type: string
+                summary:
+                  type: string
+                  minLength: 1
+                  maxLength: 512
+                confidence:
+                  type: number
+                  format: double
+                  default: 1.0
+                  minimum: 0.0
+                  maximum: 1.0
+                decayDays:
+                  type: integer
+                  default: 30
+                  minimum: 1
+                  maximum: 3650
+                reinforcedCount:
+                  type: integer
+                  default: 0
+                  minimum: 0
+                lastReinforcedAt:
+                  type: string
+                  format: date-time
+                  nullable: true
+                memoryKeyPattern:
+                  type: string
+                  maxLength: 128
+                  nullable: true
+                sourceKnowledgeRef:
+                  type: object
+                  nullable: true
+                  additionalProperties:
+                    type: string
+                    x-kubernetes-int-or-string: true
+                tags:
+                  type: array
+                  nullable: true
+                  maxItems: 10
+                  items:
+                    type: string
+                visibility:
+                  type: string
+                  default: scope-and-children
+                  enum:
+                    - scope-only
+                    - scope-and-children
+                    - agent-private
+            status:
+              type: object
+              additionalProperties: false
+              properties:
+                phase:
+                  type: string
+                  nullable: true
+                  enum:
+                    - Active
+                    - Decaying
+                    - Promotable
+                    - Expired
+                    - Error
+                message:
+                  type: string
+                  nullable: true
+                  maxLength: 512
+                conditions:
+                  type: array
+                  items:
+                    type: object
+                    additionalProperties: false
+                    required:
+                      - type
+                      - status
+                      - lastTransitionTime
+                    properties:
+                      type:
+                        type: string
+                        enum:
+                          - Decayed
+                          - Reinforced
+                          - Promoted
+                          - Archived
+                          - GarbageCollected
+                      status:
+                        type: string
+                        enum:
+                          - "True"
+                          - "False"
+                          - Unknown
+                      reason:
+                        type: string
+                        nullable: true
+                        maxLength: 128
+                      message:
+                        type: string
+                        nullable: true
+                        maxLength: 512
+                      lastTransitionTime:
+                        type: string
+                        format: date-time
+                lastDecayedAt:
+                  type: string
+                  format: date-time
+                  nullable: true
+                lastReinforcedAt:
+                  type: string
+                  format: date-time
+                  nullable: true
+                effectiveConfidence:
+                  type: number
+                  format: double
+                  nullable: true
+                  minimum: 0.0
+                  maximum: 1.0
+                eligibleForPromotion:
+                  type: boolean
+                  nullable: true
+                observedGeneration:
+                  type: integer
+                  nullable: true
+                  minimum: 0
+      subresources:
+        status: {}

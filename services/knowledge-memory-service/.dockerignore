@@ -1,0 +1,56 @@
+# Knowledge Memory Service — Docker build context exclusions
+# 用于 docker build -f services/knowledge-memory-service/Dockerfile .  时排除无关文件
+# 显著缩小 build context 体积，加快 docker daemon 传输
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+*.egg
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Testing / coverage
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.mypy_cache/
+.ruff_cache/
+.pyright_cache/
+
+# IDE / editors
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# CI / docs
+.github/
+docs/
+*.md
+!services/knowledge-memory-service/README.md
+
+# Helm charts（不在容器内）
+helm/
+
+# Build artifacts
+target/
+*.log
+*.tmp
