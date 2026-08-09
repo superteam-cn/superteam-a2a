@@ -18,11 +18,11 @@ jobs:
   ci:
     name: Lint / Type-check / Test (Python ${{ matrix.python-version }})
     runs-on: ubuntu-latest
-    fail-fast: false
 
     strategy:
+      fail-fast: false
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.12"]
 
     steps:
       - name: Checkout (full history)
@@ -31,15 +31,15 @@ jobs:
           fetch-depth: 0
 
       - name: Install uv
-        uses: astral-sh/uv-action@v3
+        uses: astral-sh/setup-uv@v6
         with:
           version: latest
 
       - name: Set up Python ${{ matrix.python-version }}
         run: uv python install ${{ matrix.python-version }}
 
-      - name: Sync dependencies (all extras)
-        run: uv sync --all-extras --python ${{ matrix.python-version }}
+      - name: Sync dependencies (all packages + all extras)
+        run: uv sync --all-packages --all-extras --python ${{ matrix.python-version }}
 
       - name: Lint (ruff check)
         run: uv run --python ${{ matrix.python-version }} ruff check . --output-format=github
@@ -50,8 +50,8 @@ jobs:
       - name: Type-check (pyright)
         run: uv run --python ${{ matrix.python-version }} pyright
 
-      - name: Run tests
-        run: uv run --python ${{ matrix.python-version }} pytest tests/ -v --tb=short
+      - name: Run tests (unit + conformance only · e2e 由 e2e-envtest.yml 管理)
+        run: uv run --python ${{ matrix.python-version }} pytest tests/unit tests/conformance -v --tb=short
 
       - name: YAML lint
         uses: frenck/action-yamllint@v1
