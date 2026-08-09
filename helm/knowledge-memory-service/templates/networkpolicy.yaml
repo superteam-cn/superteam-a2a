@@ -1,0 +1,69 @@
+{{/*
+NetworkPolicy for Knowledge Memory Service — default-deny + 显式 allow。
+参考:
+- docs/spec/L3-file-specs/L3-memory-backend.md §9.6 (line 1366-1383)
+- HELM-DEPLOY-005 验证项：default-deny + A2A/mTLS + Prometheus + K8s API + OTLP 显式允许
+
+D 方案单进程无需 UDS（同 Pod Unix socket 通过 emptyDir + UID/GID + 0660 隔离）
+*/}}
+{{- if .Values.networkPolicy.enabled -}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "knowledge-memory-service.fullname" . }}
+  labels:
+    {{- include "knowledge-memory-service.labels" . | nindent 4 }}
+    app.kubernetes.io/component: network
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "knowledge-memory-service.selectorLabels" . | nindent 6 }}
+  policyTypes:
+    - Ingress
+    - Egress
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.a2aNamespace | default "superteam-a2a" }}
+      ports:
+        - port: 8080
+          protocol: TCP
+        - port: 8443
+          protocol: TCP
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.monitoringNamespace | default "monitoring" }}
+      ports:
+        - port: 8080
+          protocol: TCP
+  egress:
+    # Kubernetes API server（leader election Lease + CustomObjectsApi CRUD + tokenreview/subjectaccessreview）
+    - to:
+        - ipBlock:
+            cidr: {{ .Values.networkPolicy.kubeApiCidr | default "10.96.0.1/32" }}
+      ports:
+        - port: 443
+          protocol: TCP
+    # OTLP 推送（observability namespace · tracing/metrics 导出）
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.observabilityNamespace | default "observability" }}
+      ports:
+        - port: 4317
+          protocol: TCP
+        - port: 4318
+          protocol: TCP
+    # DNS resolution（CoreDNS kube-system 53/UDP + 53/TCP）
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: kube-system
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+{{- end }}

@@ -1,0 +1,38 @@
+{{/*
+ServiceMonitor for Knowledge Memory Service — Prometheus scrape 配置。
+参考:
+- docs/spec/L3-file-specs/L3-memory-backend.md §9.8 (line 1490-1507)
+- HELM-DEPLOY-007 验证项：25 指标经单一 ServiceMonitor 可见
+
+metricRelabelings `__name__` keep 规则包含 superteam_a2a_* / superteam_knowledge_* / superteam_memory_* / python_* / process_*
+*/}}
+{{- if .Values.serviceMonitor.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "knowledge-memory-service.fullname" . }}
+  labels:
+    {{- include "knowledge-memory-service.labels" . | nindent 4 }}
+    app.kubernetes.io/component: observability
+  {{- with .Values.serviceMonitor.labels }}
+  {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  namespaceSelector:
+    matchNames:
+      - {{ .Release.Namespace }}
+  selector:
+    matchLabels:
+      {{- include "knowledge-memory-service.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.serviceMonitor.scrapeTimeout }}
+      scheme: http
+      honorLabels: true
+      metricRelabelings:
+        - action: keep
+          sourceLabels: [__name__]
+          regex: 'superteam_a2a_.*|superteam_knowledge_.*|superteam_memory_.*|python_.*|process_.*'
+{{- end }}

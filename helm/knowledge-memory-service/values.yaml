@@ -86,6 +86,10 @@ leaderElection:
   # - k8s: Phase 2 spike · 需 replicaCount >= 2 + PR-1 RBAC 修复完成
   backend: in_process
 
+# kopf operator 配置（L3-6 §4.1 timer interval=60s + §4.4 finalize decorator）
+operator:
+  logLevel: INFO  # kopf 日志级别：DEBUG / INFO / WARNING / ERROR
+
 # TLS / cert-manager 配置（Phase 2 §2.7 默认禁用）
 tls:
   enabled: false

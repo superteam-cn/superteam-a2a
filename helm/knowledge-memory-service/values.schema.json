@@ -82,6 +82,16 @@
       },
       "required": ["backend"]
     },
+    "operator": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "logLevel": {
+          "type": "string",
+          "enum": ["DEBUG", "INFO", "WARNING", "ERROR"]
+        }
+      }
+    },
     "tls": {
       "type": "object",
       "additionalProperties": false,
