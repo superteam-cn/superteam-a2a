@@ -31,7 +31,14 @@
 
 This repository was created on 2026-07-08. Scope is locked per [ADR-0001](./docs/adr/0001-v1-scope-statement.md) and [ADR-0004](./docs/adr/0004-v01-scope-extension-knowledge-and-memory.md): **5 base capabilities** (discovery / communication / observability / orchestration / **knowledge management**), **6 CRDs** (Agent / AgentSet / Workflow / KnowledgeScope / KnowledgeItem / Memory), 4-phase delivery (`v0.1.0-alpha` → `beta` → `rc` → `v0.1.0`).
 
-Constitution is at v0.5.0; L1 architecture has been reviewed and accepted. **The current focus is Python-first full-stack migration (ADR-0005) + L4 实施层启动（ADR-0006 v1.0 Accepted · D 方案 · 2026-07-30 #71）** — L1 v0.2.0 + L2-1 v0.2.0 + L2-2 v0.2.0 + L2-3 v0.2.0 + **L2-4 v0.2.0** Python all passed review (2026-07-24 → 2026-07-27). **L2 阶段 4/4 全部完成**（Python 化 100%）。**L3 阶段 6/6 全部完成**（文件级 Spec 100% 通过评审）：L3-1 Operator Core v0.2.0（#56）+ L3-2 A2A Core v0.2.0（#54）+ L3-3 Adapter SDK v0.2.0（#58）+ L3-4 Hello Agent v0.2.0（#61）+ **L3-5 Knowledge Service v0.2.0（#63.5）** + **L3-6 Memory backend v0.2.0（#67）** + **L3-5 v0.2.1 + L3-6 v0.2.1（ADR-0006 D 方案单进程合并 #71）** + **L1 v0.2.0 §4.1 C-6 + C-7 合并为 Knowledge-Memory Service（#71）** + **ADR-0006 v1.0 Accepted（OPEN-MEMORY-001 + OPEN-L1-003 + OPEN-ADR-0006-001 全部关闭 · D 方案 · 2026-07-30 #71）** 文件级 Spec 均通过评审。No production code yet — check [ROADMAP.md](./ROADMAP.md) for the full timeline.
+Constitution is at v0.5.0; L1 architecture has been reviewed and accepted. **The current focus is Python-first full-stack migration (ADR-0005) + L4 实施层启动（ADR-0006 v1.0 Accepted · D 方案 · 2026-07-30 #71）** — L1 v0.2.0 + L2-1 v0.2.0 + L2-2 v0.2.0 + L2-3 v0.2.0 + **L2-4 v0.2.0** Python all passed review (2026-07-24 → 2026-07-27). **L2 阶段 4/4 全部完成**（Python 化 100%）。**L3 阶段 6/6 全部完成**（文件级 Spec 100% 通过评审）：L3-1 Operator Core v0.2.0（#56）+ L3-2 A2A Core v0.2.0（#54）+ L3-3 Adapter SDK v0.2.0（#58）+ L3-4 Hello Agent v0.2.0（#61）+ **L3-5 Knowledge Service v0.2.0（#63.5）** + **L3-6 Memory backend v0.2.0（#67）** + **L3-5 v0.2.1 + L3-6 v0.2.1（ADR-0006 D 方案单进程合并 #71）** + **L1 v0.2.0 §4.1 C-6 + C-7 合并为 Knowledge-Memory Service（#71）** + **ADR-0006 v1.0 Accepted（OPEN-MEMORY-001 + OPEN-L1-003 + OPEN-ADR-0006-001 全部关闭 · D 方案 · 2026-07-30 #71）** 文件级 Spec 均通过评审。
+
+**L4 实施层进度**（2026-08-09 #87）：
+- ✅ **Phase 1 MVP Core 5/5 Step merged**（PR #17/#18/#19/#20/#21 · 138/138 PASS · uv workspace + Memory CRD + MemoryBackend 抽象层 + MemoryReconciler 60s kopf.timer + in-process handlers + admission + BM25 Index + handle_query_memory）
+- 🚧 **Phase 2 Memory spike 4/5 PR**（PR #22 RBAC §M-1.4 + #23 K8sLeaseLeaderElector 完整实装 192 PASS + #24 H-RM/H-QM IT/CF stub 4 ID · #25 kind E2E spike 基础设施 open · 179/179 PASS）
+- ⏸ **chart 缺口 P0**（Helm chart 缺 deployment.yaml + service.yaml + CRD + Dockerfile · PR-4.1 待启动 · 2026-08-09 #87 发现）
+
+No production code yet — check [ROADMAP.md](./ROADMAP.md) for the full timeline.
 
 ### L2 模块矩阵（2026-07-27 · L2 阶段 4/4 完成）
 

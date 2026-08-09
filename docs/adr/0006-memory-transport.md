@@ -548,12 +548,41 @@ L3-6 v0.2.0 §1.2 + L3-5 v0.2.0 §1.2 共同锁定的 5 项关键不变量全部
 ### M.6 文档元数据
 
 - **创建日期**：2026-07-30 #68（v0.1-draft 候选）
-- **最后更新**：2026-07-30 #71（Accepted · D 方案 · 项目发起人最终审批通过）
-- **下次更新**：v0.2.1 微同步（L3-5 + L3-6 + L1 + Helm + uv workspace）+ OPEN-MEMORY-001 关闭 + L4 实施层 kind spike 验证
+- **最后更新**：2026-08-09 #88（Phase 2 PR-1/PR-2/PR-3 全部 merged · PR-4 spike 基础设施就绪 · chart 缺口 P0 跟进 PR-4.1）
+- **下次更新**：Phase 2 PR-4.1 chart 完整化（deployment.yaml + service.yaml + CRD + Dockerfile）后 → PR-5 文档同步 → K8sBackend Phase 3 启动决策
 - **依赖完整性**：上游 L3-5 v0.2.0 + L3-6 v0.2.0 + L1 v0.2.0 + 宪法 v0.5.0 全部就绪
 - **评审模式**：宪法 v0.5.0 §14.5 MVP 例外单点评审（与 ADR-0005 Accepted 同模式）
 - **总评审记录**：Subagent 1 起草（#68 · 13 tool uses / 116 秒 / 28.7KB）+ 主 Agent 验收（#70 · 10 维度全 PASS / 0 关注项 / 0 建议项）+ 项目发起人最终审批（D 方案 · #71 Accepted）
-- **下游影响**：L3-5 v0.2.1 + L3-6 v0.2.1 + L1 v0.2.0 + Helm values + uv workspace（ADR-0005 §13.1）+ L4 实施层（packages/knowledge-memory + services/knowledge-memory-service）+ OPEN-MEMORY-001 关闭
+- **下游影响**：L3-5 v0.2.1 + L3-6 v0.2.1 + L1 v0.2.0 + Helm values + uv workspace（ADR-0005 §13.1）+ L4 实施层（packages/knowledge-memory + services/knowledge-memory-service）+ OPEN-MEMORY-001 关闭 + Phase 2 PR-1/2/3/4 spike 基础设施（PR #22/#23/#24 merged + PR #25 open）
+
+### M.7 Phase 2 spike 记录（2026-08-07 ~ 2026-08-09 · #84-#87）
+
+ADR-0006 v1.0 Accepted D 方案（单进程 · 合并 L3-5 + L3-6）已通过 Phase 1 实施层 5/5 Step 验证（PR #17/#18/#19/#20/#21 · 138/138 PASS）。Phase 2 进入 spike 阶段（kind K8s 集群 E2E + K8sLeaseLeaderElector 实装），所有 Phase 2 PR 都**不修改 ADR-0006 D 方案决策**，仅实装 spike 基础设施。
+
+| PR | 标题 | 状态 | 关键交付 | D 方案兼容性 |
+|---|---|---|---|---|
+| **#22** | PR-1 RBAC §M-1.4 修复 | ✅ merged | `role_write.yaml` 追加 admissionregistration.k8s.io + authentication.k8s.io + authorization.k8s.io 3 apiGroups（TEST-MEM-051 集合相等断言 PASS） | 100%（仅 RBAC 扩展，未触动 transport 决策） |
+| **#23** | PR-2 K8sLeaseLeaderElector 完整实装 | ✅ merged | 替换 `leader.py` stub 为完整实装（179+13=192 PASS · 覆盖率 93.26% 达 §2.9 ≥92% 门槛 · create-429 重试修复） | 100%（默认 `leaderElection.backend=in_process` 保持 D 方案） |
+| **#24** | PR-3 H-RM/H-QM IT/CF stub 实装 | ✅ merged | 4 ID 升级（H-RM-IT-001 + H-RM-CF-001 + H-QM-IT-001 + H-QM-CF-001） · 138+4=142 PASS | 100%（stub 仅替换 IT 测试，与 transport 决策无关） |
+| **#25** | PR-4 kind E2E spike 基础设施 | 🟡 open | `tests/e2e/` 完整结构 + `.github/workflows/e2e-envtest.yml` + 5 E2E 测试 stub · LEADER-E2E-001 PASS · 5 skipped（chart 缺口 P0） | 100%（workflow 配置 `leaderElection.backend=in_process` 默认 + `k8s` opt-in · 与 §2.2/§2.3 schema 一致） |
+
+**Phase 2 spike 关键不变量保持**（与 ADR-0006 D 方案 + L3-6 §1.2 一致）：
+1. 单 Pod 单 Container 单进程 · `replicaCount=1` · `leaderElection.backend=in_process` 默认（§2.2）
+2. 60s MemoryReconciler timer 不变（§3.4 E2E 保留 60s · IT 层 interval=5s 覆盖）
+3. L3-5/L3-6 共享 Deployment · Helm chart 主结构不变（PR-4 不改 chart · 仅 E2E 测试 + workflow）
+4. 4 纯函数数学不变 · 12 MEMORY_* 错误码权威名 100% wire 一致（TEST-MEM-051 持续 PASS）
+5. wire contract 不变 · H-RM/H-QM E2E 走 A2A JSON-RPC envelope（§2.12 评审补充 3）
+
+**Phase 2 → Phase 3 边界**（§2.15 评审补充 6）：
+- Phase 3 入口：K8sBackend 实装（OPEN-MEMORY-002 多副本 v0.5+ 决策通过后启动）
+- Phase 2 留在 main 的资产：5 PR 全部 merged + `kind_cluster` fixture 共享给 Phase 3 测试 + `e2e-envtest.yml` workflow 复用 + `k8s_lease_leader_elector.py` 复用（Phase 3 K8sBackend 直接用此 leader election 机制）
+
+**Phase 2 PR-4.1 P0 跟进项**（chart 缺口 · #87 发现）：
+- `helm/knowledge-memory-service/crds/memory-crd.yaml`（基于 `packages/operator/src/.../memory.py` Memory 模型反射）
+- `helm/knowledge-memory-service/templates/deployment.yaml`（kopf operator pod）
+- `helm/knowledge-memory-service/templates/service.yaml`（port 8080）
+- `Dockerfile`（python:3.12-slim + uv + workspace install + kopf entrypoint）
+- 启用当前 5 个 skipped E2E 测试
 
 ---
 

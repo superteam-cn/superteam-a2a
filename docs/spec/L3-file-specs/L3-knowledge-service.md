@@ -2564,6 +2564,7 @@ AppSet 用 dev/staging/prod list generator；prod 使用签名不可变 tag 与�
 | 2026-07-29 #63.2.2（Subagent 2） | 补完 §7-§13 + 附录 B：20 指标 + structlog 8 字段 + 8 EventReason；23 错误码与 retry/CB 矩阵；7 Helm 模板组 + L3-6 共享 chart；60 测试能力组 + 30 验收点 + 7 步工作流 + Docker/cert-manager/Kopf/OTel/Argo；22 项开放问题三层模式；ADR/Constitution 5 子表 | **v0.2-draft-full** · 待 #63.5 独立评审 |
 | 2026-07-29 #63.5 | L3-5 独立评审（Subagent 3）：552 行 / 57KB / §A-§Q 17 节 / 10 维度全 PASS（0 阻塞 / 4 关注 / 4 建议）+ 错误码漂移 23 处全部替换为 L2-4 §9.1 权威名（Subagent 4 修正）+ §5 admission 4 处内部编号漂移修正 | **v0.2.0 升级** |
 | 2026-07-29 #63.5.1（Subagent 4 修正） | 错误码 50+ 处修正：§8.1 11 KNOWLEDGE_* + §8.2 12 MEMORY_* + §8.3 Retryable 矩阵 23 行 + §5.0-5.3 admission 5 处 + §4 getKnowledgeItem handler 4 处 + §5.1 imports 8 个；与 L2-4 v0.2.0 §9.1 权威名 100% 一致 | 关注项 §M-1.1 + §M-1.2 关闭 |
+| **2026-08-09 #87** | **Phase 2 PR-1 RBAC §M-1.4 修复（PR #22 merged）+ PR-2 K8sLeaseLeaderElector 完整实装（PR #23 merged · 192 PASS）+ PR-3 H-RM/H-QM IT/CF stub 4 ID 实装（PR #24 merged）+ PR-4 kind E2E spike 基础设施（PR #25 open · LEADER-E2E-001 PASS · 5 skipped · chart 缺口 P0 跟进 PR-4.1）** | **Phase 2 spike 4/5 PR 完成 · ADR-0006 D 方案兼容性 100% 保持 · 5 项关键不变量持续 PASS** |
 
 ### M.3 配套引用
 
