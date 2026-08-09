@@ -134,22 +134,24 @@ readinessProbe:
 def test_leader_e2e_002_k8s_lease_spike(kind_cluster, chart_status):
     if not chart_status[0]:
         pytest.skip(f"chart incomplete: {chart_status[1]}")
-    
+
     # helm install rc=2 backend=k8s
     subprocess.run(["helm", "install", "kmem", str(CHART_PATH), ...], check=True)
-    
+
     # wait pods ready
-    subprocess.run(["kubectl", "wait", "--for=condition=ready", "pod", "-l", ..., "--timeout=120s"], check=True)
-    
+    subprocess.run(
+        ["kubectl", "wait", "--for=condition=ready", "pod", "-l", ..., "--timeout=120s"], check=True
+    )
+
     # identify leader pod (持有 Lease)
     leader_pod = subprocess.run(["kubectl", "get", "pods", "-o", "jsonpath=..."]).stdout
-    
+
     # kill leader
     subprocess.run(["kubectl", "delete", "pod", leader_pod], check=True)
-    
+
     # wait new leader within 30s
     subprocess.run(["kubectl", "wait", ..., "--timeout=30s"], check=True)
-    
+
     # verify new leader pod name != old leader
     new_leader = subprocess.run(["kubectl", "get", "pods", ...]).stdout
     assert new_leader != leader_pod
@@ -162,7 +164,7 @@ def test_leader_e2e_002_k8s_lease_spike(kind_cluster, chart_status):
 def test_lifecycle_e2e_001_apply_to_bound(kind_cluster, chart_status, e2e_namespace):
     if not chart_status[0]:
         pytest.skip(f"chart incomplete: {chart_status[1]}")
-    
+
     # apply Memory CRD with required fields
     cr_yaml = f"""
 apiVersion: memory.superteam-a2a.io/v1alpha1
@@ -177,12 +179,22 @@ spec:
   summary: "E2E test memory"
 """
     apply_memory_cr(cr_yaml)
-    
+
     # wait 60s + buffer for kopf operator 60s timer + reconcile
-    subprocess.run(["kubectl", "wait", "--for=jsonpath='{.status.phase}'=Bound", 
-                    "memory", "e2e-test-mem", "-n", e2e_namespace,
-                    "--timeout=120s"], check=True)
-    
+    subprocess.run(
+        [
+            "kubectl",
+            "wait",
+            "--for=jsonpath='{.status.phase}'=Bound",
+            "memory",
+            "e2e-test-mem",
+            "-n",
+            e2e_namespace,
+            "--timeout=120s",
+        ],
+        check=True,
+    )
+
     # verify observedGeneration set
     observed_gen = subprocess.run(["kubectl", "get", "memory", "-o", "jsonpath=..."]).stdout
     assert int(observed_gen) >= 1
