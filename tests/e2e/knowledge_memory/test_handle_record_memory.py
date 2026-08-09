@@ -2,14 +2,14 @@
 
 Reference: Phase 2 plan §3.4 + L3-5 §4.3 line 1178 + L2-4 §6.4 wire contract.
 
-NOTE: This test requires a deployed knowledge-memory-service operator in the
-kind cluster, which depends on:
-1. Memory CRD installed (currently MISSING from repo)
-2. Helm chart deployment.yaml (currently MISSING)
-3. Helm chart service.yaml (currently MISSING)
-4. Dockerfile (currently MISSING)
+Phase 2 PR-4.1.1 #91 状态：
+- chart 完整（PR #27 #89 #90 已 merged · CRD + deployment + service + Dockerfile）
+- main.py 加 kopf liveness_endpoint（PR-4.1.1 main.py 改动）
+- 但 **A2A HTTP JSON-RPC server 未实装**（仅 kopf in-process operator · 无 HTTP/JSON-RPC endpoint）
+- Phase 3 OPEN-MEMORY-002 候选（K8sBackend 完整实装 + A2A HTTP server）
 
-All 4 prerequisites deferred to Phase 2 PR-4.1. Test skips cleanly until then.
+测试跳过原因：A2A HTTP server 未实装 → 无法通过 JSON-RPC envelope `recordMemory`
+验证 response error.code。Phase 2 PR-4.1.1 仅启用 LEADER + LIFECYCLE E2E。
 """
 
 from __future__ import annotations
@@ -27,10 +27,10 @@ def test_h_rm_e2e_001_a2a_record_memory_via_a2a_call() -> None:
     3. A2A JSON-RPC envelope `recordMemory` 验证 response error.code == 0
        或 12 MEMORY_* 错误码之一（按场景）
 
-    跳过条件：Memory CRD 未注册 + operator 未部署。
+    跳过条件：A2A HTTP JSON-RPC server 未实装（OPEN-MEMORY-002 · Phase 3 候选）。
     """
     pytest.skip(
-        "H-RM-E2E-001 deferred to Phase 2 PR-4.1 · "
-        "需要 Memory CRD + deployment.yaml + service.yaml + Dockerfile · "
-        "see MEMORY.md → Phase 2 PR-4 chart 缺口"
+        "H-RM-E2E-001 deferred to Phase 3 OPEN-MEMORY-002 · "
+        "A2A HTTP JSON-RPC server not implemented · "
+        "Phase 2 PR-4.1.1 仅启用 LEADER-E2E-001/002 + LIFECYCLE-E2E-001/002"
     )

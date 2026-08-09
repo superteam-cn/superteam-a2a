@@ -2,15 +2,18 @@
 
 Provides session-scoped kind cluster + function-scoped namespace isolation
 + helm/kubectl availability checks. Tests that depend on missing chart
-resources (deployment.yaml, service.yaml, CRD, Dockerfile) skip cleanly.
+resources skip cleanly via `chart_status` fixture.
 
 Reference:
 - docs/phase2/l4-phase2-spike-plan.md §3.4
 - Phase 2 PR-4 spike infrastructure (Path A — honest infra + skip mechanism)
+- Phase 2 PR-4.1 chart 完整化（PR #27 #89 #90 已 merged）
 
-NOTE: Helm chart is currently incomplete (no deployment.yaml, no service.yaml,
-no CRD definition, no Dockerfile). See MEMORY.md → "Phase 2 PR-4 chart 缺口"
-for follow-up PR-4.1 plan.
+NOTE: Helm chart 已完整（PR #27 merged · deployment + service + CRD + Dockerfile）。
+Docker image 在 e2e-envtest workflow 内 buildx + kind load docker-image（本地 tag，
+不依赖 GHCR）。LIFECYCLE-E2E-001/002 + LEADER-E2E-002 实装（PR #90 #91）。
+H-RM-E2E-001 / H-QM-E2E-001 仍 skipped（A2A HTTP JSON-RPC server 待 Phase 3 实装，
+OPEN-MEMORY-002 候选）。
 """
 
 from __future__ import annotations

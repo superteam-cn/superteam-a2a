@@ -10,9 +10,10 @@ name: e2e-envtest
 #
 # 不触发普通 PR push（避免 kind 启动阻塞 PR review · §2.5 决策）。
 #
-# NOTE: 当前 PR-4 阶段 Helm chart 不完整（无 deployment.yaml / service.yaml /
-# CRD / Dockerfile）。E2E 测试通过 pytest.skip 优雅跳过，CI 不会失败。
-# 完整 spike 验证待 Phase 2 PR-4.1（chart 完整化）后启用。
+# NOTE: PR-4.1 chart 完整化已 merged（PR #27 #89 #90）。Docker image 在 workflow 中
+# 本地 build + kind load docker-image 注入，避免 GHCR registry 依赖。
+# LIFECYCLE-E2E-001/002 + LEADER-E2E-002 实装。H-RM-E2E-001/H-QM-E2E-001 仍 skipped
+# （A2A HTTP JSON-RPC server 未实装，Phase 3 OPEN-MEMORY-002 候选）。
 
 on:
   workflow_dispatch:
@@ -73,6 +74,19 @@ jobs:
             --image kindest/node:v1.30.0 \
             --wait 60s
 
+      - name: Build Docker image (PR-4.1.1 #90)
+        run: |
+          docker buildx build \
+            -f services/knowledge-memory-service/Dockerfile \
+            -t local:e2e-${{ github.run_id }} \
+            --load \
+            .
+
+      - name: Load image into kind (PR-4.1.1 #90)
+        run: |
+          kind load docker-image local:e2e-${{ github.run_id }} \
+            --name e2e-${{ github.run_id }}
+
       - name: Apply CRDs (if available)
         run: |
           if [ -d "helm/knowledge-memory-service/crds" ]; then
@@ -81,12 +95,15 @@ jobs:
             echo "::warning::CRDs directory missing - E2E tests will skip via pytest.skip"
           fi
 
-      - name: Helm install (if chart complete)
+      - name: Helm install (with local image override, PR-4.1.1 #90)
         run: |
           if [ -f "helm/knowledge-memory-service/templates/deployment.yaml" ]; then
             helm install kmem helm/knowledge-memory-service/ \
               --namespace superteam-a2a-system --create-namespace \
-              --wait --timeout 90s
+              --set image.repository=local \
+              --set image.tag=e2e-${{ github.run_id }} \
+              --set image.pullPolicy=Never \
+              --wait --timeout 120s
           else
             echo "::warning::deployment.yaml missing - E2E tests will skip via pytest.skip"
           fi

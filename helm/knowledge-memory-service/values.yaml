@@ -65,19 +65,21 @@ resources:
     cpu: 100m
     memory: 128Mi
 
-# 健康检查探针（L3-6 §11.4）
+# 健康检查探针（L3-6 §11.4 + PR-4.1.1 #90 · kopf liveness_endpoint 共用 /healthz）
 livenessProbe:
   httpGet:
     path: /healthz
     port: 8080
-  initialDelaySeconds: 30
+  initialDelaySeconds: 10
   periodSeconds: 10
+  failureThreshold: 3
 readinessProbe:
   httpGet:
-    path: /readyz
+    path: /healthz
     port: 8080
   initialDelaySeconds: 5
   periodSeconds: 5
+  failureThreshold: 3
 
 # Leader Election 配置（PR-1 schema enum + 交叉验证 · Phase 2 §2.2/§2.3）
 leaderElection:

@@ -6,12 +6,14 @@ Tests:
 
 Reference: Phase 2 plan §3.4 + L2-4 §7.6 Lease 约束 + L3-6 §4.1 reconcile 算法.
 
-NOTE: LEADER-E2E-002 requires Helm chart deployment.yaml which is currently
-missing (Phase 2 PR-4.1 follow-up). Tests skip cleanly until chart is complete.
+Phase 2 PR-4.1.1 #91 实装（PR #27 chart 完整化后）：
+- LEADER-E2E-001 保持 in-process 验证（不需 cluster）
+- LEADER-E2E-002 实装 kind cluster + helm install rc=2 + leader switchover
 """
 
 from __future__ import annotations
 
+import subprocess
 import sys
 from pathlib import Path
 
@@ -54,38 +56,229 @@ async def test_leader_e2e_001_in_process_default_is_leader() -> None:
 
 
 @pytest.mark.e2e
-def test_leader_e2e_002_k8s_lease_spike_requires_chart(kind_cluster: str) -> None:
+def test_leader_e2e_002_k8s_lease_spike(
+    kind_cluster: str,
+    chart_status: tuple[bool, list[str]],
+    helm_client: str,
+    kubectl_client: str,
+) -> None:
     """LEADER-E2E-002 · K8sLease spike：kind cluster + replicaCount=2 + leader 切换。
 
     验证 K8sLeaseLeaderElector 在真实 K8s 集群下的行为：
     1. helm install --set replicaCount=2 --set leaderElection.backend=k8s
-    2. 启动 2 个 pod · 1 个持 Lease（leader）· 1 个非 leader
-    3. kill leader pod · 30s 内另一个 pod 接管
+    2. 等 2 个 pod Ready
+    3. 查找持有 Lease `memory-reconciler-leader` 的 pod（leader）
+    4. kubectl delete pod <leader>
+    5. 等待 30s 内新 leader 接管
 
-    **SKIP 条件**：Helm chart 当前不完整（无 deployment.yaml + service.yaml）
-    · 需要 Phase 2 PR-4.1 实装 deployment.yaml + service.yaml + Dockerfile + CRD
-    · 当前 PR-4 仅验证 spike 基础设施可达性。
+    **依赖**：
+    - chart 完整（PR #27 merged）：deployment.yaml + service.yaml + CRD + Dockerfile
+    - kopf liveness_endpoint 健康（PR-4.1.1 main.py 修改）
+    - e2e-envtest workflow 已 build + load image 到 kind（PR-4.1.1 #90）
+
+    跳过条件：chart 不完整 · helm/kubectl 不可用
     """
-    # chart_status fixture 提供 chart 完整性检查
-    from tests.e2e.conftest import chart_status  # type: ignore[import-not-found]
-
-    is_complete, missing = chart_status()
-    if not is_complete:
+    if not chart_status[0]:
         pytest.skip(
-            f"Helm chart incomplete (missing: {missing}) · "
-            "deferred to Phase 2 PR-4.1 · "
-            "see MEMORY.md → Phase 2 PR-4 chart 缺口",
+            f"Helm chart incomplete (missing: {chart_status[1]})",
             allow_module_level=False,
         )
 
-    # kind_cluster fixture 确保 kind cluster 已创建
-    # 完整 spike 实装在 PR-4.1:
-    # - helm install kmem CHART_PATH --set replicaCount=2 --set leaderElection.backend=k8s
-    # - kubectl wait --for=condition=ready pod -l app=kmem --timeout=60s
-    # - 获取 leader pod name + non-leader pod name
-    # - kubectl delete pod <leader>
-    # - 等待 30s · 验证新 leader
-    pytest.fail(
-        "LEADER-E2E-002 spike 实装 deferred to PR-4.1 · "
-        "chart 现在不完整 · 当前 PR-4 仅创建 spike 基础设施"
+    from tests.e2e.conftest import CHART_PATH  # type: ignore[import-not-found]
+
+    namespace = "superteam-a2a-system"
+    release_name = "kmem-leader-test"
+    selector = "app.kubernetes.io/name=knowledge-memory-service"
+
+    # 1. helm install with replicaCount=2 + leaderElection.backend=k8s
+    install_result = subprocess.run(
+        [
+            "helm",
+            "install",
+            release_name,
+            str(CHART_PATH),
+            "--kubeconfig",
+            kind_cluster,
+            "--namespace",
+            namespace,
+            "--create-namespace",
+            "--set",
+            "replicaCount=2",
+            "--set",
+            "leaderElection.backend=k8s",
+            "--set",
+            "image.pullPolicy=Never",
+            "--wait",
+            "--timeout",
+            "120s",
+        ],
+        capture_output=True,
+        text=True,
+        timeout=180,
     )
+    assert install_result.returncode == 0, (
+        f"helm install failed: {install_result.stderr}"
+    )
+
+    try:
+        # 2. 等待 2 个 pod Ready
+        wait_result = subprocess.run(
+            [
+                "kubectl",
+                "wait",
+                "--for=condition=ready",
+                "pod",
+                "-l",
+                selector,
+                "-n",
+                namespace,
+                "--kubeconfig",
+                kind_cluster,
+                "--timeout",
+                "120s",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=150,
+        )
+        assert wait_result.returncode == 0, (
+            f"kubectl wait failed: {wait_result.stderr}"
+        )
+
+        # 3. 获取两个 pod name
+        pods_result = subprocess.run(
+            [
+                "kubectl",
+                "get",
+                "pods",
+                "-l",
+                selector,
+                "-n",
+                namespace,
+                "--kubeconfig",
+                kind_cluster,
+                "-o",
+                "jsonpath={.items[*].metadata.name}",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert pods_result.returncode == 0
+        pod_names = pods_result.stdout.split()
+        assert len(pod_names) == 2, (
+            f"Expected 2 pods · got {len(pod_names)}: {pod_names}"
+        )
+
+        # 4. 通过 Lease 持有者识别 leader pod
+        lease_holder_result = subprocess.run(
+            [
+                "kubectl",
+                "get",
+                "lease",
+                "memory-reconciler-leader",
+                "-n",
+                namespace,
+                "--kubeconfig",
+                kind_cluster,
+                "-o",
+                "jsonpath={.spec.holderIdentity}",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        assert lease_holder_result.returncode == 0
+        holder = lease_holder_result.stdout.strip()
+        assert holder, "Lease holderIdentity empty (no leader acquired yet)"
+        assert any(holder in p for p in pod_names), (
+            f"Lease holder {holder} not in pods {pod_names}"
+        )
+
+        leader_pod = next(p for p in pod_names if holder in p)
+
+        # 5. 删除 leader pod
+        delete_result = subprocess.run(
+            [
+                "kubectl",
+                "delete",
+                "pod",
+                leader_pod,
+                "-n",
+                namespace,
+                "--kubeconfig",
+                kind_cluster,
+                "--wait=false",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+        assert delete_result.returncode == 0
+
+        # 6. 等新 leader pod Ready（rollout 重建 + Lease 抢占）
+        # L3-6 §4.1: leaseDuration 30s + renewDeadline 15s → 30s 内应切换
+        new_ready_result = subprocess.run(
+            [
+                "kubectl",
+                "wait",
+                "--for=condition=ready",
+                "pod",
+                "-l",
+                selector,
+                "-n",
+                namespace,
+                "--kubeconfig",
+                kind_cluster,
+                "--timeout",
+                "60s",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=80,
+        )
+        assert new_ready_result.returncode == 0, (
+            f"new leader pod not ready within 60s: {new_ready_result.stderr}"
+        )
+
+        # 7. 验证新 Lease 持有者 ≠ 旧 leader
+        new_holder_result = subprocess.run(
+            [
+                "kubectl",
+                "get",
+                "lease",
+                "memory-reconciler-leader",
+                "-n",
+                namespace,
+                "--kubeconfig",
+                kind_cluster,
+                "-o",
+                "jsonpath={.spec.holderIdentity}",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=15,
+        )
+        assert new_holder_result.returncode == 0
+        new_holder = new_holder_result.stdout.strip()
+        assert new_holder, "New Lease holderIdentity empty after switchover"
+        assert new_holder != holder, (
+            f"Leader did not switch: old={holder} new={new_holder}"
+        )
+
+    finally:
+        # Cleanup: uninstall release (best-effort)
+        subprocess.run(
+            [
+                "helm",
+                "uninstall",
+                release_name,
+                "--kubeconfig",
+                kind_cluster,
+                "--namespace",
+                namespace,
+            ],
+            capture_output=True,
+            text=True,
+            timeout=60,
+        )
