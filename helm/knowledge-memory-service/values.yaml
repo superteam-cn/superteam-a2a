@@ -37,14 +37,19 @@ securityContext:
   runAsNonRoot: true
   runAsUser: 1000
 
-# Service 配置（Phase 1 单端口 8080 · A2A + /healthz + /readyz + /metrics）
+# Service 配置（Phase 1 单端口 8080 · A2A HTTP JSON-RPC · L4-Phase3 PR-1）
+# 服务路由（starlette ASGI · D 方案单进程 · ADR-0006 v1.0 Accepted）：
+#   GET  /healthz               livenessProbe + readinessProbe（共用 · PR-4.1.1 #90）
+#   POST /jsonrpc/record_memory  JSON-RPC 2.0 envelope → record_memory_async
+#   POST /jsonrpc/query_memory  JSON-RPC 2.0 envelope → query_memory_async
+# /metrics 端口（PR-3 25 指标 ServiceMonitor · 暂未启用 · 当前端口仍 8080）
 service:
   type: ClusterIP
   port: 8080
   targetPort: 8080
   annotations: {}
 
-# Ingress（默认禁用 · Phase 2+ 可启用）
+# Ingress（默认禁用 · Phase 2+ 可启用 · 可选暴露 /jsonrpc/* 路由到集群外）
 ingress:
   enabled: false
   className: ""
@@ -65,7 +70,8 @@ resources:
     cpu: 100m
     memory: 128Mi
 
-# 健康检查探针（L3-6 §11.4 + PR-4.1.1 #90 · kopf liveness_endpoint 共用 /healthz）
+# 健康检查探针（L3-6 §11.4 + PR-4.1.1 #90 + L4-Phase3 PR-1 starlette /healthz）
+# starlette ASGI 提供 /healthz（替换 kopf 内置 liveness_endpoint）；D 方案单进程共享端口 8080
 livenessProbe:
   httpGet:
     path: /healthz
