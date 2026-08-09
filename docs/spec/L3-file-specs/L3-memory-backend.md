@@ -1974,6 +1974,7 @@ L1 §5.2.3 是 v1alpha1 唯一性校核源；L3-6 仅添加 Python alias/validat
 | 2026-07-30 #66 | §7-§13 + 附录 A/B：10 指标、12 错误码、共享 Helm/RBAC 双 Role、60 ID、30 验收、22+5 开放问题、五项移交关注点闭环 | v0.2-draft-full 已补完，待 #67 独立评审 |
 | **2026-07-30 #67** | **L3-6 独立评审 #67：10 维度全 PASS · 0 阻塞项 · 5 关注项全关闭 · 4 建议项移交 v0.2.1 / L4 实施** | **评审通过，5 关注项 / 4 建议项台账建立** |
 | **2026-07-30 #67.x** | **5 关注项同步修正：TEST-MEM-051 集合相等静态断言 + §9.7 PrometheusRule 完整 YAML + HELM-DEPLOY-002 IPC/env/Recreate 补全 + role_write 补 admissionregistration/authn/authz + Clock.monotonic() 暴露到 handler 边界 + §F 9 步跨文档同步** | **v0.2.0 升级落地** |
+| **2026-08-09 #87** | **Phase 2 PR-1 RBAC §M-1.4 修复（PR #22 merged）+ PR-2 K8sLeaseLeaderElector 完整实装（PR #23 merged · 192 PASS）+ PR-3 H-RM/H-QM IT/CF stub 4 ID 实装（PR #24 merged）+ PR-4 kind E2E spike 基础设施（PR #25 open · LEADER-E2E-001 PASS · 5 skipped · chart 缺口 P0 跟进 PR-4.1）** | **Phase 2 spike 4/5 PR 完成 · ADR-0006 D 方案兼容性 100% 保持 · 5 项关键不变量持续 PASS** |
 
 ### M.3 配套引用
 

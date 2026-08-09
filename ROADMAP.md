@@ -114,15 +114,24 @@ This roadmap is a living document, kept in sync with the authoritative [ADR-0001
 
 ---
 
-## Phase 3 — Memory（第 15-18 周）⏳ 待启动
+## Phase 3 — Memory（第 15-18 周）🚧 进行中（L4-Phase 1/2 spike）
 
 > 对应发版 tag：**`v0.1.0-rc`**
+>
+> **实施状态**（截至 2026-08-09 #88）：
+> - ✅ **L4-Phase1 MVP Core 5/5 Step merged**（PR #17/#18/#19/#20/#21 · 138/138 PASS · 2026-08-07）
+> - 🚧 **L4-Phase2 Memory spike 4/5 PR**（PR #22 RBAC + #23 K8sLeaseLeaderElector + #24 H-RM/H-QM stubs merged · PR #25 kind E2E spike 基础设施 open · 2026-08-09）
+> - ⏸ **chart 缺口 P0**（deployment.yaml + service.yaml + CRD + Dockerfile 缺失 · PR-4.1 待启动）
 
-- [ ] Memory CRD（v1alpha1）+ Memory Controller
-- [ ] MemoryReconciler（周期 reconcile + decay/reinforce）
-- [ ] A2A method：`a2a.recordMemory` / `a2a.queryMemory`
-- [ ] 5 维矩阵实现（industry / org / team / project + agent-private 正交）
-- [ ] Memory 生命周期算法（confidence 评估 + decay 半衰期 + reinforcedCount 强化）
+- [x] Memory CRD（v1alpha1）+ Memory Controller · ✅ L4-Phase1 Step 1（uv workspace + Pydantic schema · 2026-08-03 #76）
+- [x] MemoryReconciler（周期 reconcile + decay/reinforce） · ✅ L4-Phase1 Step 3（60s kopf.timer · 2026-08-05 #79 · 15 测试 TEST-MEM-016~030 PASS）
+- [x] A2A method：`a2a.recordMemory` / `a2a.queryMemory` · ✅ L4-Phase1 Step 4（in-process handlers · 2026-08-05 #80 · 8 测试 TEST-MEM-053~060 PASS）
+- [x] MemoryBackend 抽象层（InMemoryBackend） · ✅ L4-Phase1 Step 2（Protocol + 4 纯函数 · 2026-08-04 #77 · 11 测试 PASS）
+- [x] K8sLeaseLeaderElector 完整实装 · ✅ L4-Phase2 PR-2（PR #23 · 2026-08-07 · 192 PASS · 覆盖率 93.26%）
+- [x] H-RM/H-QM IT/CF 4 ID stub 升级 · ✅ L4-Phase2 PR-3（PR #24 · 2026-08-07）
+- [x] kind E2E spike 基础设施 · 🚧 L4-Phase2 PR-4（PR #25 open · 2026-08-09 · LEADER-E2E-001 PASS · 5 skipped · chart 缺口 P0）
+- [x] 5 维矩阵实现（industry / org / team / project + agent-private 正交） · ✅ L2-4 §3.4 Spec 完整版 + L3-6 §3 Pydantic schema
+- [x] Memory 生命周期算法（confidence 评估 + decay 半衰期 + reinforcedCount 强化） · ✅ L4-Phase1 Step 5（_build_memo + admission + BM25 index · 2026-08-07 #82 · 138/138 PASS）
 - [ ] Memory E2E 测试（覆盖 create / query / decay / reinforce 全链路）
 - [ ] Memory 跨级 scope-up 机制（v0.1 简化为手动触发）
 
