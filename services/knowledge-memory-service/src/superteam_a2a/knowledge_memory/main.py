@@ -110,8 +110,16 @@ def _build_memo() -> dict[str, Any]:
 
 
 def main() -> None:
-    """kopf operator 启动入口。"""
-    kopf.run(memo=_build_memo())
+    """kopf operator 启动入口。
+
+    Health endpoint（PR-4.1.1 #90）：kopf 1.44+ 内置 aiohttp health_reporter · 仅支持
+    liveness_endpoint（无 readiness_endpoint 区分）。deployment.yaml 中 livenessProbe +
+    readinessProbe 探针路径均指向 /healthz（共用）。
+    """
+    kopf.run(
+        memo=_build_memo(),
+        liveness_endpoint="http://0.0.0.0:8080/healthz",
+    )
 
 
 if __name__ == "__main__":
