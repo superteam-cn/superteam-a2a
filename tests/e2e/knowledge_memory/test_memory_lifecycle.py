@@ -96,9 +96,7 @@ def _ensure_helm_install(
         text=True,
         timeout=180,
     )
-    assert install_result.returncode == 0, (
-        f"helm install failed: {install_result.stderr}"
-    )
+    assert install_result.returncode == 0, f"helm install failed: {install_result.stderr}"
 
     # 等待 pod Ready
     wait_result = subprocess.run(
@@ -120,9 +118,7 @@ def _ensure_helm_install(
         text=True,
         timeout=150,
     )
-    assert wait_result.returncode == 0, (
-        f"kubectl wait failed: {wait_result.stderr}"
-    )
+    assert wait_result.returncode == 0, f"kubectl wait failed: {wait_result.stderr}"
 
 
 @pytest.mark.e2e
@@ -187,9 +183,7 @@ def test_lifecycle_e2e_001_apply_to_bound(
             text=True,
             timeout=30,
         )
-        assert apply_result.returncode == 0, (
-            f"kubectl apply failed: {apply_result.stderr}"
-        )
+        assert apply_result.returncode == 0, f"kubectl apply failed: {apply_result.stderr}"
 
         # 等待 60s timer tick + kopf reconcile → status.phase = Bound
         wait_result = subprocess.run(
@@ -316,9 +310,7 @@ def test_lifecycle_e2e_002_delete_to_released(
             text=True,
             timeout=30,
         )
-        assert apply_result.returncode == 0, (
-            f"kubectl apply failed: {apply_result.stderr}"
-        )
+        assert apply_result.returncode == 0, f"kubectl apply failed: {apply_result.stderr}"
 
         # 删除 Memory CR（触发 finalize）
         delete_result = subprocess.run(
@@ -356,8 +348,7 @@ def test_lifecycle_e2e_002_delete_to_released(
         )
         # 'NotFound' 表示 CR 已 finalize 删除成功
         assert get_result.returncode != 0, (
-            f"Memory CR not finalized within timeout: "
-            f"still exists: {get_result.stdout}"
+            f"Memory CR not finalized within timeout: still exists: {get_result.stdout}"
         )
 
     finally:

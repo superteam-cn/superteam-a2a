@@ -116,9 +116,7 @@ def test_leader_e2e_002_k8s_lease_spike(
         text=True,
         timeout=180,
     )
-    assert install_result.returncode == 0, (
-        f"helm install failed: {install_result.stderr}"
-    )
+    assert install_result.returncode == 0, f"helm install failed: {install_result.stderr}"
 
     try:
         # 2. 等待 2 个 pod Ready
@@ -141,9 +139,7 @@ def test_leader_e2e_002_k8s_lease_spike(
             text=True,
             timeout=150,
         )
-        assert wait_result.returncode == 0, (
-            f"kubectl wait failed: {wait_result.stderr}"
-        )
+        assert wait_result.returncode == 0, f"kubectl wait failed: {wait_result.stderr}"
 
         # 3. 获取两个 pod name
         pods_result = subprocess.run(
@@ -166,9 +162,7 @@ def test_leader_e2e_002_k8s_lease_spike(
         )
         assert pods_result.returncode == 0
         pod_names = pods_result.stdout.split()
-        assert len(pod_names) == 2, (
-            f"Expected 2 pods · got {len(pod_names)}: {pod_names}"
-        )
+        assert len(pod_names) == 2, f"Expected 2 pods · got {len(pod_names)}: {pod_names}"
 
         # 4. 通过 Lease 持有者识别 leader pod
         lease_holder_result = subprocess.run(
@@ -191,9 +185,7 @@ def test_leader_e2e_002_k8s_lease_spike(
         assert lease_holder_result.returncode == 0
         holder = lease_holder_result.stdout.strip()
         assert holder, "Lease holderIdentity empty (no leader acquired yet)"
-        assert any(holder in p for p in pod_names), (
-            f"Lease holder {holder} not in pods {pod_names}"
-        )
+        assert any(holder in p for p in pod_names), f"Lease holder {holder} not in pods {pod_names}"
 
         leader_pod = next(p for p in pod_names if holder in p)
 
@@ -262,9 +254,7 @@ def test_leader_e2e_002_k8s_lease_spike(
         assert new_holder_result.returncode == 0
         new_holder = new_holder_result.stdout.strip()
         assert new_holder, "New Lease holderIdentity empty after switchover"
-        assert new_holder != holder, (
-            f"Leader did not switch: old={holder} new={new_holder}"
-        )
+        assert new_holder != holder, f"Leader did not switch: old={holder} new={new_holder}"
 
     finally:
         # Cleanup: uninstall release (best-effort)
