@@ -28,6 +28,7 @@ from superteam_a2a.knowledge_memory.backend.clock import Clock
 from superteam_a2a.knowledge_memory.backend.errors import MemoryBackendError
 from superteam_a2a.knowledge_memory.backend.memory import Memory
 from superteam_a2a.knowledge_memory.backend.types import QueryMemoryRequest
+from superteam_a2a.knowledge_memory.observability import bind_metrics_to_app
 
 # ============================================================================
 # JSON-RPC 2.0 协议常量
@@ -304,6 +305,8 @@ def create_app(*, service: MemoryBackendInProcessService, clock: Clock) -> Starl
     )
     app.state.memory_service = service
     app.state.clock = clock
+    # L4-Phase3 PR-3：注册 /metrics GET 路由（starlette 复用 8080 端口）
+    bind_metrics_to_app(app)
     return app
 
 

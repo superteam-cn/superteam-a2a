@@ -19,6 +19,7 @@ dependencies = [
     "starlette>=1.4.1,<2",  # PR-1 A2A HTTP JSON-RPC server (L4-Phase3 §2.1 选项 C)
     "uvicorn>=0.30,<1",  # PR-1 starlette ASGI runtime（同 kopf event loop · §16.1 单进程）
     "httpx2>=2.0,<3",  # PR-1 + #34 fix: starlette 1.4.1 弃用 httpx · 官方要求 httpx2 (TestClient in-process HTTP 测试)
+    "prometheus-client>=0.20,<1",  # PR-3 25 指标 (10 Memory + 15 L3-2) + /metrics 端口
 ]
 
 [build-system]
