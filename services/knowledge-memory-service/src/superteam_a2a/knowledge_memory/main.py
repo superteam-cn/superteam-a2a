@@ -168,6 +168,26 @@ def _build_memo(backend_type: str | None = None) -> dict[str, Any]:
     }
 
 
+def _emit_metrics_placeholder() -> None:
+    """3 行最小占位埋点（PR-3 范围 · Phase 4 替换为真实业务埋点）。"""
+    # 局部 import：避免 top-level 强制加载 prometheus_client
+    from superteam_a2a.knowledge_memory.observability import (
+        MEMORY_BM25_INDEX_SIZE,
+        MEMORY_PROMOTION_ELIGIBLE_TOTAL,
+        MEMORY_RECONCILE_TOTAL,
+    )
+    from superteam_a2a.knowledge_memory.observability.labels import (
+        Phase,
+        Result,
+        ScopeLevel,
+        Visibility,
+    )
+
+    MEMORY_RECONCILE_TOTAL.labels(phase=Phase.ADMIT, result=Result.SUCCESS).inc()
+    MEMORY_PROMOTION_ELIGIBLE_TOTAL.labels(visibility=Visibility.TEAM).set(0)
+    MEMORY_BM25_INDEX_SIZE.labels(scope_level=ScopeLevel.AGENT).set(0)
+
+
 def _build_app(memo: dict[str, Any]) -> Starlette:
     """构造 starlette app · 注入 service + clock（L4-Phase3 PR-1）。
 
@@ -207,6 +227,8 @@ def main() -> None:
     - Helm deployment livenessProbe/readinessProbe 路径无需变更（共用 /healthz · PR-4.1.1 #90）
     """
     memo = _build_memo()
+    # L4-Phase3 PR-3：3 行占位埋点（保证 /metrics 非空 · 真实业务埋点 Phase 4）
+    _emit_metrics_placeholder()
     app = _build_app(memo)
 
     async def _amain() -> None:
