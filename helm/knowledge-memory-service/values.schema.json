@@ -82,6 +82,44 @@
       },
       "required": ["backend"]
     },
+    "backend": {
+      "type": "object",
+      "additionalProperties": false,
+      "description": "L4-Phase3 PR-2 · MemoryBackend implementation 选择。default in_process（Phase 1 MVP），k8s opt-in 启用生产 CustomObjectsApi 后端。",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["in_process", "k8s"],
+          "description": "MemoryBackend 类型：in_process = dict-backed（默认），k8s = CustomObjectsApi-backed 生产后端"
+        },
+        "k8s": {
+          "type": "object",
+          "additionalProperties": false,
+          "description": "仅 backend.type=k8s 时生效 · CustomObjectsApi 配置",
+          "properties": {
+            "crdGroup": {
+              "type": "string",
+              "description": "Memory CRD apiGroup（默认 memory.superteam-a2a.io）"
+            },
+            "crdVersion": {
+              "type": "string",
+              "description": "Memory CRD apiVersion（默认 v1alpha1）"
+            },
+            "crdPlural": {
+              "type": "string",
+              "description": "Memory CRD plural name（默认 memories）"
+            },
+            "listTimeoutSeconds": {
+              "type": "number",
+              "minimum": 1,
+              "maximum": 600,
+              "description": "K8sBackend list query timeout (seconds) · plan §3.5"
+            }
+          }
+        }
+      },
+      "required": ["type"]
+    },
     "operator": {
       "type": "object",
       "additionalProperties": false,

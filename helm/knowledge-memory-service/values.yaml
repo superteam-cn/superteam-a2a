@@ -94,6 +94,23 @@ leaderElection:
   # - k8s: Phase 2 spike · 需 replicaCount >= 2 + PR-1 RBAC 修复完成
   backend: in_process
 
+# MemoryBackend 配置（L4-Phase3 PR-2 · production K8sBackend 可选启用）
+# enum: in_process | k8s
+# - in_process (default): dict-backed backend（Phase 1 MVP · dev/CI 默认）
+# - k8s: CustomObjectsApi-backed backend（生产 · 需 PR-2 RBAC 权限已注入）
+#   PR-2 实装完成（PR #34） · helm rbac.role_write.yaml 尚未包含 K8sBackend 完整
+#   权限（Phase 4 单独 PR 补 RBAC） · 当前测试环境可用，生产环境待 RBAC 落地
+backend:
+  type: in_process
+  k8s:
+    # 仅 backend.type=k8s 时生效
+    # 默认与 operator Memory CRD schema 对齐（自动注册 · 无需额外 CRD install）
+    crdGroup: memory.superteam-a2a.io
+    crdVersion: v1alpha1
+    crdPlural: memories
+    # K8sBackend list query timeout · list path 用 asyncio.wait_for 包住
+    listTimeoutSeconds: 30
+
 # kopf operator 配置（L3-6 §4.1 timer interval=60s + §4.4 finalize decorator）
 operator:
   logLevel: INFO  # kopf 日志级别：DEBUG / INFO / WARNING / ERROR

@@ -45,13 +45,14 @@ from superteam_a2a.knowledge_memory import (  # noqa: E402
     AdmissionValidatorImpl,
     BM25Index,
     InMemoryBackend,
+    K8sBackend,
     MemoryBackendInProcessServiceImpl,
     MemoryReconcilerService,
     SystemClock,
 )
 from superteam_a2a.knowledge_memory.backend.clock import Clock  # noqa: E402
 from superteam_a2a.knowledge_memory.backend.protocol import MemoryBackend  # noqa: E402
-from superteam_a2a.knowledge_memory.main import _build_memo  # noqa: E402
+from superteam_a2a.knowledge_memory.main import _build_backend, _build_memo  # noqa: E402
 
 EXPECTED_KEYS = frozenset(
     {
@@ -130,3 +131,32 @@ def test_build_memo_is_idempotent() -> None:
     assert memo_a.keys() == memo_b.keys()
     assert memo_a["memory_backend"] is not memo_b["memory_backend"]
     assert memo_a["memory_reconciler"] is not memo_b["memory_reconciler"]
+
+
+# ============================================================================
+# L4-Phase3 PR-2: backend selection tests (helm values.yaml backend.type)
+# ============================================================================
+
+
+def test_build_backend_in_process_returns_in_memory_backend() -> None:
+    """backend_type='in_process' -> InMemoryBackend instance."""
+    backend = _build_backend(backend_type="in_process")
+    assert isinstance(backend, InMemoryBackend)
+    assert isinstance(backend, MemoryBackend)
+
+
+def test_build_backend_k8s_returns_k8s_backend() -> None:
+    """backend_type='k8s' -> K8sBackend instance (production backend)."""
+    backend = _build_backend(backend_type="k8s")
+    assert isinstance(backend, K8sBackend)
+    assert isinstance(backend, MemoryBackend)
+
+
+def test_build_backend_unknown_type_falls_back_to_in_memory() -> None:
+    """Unknown backend_type -> falls back to InMemoryBackend (defense-in-depth)."""
+    import warnings
+
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore")  # main.py emits a UserWarning for unknown type
+        backend = _build_backend(backend_type="unknown")
+    assert isinstance(backend, InMemoryBackend)

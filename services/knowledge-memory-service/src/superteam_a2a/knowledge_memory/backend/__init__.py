@@ -8,6 +8,7 @@
 - protocol: MemoryBackend Protocol
 - pure: 4 纯函数 (sync, stateless)
 - in_memory: InMemoryBackend (默认 dict-backed async wrapper)
+- k8s_backend: K8sBackend (CustomObjectsApi-backed 生产实现 · PR-2)
 """
 
 from __future__ import annotations
@@ -28,6 +29,7 @@ from superteam_a2a.knowledge_memory.backend.errors import (
     memory_error_data,
 )
 from superteam_a2a.knowledge_memory.backend.in_memory import InMemoryBackend
+from superteam_a2a.knowledge_memory.backend.k8s_backend import K8sBackend
 from superteam_a2a.knowledge_memory.backend.memory import (
     ItemReference,
     Memory,
@@ -73,6 +75,7 @@ __all__ = [
     "GetResult",
     "InMemoryBackend",
     "ItemReference",
+    "K8sBackend",
     "ListResult",
     "Memory",
     "MemoryBackend",

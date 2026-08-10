@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import os
 from typing import Any
 
 import kopf
@@ -28,6 +29,7 @@ from superteam_a2a.knowledge_memory.api.service import (
 )
 from superteam_a2a.knowledge_memory.backend.clock import SystemClock
 from superteam_a2a.knowledge_memory.backend.in_memory import InMemoryBackend
+from superteam_a2a.knowledge_memory.backend.k8s_backend import K8sBackend
 from superteam_a2a.knowledge_memory.handlers.admission_validator import (
     AdmissionValidatorImpl,
 )
@@ -50,6 +52,13 @@ KIND = "memory"
 # L4-Phase3 PR-1：HTTP server 端口（starlette · 替代 kopf liveness_endpoint）
 HTTP_HOST = "0.0.0.0"
 HTTP_PORT = 8080
+
+# L4-Phase3 PR-2：backend selection (helm values.yaml backend.type)
+# - in_process (default): dict-backed (Phase 1 MVP core)
+# - k8s: CustomObjectsApi-backed production backend
+BACKEND_TYPE_ENV_VAR = "MEMORY_BACKEND_TYPE"
+DEFAULT_BACKEND_TYPE = "in_process"
+VALID_BACKEND_TYPES = frozenset({"in_process", "k8s"})
 
 
 @kopf.on.create(API_GROUP, API_VERSION, KIND, id="memory-create")
@@ -76,12 +85,46 @@ async def _timer(
     await memory_reconciler_timer(memo=memo)
 
 
-def _build_memo() -> dict[str, Any]:
-    """构造 kopf memo · 服务实例注册（Step 5 完整装配）。
+def _build_backend(
+    *,
+    backend_type: str | None = None,
+    clock: SystemClock | None = None,
+) -> Any:
+    """根据 backend_type 选择 backend 实现（PR-2 helm values backend.type）。
+
+    - in_process: InMemoryBackend（Phase 1 MVP core · 默认）
+    - k8s: K8sBackend（CustomObjectsApi 生产实现）
+
+    Args:
+        backend_type: 显式指定 ("in_process" / "k8s")；None 时从 env var 读
+        clock: 注入时钟（测试用 FakeClock；None 时 SystemClock）
+
+    Returns:
+        InMemoryBackend | K8sBackend 实例（满足 MemoryBackend Protocol）
+    """
+    if backend_type is None:
+        backend_type = os.environ.get(BACKEND_TYPE_ENV_VAR, DEFAULT_BACKEND_TYPE)
+    if backend_type not in VALID_BACKEND_TYPES:
+        # 防御：未知 backend 类型 → 退化默认值 + log warning
+        import warnings
+
+        warnings.warn(
+            f"Unknown backend_type {backend_type!r}; falling back to {DEFAULT_BACKEND_TYPE!r}",
+            stacklevel=2,
+        )
+        backend_type = DEFAULT_BACKEND_TYPE
+    shared_clock = clock or SystemClock()
+    if backend_type == "k8s":
+        return K8sBackend(clock=shared_clock)
+    return InMemoryBackend(clock=shared_clock)
+
+
+def _build_memo(backend_type: str | None = None) -> dict[str, Any]:
+    """构造 kopf memo · 服务实例注册（Step 5 完整装配 + PR-2 backend 选择）。
 
     5 依赖单点注入：
     - clock: SystemClock（§M-1.5 单实例 · 三方共享）
-    - backend: InMemoryBackend
+    - backend: InMemoryBackend | K8sBackend（由 backend_type 选择）
     - leader: InProcessLeaderElector
     - admission: AdmissionValidatorImpl
     - index: BM25Index
@@ -93,9 +136,12 @@ def _build_memo() -> dict[str, Any]:
     - memory_index（测试入口）
     - memory_in_process_service（handler record/query 路径）
     - memory_reconciler（timer/finalize 路径）
+
+    Args:
+        backend_type: 显式指定 ("in_process" / "k8s")；None 时从 env var 读
     """
     clock = SystemClock()
-    backend = InMemoryBackend()
+    backend = _build_backend(backend_type=backend_type, clock=clock)
     leader = InProcessLeaderElector()
     admission = AdmissionValidatorImpl()
     index = BM25Index()

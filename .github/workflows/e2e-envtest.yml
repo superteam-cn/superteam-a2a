@@ -75,7 +75,7 @@ jobs:
             --image kindest/node:v1.30.0 \
             --wait 60s
 
-      - name: Build Docker image (PR-4.1.1 #90)
+      - name: "Build Docker image (PR-4.1.1 #90)"
         run: |
           docker buildx build \
             -f services/knowledge-memory-service/Dockerfile \
@@ -83,7 +83,7 @@ jobs:
             --load \
             .
 
-      - name: Load image into kind (PR-4.1.1 #90)
+      - name: "Load image into kind (PR-4.1.1 #90)"
         run: |
           kind load docker-image local:e2e-${{ github.run_id }} \
             --name e2e-${{ github.run_id }}
@@ -96,7 +96,7 @@ jobs:
             echo "::warning::CRDs directory missing - E2E tests will skip via pytest.skip"
           fi
 
-      - name: Helm install (with local image override, PR-4.1.1 #90)
+      - name: "Helm install (with local image override, PR-4.1.1 #90)"
         run: |
           if [ -f "helm/knowledge-memory-service/templates/deployment.yaml" ]; then
             helm install kmem helm/knowledge-memory-service/ \
