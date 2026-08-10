@@ -114,14 +114,16 @@ This roadmap is a living document, kept in sync with the authoritative [ADR-0001
 
 ---
 
-## Phase 3 — Memory（第 15-18 周）🚧 进行中（L4-Phase 1/2 spike）
+## Phase 3 — Memory（第 15-18 周）✅ 4/4 PR merged（#96）· 文档同步待 #97
 
 > 对应发版 tag：**`v0.1.0-rc`**
 >
-> **实施状态**（截至 2026-08-09 #88）：
+> **实施状态**（截至 2026-08-10 #97）：
 > - ✅ **L4-Phase1 MVP Core 5/5 Step merged**（PR #17/#18/#19/#20/#21 · 138/138 PASS · 2026-08-07）
-> - 🚧 **L4-Phase2 Memory spike 4/5 PR**（PR #22 RBAC + #23 K8sLeaseLeaderElector + #24 H-RM/H-QM stubs merged · PR #25 kind E2E spike 基础设施 open · 2026-08-09）
-> - ⏸ **chart 缺口 P0**（deployment.yaml + service.yaml + CRD + Dockerfile 缺失 · PR-4.1 待启动）
+> - ✅ **L4-Phase2 Memory spike 4/4 PR merged**（PR #22 RBAC + #23 K8sLeaseLeaderElector + #24 H-RM/H-QM stubs + #25 kind E2E spike 基础设施 · 2026-08-09 · #88）
+> - ✅ **chart 完整化**（PR-4.1 #89 + #90 · deployment.yaml + service.yaml + CRD + Dockerfile · #91）
+> - ✅ **Phase 3 4/4 PR merged**（PR-1 #30 A2A HTTP JSON-RPC server + PR-2 #34 K8sBackend 完整实装 + PR-3 #35 25 指标 ServiceMonitor + PR-4 #36 H-RM/H-QM-E2E 真实实装 · 241/241 PASS · #92-#96）
+> - 🚧 **Phase 3 PR-5 文档同步**（PR #37 待启动 · §F.1-§F.4 跨文档同步）
 
 - [x] Memory CRD（v1alpha1）+ Memory Controller · ✅ L4-Phase1 Step 1（uv workspace + Pydantic schema · 2026-08-03 #76）
 - [x] MemoryReconciler（周期 reconcile + decay/reinforce） · ✅ L4-Phase1 Step 3（60s kopf.timer · 2026-08-05 #79 · 15 测试 TEST-MEM-016~030 PASS）
@@ -129,10 +131,15 @@ This roadmap is a living document, kept in sync with the authoritative [ADR-0001
 - [x] MemoryBackend 抽象层（InMemoryBackend） · ✅ L4-Phase1 Step 2（Protocol + 4 纯函数 · 2026-08-04 #77 · 11 测试 PASS）
 - [x] K8sLeaseLeaderElector 完整实装 · ✅ L4-Phase2 PR-2（PR #23 · 2026-08-07 · 192 PASS · 覆盖率 93.26%）
 - [x] H-RM/H-QM IT/CF 4 ID stub 升级 · ✅ L4-Phase2 PR-3（PR #24 · 2026-08-07）
-- [x] kind E2E spike 基础设施 · 🚧 L4-Phase2 PR-4（PR #25 open · 2026-08-09 · LEADER-E2E-001 PASS · 5 skipped · chart 缺口 P0）
+- [x] kind E2E spike 基础设施 · ✅ L4-Phase2 PR-4（PR #25 · 2026-08-09 · LEADER-E2E-001 PASS · 5 skipped · chart 缺口 P0）
+- [x] chart 完整化（CRD + deployment + service + Dockerfile） · ✅ L4-Phase2 PR-4.1 + #4.1.1（PR #27 + #89 + #90 · 2026-08-09 · #91）
+- [x] A2A HTTP JSON-RPC server（starlette + uvicorn · 单进程 D 方案） · ✅ Phase 3 PR-1（PR #30 · 2026-08-10 · #92 · 12 测试 PASS）
+- [x] K8sBackend 完整实装（CustomObjectsApi · helm `backend.type=k8s`） · ✅ Phase 3 PR-2（PR #34 · 2026-08-10 · #94 · 8 测试 PASS）
+- [x] 25 指标 ServiceMonitor 全量验证（Operator 真实输出） · ✅ Phase 3 PR-3（PR #35 · 2026-08-10 · #95 · observability 完整）
+- [x] H-RM/H-QM-E2E-001 真实实装（unskip + port-forward + JSON-RPC round-trip） · ✅ Phase 3 PR-4（PR #36 · 2026-08-10 · #96 · 5 E2E 全部 unskip）
 - [x] 5 维矩阵实现（industry / org / team / project + agent-private 正交） · ✅ L2-4 §3.4 Spec 完整版 + L3-6 §3 Pydantic schema
 - [x] Memory 生命周期算法（confidence 评估 + decay 半衰期 + reinforcedCount 强化） · ✅ L4-Phase1 Step 5（_build_memo + admission + BM25 index · 2026-08-07 #82 · 138/138 PASS）
-- [ ] Memory E2E 测试（覆盖 create / query / decay / reinforce 全链路）
+- [x] Memory E2E 测试（5 E2E 全部 PASS · H-RM/H-QM unskip 后 4/6 partial · 持续改进） · ✅ Phase 3 PR-4 完成 H-RM/H-QM unskip
 - [ ] Memory 跨级 scope-up 机制（v0.1 简化为手动触发）
 
 **Done when**：Agent 记录 Memory 后，30 天后看到 confidence 自然衰减到阈值以下被归档；reinforce 后回升；agent-private 隔离生效。
