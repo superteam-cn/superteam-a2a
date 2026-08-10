@@ -34,7 +34,7 @@ superteam-a2a-hello-agent = { workspace = true }
 # 强制开发依赖：所有 workspace member 共享（PEP 735 dependency-groups）
 [dependency-groups]
 dev = [
-    "pytest>=8.3,<9",
+    "pytest>=9.1.1,<10",
     "pytest-asyncio>=1.4.0,<2",
     "pytest-cov>=7.1.0,<8",
     "ruff>=0.8,<1",
