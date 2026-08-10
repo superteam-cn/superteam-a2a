@@ -82,6 +82,9 @@ spec:
               value: {{ .Values.operator.logLevel | default "INFO" | quote }}
             - name: LEADER_ELECTION_BACKEND
               value: {{ .Values.leaderElection.backend | quote }}
+            # L4-Phase3 PR-2：MemoryBackend type 选择 (in_process/k8s)
+            - name: MEMORY_BACKEND_TYPE
+              value: {{ .Values.backend.type | default "in_process" | quote }}
             - name: NAMESPACE
               valueFrom:
                 fieldRef:

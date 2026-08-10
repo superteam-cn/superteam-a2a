@@ -390,3 +390,42 @@ class TestValuesDefaults:
     def test_rbac_create_enabled(self, values: dict[str, Any]) -> None:
         """PR-1 范围内 rbac.create 必须为 true(否则 RBAC 不实装)."""
         assert values["rbac"]["create"] is True
+
+    def test_backend_type_default_in_process(self, values: dict[str, Any]) -> None:
+        """L4-Phase3 PR-2: backend.type 默认 in_process (Phase 1 MVP core + dev/CI 默认).
+
+        生产可选切换为 k8s (CustomObjectsApi-backed).
+        """
+        assert values["backend"]["type"] == "in_process"
+
+    def test_backend_k8s_defaults_present(self, values: dict[str, Any]) -> None:
+        """L4-Phase3 PR-2: backend.k8s 默认配置项完整（crdGroup/crdVersion/crdPlural/listTimeoutSeconds）.
+
+        这些配置在 helm values.yaml 作为 defaults 暴露, 与 deployment.yaml env var 注入配对.
+        """
+        k8s_cfg = values["backend"]["k8s"]
+        assert k8s_cfg["crdGroup"] == "memory.superteam-a2a.io"
+        assert k8s_cfg["crdVersion"] == "v1alpha1"
+        assert k8s_cfg["crdPlural"] == "memories"
+        assert k8s_cfg["listTimeoutSeconds"] == 30
+
+
+class TestValuesSchemaBackend:
+    """L4-Phase3 PR-2: values.schema.json backend 字段 enum + structure."""
+
+    @pytest.fixture
+    def schema(self) -> dict[str, Any]:
+        return _load_yaml(CHART_ROOT / "values.schema.json")
+
+    def test_backend_type_enum(self, schema: dict[str, Any]) -> None:
+        """backend.type enum 必须为 ["in_process", "k8s"]."""
+        backend_type_schema = schema["properties"]["backend"]["properties"]["type"]
+        assert backend_type_schema["type"] == "string"
+        assert sorted(backend_type_schema["enum"]) == ["in_process", "k8s"], (
+            f"backend.type enum 期望 [in_process, k8s], 实际 {backend_type_schema.get('enum')}"
+        )
+
+    def test_backend_required_type(self, schema: dict[str, Any]) -> None:
+        """backend 必须含 type 字段 (required)."""
+        backend_required = schema["properties"]["backend"].get("required", [])
+        assert "type" in backend_required, f"backend.required 必须含 type, 实际 {backend_required}"

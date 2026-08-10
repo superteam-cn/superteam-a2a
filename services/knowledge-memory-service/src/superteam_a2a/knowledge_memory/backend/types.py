@@ -117,11 +117,17 @@ class ListResult(BaseModel):
 
 
 class BackendType(StrEnum):
-    """L3-6 §3.2 backend 类型。"""
+    """L3-6 §3.2 backend 类型 + L4-Phase3 PR-2 K8S 扩展。
+
+    IN_MEMORY: dict-backed 默认 backend（PR #17）
+    DICT / REDIS: L3-6 §3.2 占位（OPEN-MEMORY-003 实现）
+    K8S: CustomObjectsApi-backed 生产 backend（PR-2）
+    """
 
     IN_MEMORY = "in-memory"
     DICT = "dict"
     REDIS = "redis"
+    K8S = "k8s"
 
 
 class BackendHealth(StrEnum):
