@@ -13,12 +13,13 @@ authors = [
 ]
 
 [tool.uv]
-# 统一工作区（5 packages + 1 service + 1 agent）
+# 统一工作区（5 packages + 2 services + 1 agent）
 workspace = { members = [
     "packages/operator",
     "packages/a2a-core",
     "packages/adapter-sdk",
     "services/knowledge-memory-service",
+    "services/hello-agent",
     "agents/hello",
 ] }
 
@@ -29,6 +30,7 @@ superteam-a2a-a2a-core = { workspace = true }
 superteam-a2a-adapter-sdk = { workspace = true }
 superteam-a2a-operator = { workspace = true }
 superteam-a2a-knowledge-memory-service = { workspace = true }
+superteam-a2a-hello-agent-service = { workspace = true }
 superteam-a2a-hello-agent = { workspace = true }
 
 # 强制开发依赖：所有 workspace member 共享（PEP 735 dependency-groups）
@@ -41,6 +43,7 @@ dev = [
     "pyright>=1.1,<2",
     "bandit>=1.7,<2",
     "pip-audit>=2.7,<3",
+    "psutil>=5.9,<7",  # HELLO-OBS-002 验证：prometheus_client ProcessCollector Windows 兼容
 ]
 
 # ============================================================================
@@ -108,6 +111,7 @@ extraPaths = [
     "packages/a2a-core/src",
     "packages/adapter-sdk/src",
     "services/knowledge-memory-service/src",
+    "services/hello-agent/src",
     "agents/hello/src",
 ]
 # CI Linux pyright auto-detection 需要显式 venvPath（uv sync 后 .venv 在 repo root）
@@ -141,6 +145,7 @@ testpaths = ["tests/unit", "tests/conformance"]
 # 中被 knowledge_memory 子包内部 import）。
 pythonpath = [
     "services/knowledge-memory-service/src",
+    "services/hello-agent/src",
     "packages/operator/src",
     "agents/hello/src",
     "packages/adapter-sdk/src",
