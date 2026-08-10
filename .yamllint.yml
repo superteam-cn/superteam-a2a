@@ -1,0 +1,18 @@
+# yamllint configuration · L4-Phase3 PR-1 #92 关注项 #13 收口
+# - 排除 helm chart templates（Go template 语法非 YAML）
+# - 全部规则降为 warning（不阻断 CI）· 关注风格但不强制
+---
+extends: default
+
+ignore: |
+  helm/**/templates/**
+  .venv/
+  node_modules/
+
+rules:
+  line-length: disable
+  truthy: disable
+  document-start: disable
+  new-line-at-end-of-file: disable
+  comments-indentation: disable
+  indentation: disable

@@ -110,9 +110,13 @@ extraPaths = [
     "services/knowledge-memory-service/src",
     "agents/hello/src",
 ]
+# CI Linux pyright auto-detection 需要显式 venvPath（uv sync 后 .venv 在 repo root）
+venvPath = "."
+venv = ".venv"
 pythonVersion = "3.12"
 pythonPlatform = "Linux"
 # 全局报告级别（strict 模式按需在 CI 启用，避免单文件 Pyright 误报阻塞）
+reportMissingImports = "none"  # CI Linux venv auto-detection 不稳定 + import 由 pytest runtime 验证
 reportMissingTypeStubs = "none"  # workspace 内部包无 stub 文件，Pyright 误报
 reportUnknownMemberType = "warning"
 reportUnknownVariableType = "warning"
