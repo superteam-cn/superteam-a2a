@@ -3,6 +3,13 @@
 
 replicaCount: 1  # ⚠️ Card-driven 单实例 · schema enum 强约束
 
+# HPA autoscaling (默认禁用 · Card-driven 单实例)
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 1
+  targetCPUUtilizationPercentage: 80
+
 image:
   repository: ghcr.io/superteam-cn/superteam-a2a-hello-agent
   tag: "0.1.0"
