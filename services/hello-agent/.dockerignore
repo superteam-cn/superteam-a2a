@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual env
+.venv/
+venv/
+env/
+
+# Git
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Tests
+tests/
+
+# Docs
+docs/
+
+# Build artifacts
+dist/
+build/
+*.egg-info/
+*.whl
+
+# CI/CD
+.github/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
