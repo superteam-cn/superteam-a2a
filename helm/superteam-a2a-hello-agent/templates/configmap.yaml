@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "superteam-a2a-hello-agent.fullname" . }}
+  labels:
+    {{- include "superteam-a2a-hello-agent.labels" . | nindent 4 }}
+data:
+  LOG_LEVEL: {{ .Values.config.logLevel | quote }}
+  OTEL_EXPORTER_OTLP_ENDPOINT: {{ .Values.config.otelExporterOtlpEndpoint | quote }}
+  PYTHONUNBUFFERED: {{ .Values.config.pythonUnbuffered | quote }}

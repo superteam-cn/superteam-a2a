@@ -1,0 +1,17 @@
+apiVersion: v2
+name: superteam-a2a-hello-agent
+description: superteam-a2a Hello Agent · Phase 4 PR-2 容器化部署（starlette + prometheus + 双探针）
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+kubeVersion: ">=1.25.0-0"
+keywords:
+  - a2a
+  - agent
+  - hello
+  - observability
+home: https://github.com/superteam-cn/superteam-a2a
+sources:
+  - https://github.com/superteam-cn/superteam-a2a
+maintainers:
+  - name: superteam-a2a contributors
