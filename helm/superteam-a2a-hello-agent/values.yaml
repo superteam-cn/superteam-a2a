@@ -1,0 +1,102 @@
+# Default values for superteam-a2a-hello-agent.
+# This is a YAML-formatted file.
+
+replicaCount: 1  # ⚠️ Card-driven 单实例 · schema enum 强约束
+
+image:
+  repository: ghcr.io/superteam-cn/superteam-a2a-hello-agent
+  tag: "0.1.0"
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+nameOverride: ""
+fullnameOverride: ""
+
+serviceAccount:
+  create: true
+  name: "hello-agent"
+  annotations: {}
+  automountServiceAccountToken: false  # ⚠️ 最小权限
+
+service:
+  type: ClusterIP
+  port: 8080  # ⚠️ schema enum 强约束
+  targetPort: 8080
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  hosts: []
+  tls: []
+
+resources:
+  limits:
+    cpu: 500m
+    memory: 512Mi
+  requests:
+    cpu: 100m
+    memory: 128Mi
+
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: http
+  initialDelaySeconds: 10
+  periodSeconds: 30
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /readyz
+    port: http
+  initialDelaySeconds: 5
+  periodSeconds: 10
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  fsGroup: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+securityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1000
+  runAsGroup: 1000
+  capabilities:
+    drop:
+      - ALL
+
+config:
+  logLevel: INFO
+  otelExporterOtlpEndpoint: ""  # 留空 = 禁用 OTLP
+  pythonUnbuffered: "1"
+
+networkPolicy:
+  enabled: true
+  ingressNamespaceSelector:
+    matchLabels:
+      networking/allow-hello-agent: "true"
+  egress:
+    - dns  # kube-dns
+    - https  # OTLP (optional)
+
+prometheus:
+  enabled: true
+  serviceMonitor:
+    enabled: true
+    interval: 30s
+    scrapeTimeout: 10s
+    honorLabels: true  # ⚠️ 避免 label 漂移
+    additionalLabels: {}
+
+podAnnotations: {}
+podLabels: {}

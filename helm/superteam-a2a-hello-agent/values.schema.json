@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "superteam-a2a-hello-agent values schema",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["replicaCount", "image", "service"],
+  "properties": {
+    "replicaCount": {
+      "description": "Card-driven 单实例 · 仅允许 1",
+      "type": "integer",
+      "enum": [1]
+    },
+    "image": {
+      "type": "object",
+      "required": ["repository", "tag"],
+      "properties": {
+        "repository": {
+          "type": "string",
+          "pattern": "^ghcr\\.io/superteam-cn/superteam-a2a-hello-agent$"
+        },
+        "tag": {
+          "type": "string",
+          "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+(-[a-zA-Z0-9.-]+)?$"
+        },
+        "pullPolicy": {
+          "type": "string",
+          "enum": ["Always", "IfNotPresent", "Never"]
+        }
+      }
+    },
+    "service": {
+      "type": "object",
+      "required": ["port", "targetPort"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["ClusterIP", "NodePort", "LoadBalancer"]
+        },
+        "port": {
+          "description": "服务端口 · 仅允许 8080",
+          "type": "integer",
+          "enum": [8080]
+        },
+        "targetPort": {
+          "type": "integer",
+          "enum": [8080]
+        }
+      }
+    },
+    "serviceAccount": {
+      "type": "object",
+      "properties": {
+        "automountServiceAccountToken": {
+          "type": "boolean",
+          "const": false
+        }
+      }
+    },
+    "prometheus": {
+      "type": "object",
+      "properties": {
+        "serviceMonitor": {
+          "type": "object",
+          "properties": {
+            "honorLabels": {
+              "type": "boolean",
+              "const": true
+            }
+          }
+        }
+      }
+    }
+  }
+}

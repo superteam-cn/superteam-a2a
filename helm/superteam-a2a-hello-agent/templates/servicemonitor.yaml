@@ -1,0 +1,21 @@
+{{- if and .Values.prometheus.enabled .Values.prometheus.serviceMonitor.enabled -}}
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: {{ include "superteam-a2a-hello-agent.fullname" . }}
+  labels:
+    {{- include "superteam-a2a-hello-agent.labels" . | nindent 4 }}
+    {{- with .Values.prometheus.serviceMonitor.additionalLabels }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+spec:
+  selector:
+    matchLabels:
+      {{- include "superteam-a2a-hello-agent.selectorLabels" . | nindent 6 }}
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: {{ .Values.prometheus.serviceMonitor.interval }}
+      scrapeTimeout: {{ .Values.prometheus.serviceMonitor.scrapeTimeout }}
+      honorLabels: {{ .Values.prometheus.serviceMonitor.honorLabels }}
+{{- end }}

@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "superteam-a2a-hello-agent.fullname" . }}
+  labels:
+    {{- include "superteam-a2a-hello-agent.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.service.type }}
+  ports:
+    - port: {{ .Values.service.port }}
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    {{- include "superteam-a2a-hello-agent.selectorLabels" . | nindent 4 }}
