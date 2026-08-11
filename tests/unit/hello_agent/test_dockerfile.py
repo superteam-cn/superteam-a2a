@@ -113,9 +113,7 @@ def test_hello_docker_001_non_root_user() -> None:
     user_target = user_match.group(1)
     # 接受格式：1000:1000 / hello:hello / 1000 / hello
     is_non_root = (
-        "1000" in user_target
-        or "hello" in user_target
-        or user_target.startswith("nonroot")
+        "1000" in user_target or "hello" in user_target or user_target.startswith("nonroot")
     )
     assert is_non_root, f"USER target '{user_target}' should be non-root (UID 1000 or hello user)"
 
@@ -243,10 +241,7 @@ def test_hello_docker_001_dockerignore_exists() -> None:
         # spec 是 [regex, reason] 或 [regex1, regex2, reason]
         patterns = spec[:-1]
         reason = spec[-1]
-        matched = any(
-            re.search(p, content, re.MULTILINE) is not None for p in patterns
-        )
+        matched = any(re.search(p, content, re.MULTILINE) is not None for p in patterns)
         assert matched, (
-            f".dockerignore must exclude '{pattern}' ({reason}). "
-            f"Accepted patterns: {patterns}"
+            f".dockerignore must exclude '{pattern}' ({reason}). Accepted patterns: {patterns}"
         )
