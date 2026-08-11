@@ -1,6 +1,7 @@
 # Branch Protection Ruleset 修正指南（项目发起人 web 端 admin）
 
-> **状态**：2026-08-10 #98 · ⚠️ **需项目发起人 web 端 admin 操作** · gh CLI 仅能读取 Ruleset 内容，无法直接修改 required_status_checks（GitHub API 限制）。
+> **状态**：2026-08-11 #99 · ⚠️ **需项目发起人 web 端 admin 操作** · gh CLI 仅能读取 Ruleset 内容，无法直接修改 required_status_checks（GitHub API 限制）。
+> **2026-08-11 修正**：原文档 §3 步骤 2 误称规则名 `Require status checks to pass before merging`，**实际 web 端 rule 名是 `Require status checks to pass`**（项目发起人反馈 · 已修订）。
 
 ---
 
@@ -55,8 +56,8 @@ Lint / Type-check / Test (Python 3.12)
 
 ### 步骤 2 · 修改 required status checks
 
-1. 找到 `Require status checks to pass before merging` 区块
-2. 在 `Required checks` 列表中**删除**以下 4 项：
+1. 在 Ruleset 编辑页面，找到 rule **"Require status checks to pass"**（不是 "before merging"）
+2. 在该 rule 下的 `Required checks` 列表中**删除**以下 4 项：
    - `ci`
    - `lint ci`
    - `test`
@@ -66,11 +67,18 @@ Lint / Type-check / Test (Python 3.12)
 
 ### 步骤 3 · 推荐额外配置
 
-- [ ] ✅ `Require branches to be up to date before merging`
-- [ ] ✅ `Require conversation resolution before merging`
-- [ ] ✅ `Require linear history`（强制 rebase 或 squash）
-- [ ] ✅ `Require deployments to succeed before merging`（如有 deployment 环境）
+在该 rule "Require status checks to pass" 下方**子选项**中：
+
+- [ ] ✅ `Require branches to be up to date before merging`（**这是子选项**，不是独立 rule）
 - [ ] ✅ `Do not allow bypassing the above settings`（防止 admin 绕过）
+
+**其他 rules 保持现有**（已启用，无需改动）：
+
+- `Restrict deletions`
+- `Require linear history`
+- `Require a pull request before merging`（1 approval + dismiss stale + last push approval）
+- `Block force pushes`
+- ~~`Require deployments to succeed`~~（**不要勾选环境** · 本项目无 deployment env）
 
 ### 步骤 4 · 验证
 
@@ -82,7 +90,7 @@ Lint / Type-check / Test (Python 3.12)
 
 ---
 
-## §4 当前 PR merge 状态（2026-08-10）
+## §4 当前 PR merge 状态（2026-08-11）
 
 | PR | 标题 | CI 实际状态 | merge 状态 |
 |---|---|---|---|
@@ -91,8 +99,9 @@ Lint / Type-check / Test (Python 3.12)
 | #35 | PR-3 25 指标 ServiceMonitor | ✅ SUCCESS | ✅ merged |
 | #36 | PR-4 H-RM/H-QM-E2E 实装 | ✅ SUCCESS | ✅ merged |
 | #37 | PR-5 文档同步 | ✅ SUCCESS | ✅ merged |
+| **#38** | **Phase 4 PR-1 Hello Agent Step 1 完整实装** | ✅ SUCCESS（5 + 1 SKIPPED） | ✅ merged `c97330bb` |
 
-**5 SUCCESS 实际未触发阻断**（check name 不匹配 Ruleset required_status_checks）· 项目发起人手动合并所有 PR。
+**6 PR 实际未触发阻断**（check name 不匹配 Ruleset required_status_checks）· 项目发起人手动合并所有 PR。
 
 ---
 
@@ -100,7 +109,7 @@ Lint / Type-check / Test (Python 3.12)
 
 - **不紧急**：当前 PR merge 都成功 · 0 CI failure
 - **建议时机**：#98-99 Phase 4 PR 启动前（避免新 PR CI 失败被阻断）
-- **阻塞** ：本次会话 #98-99 实装将**首次在严格 BP 下**提交 · 建议立即修正
+- **#99 启动窗口**：PR-2 Hello Agent Step 2（Dockerfile + 7 Helm 模板 + kind E2E · 1 周集中）· 建议本 Issue 关闭后再启动避免误阻断
 
 ---
 
@@ -126,10 +135,11 @@ gh api -X PUT repos/superteam-cn/superteam-a2a/rulesets/20232954 \
 
 ## §7 历史跟踪
 
-- #92 关注项 ⑭ 首次发现：2026-08-06 · Branch Protection check 名称 mismatch
-- #93 验证：仓库 public 化后 Code Security 解决 · 但 ⑭ 未解决
-- #97 PR #36 PR #37 合并验证：CI 5 SUCCESS 实际未阻断（check mismatch）· 项目发起人手动合并
-- #98 本文档创建：明确项目发起人 web 端 admin 操作步骤
+- **#92**（2026-08-06）：首次发现 · PR #17-#29 因 BP mismatch 未触发阻断
+- **#93**（2026-08-10）：仓库 public 化 + Code Security 解决 · ⑭ 未解决
+- **#97**（2026-08-10）：PR #34/#35/#36/#37 合并验证 · CI 5 SUCCESS 实际未阻断 · 项目发起人手动合并
+- **#98**（2026-08-10）：本文档创建 + `docs/admin/branch-protection-fix.md` 明确步骤
+- **#99**（2026-08-11）：web 端 admin 收口 5 步 + Issue #42 创建（admin + phase4 label）+ 本地 main fast-forward `7b6d4cb` + 规则名误称修正（`Require status checks to pass before merging` → `Require status checks to pass`）+ Issue #42 评论补充完整 rule 列表
 
 ---
 
