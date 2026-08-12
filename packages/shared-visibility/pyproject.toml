@@ -1,0 +1,16 @@
+[project]
+name = "superteam-a2a-shared-visibility"
+version = "0.1.0"
+description = "5D visibility matrix + 4-level scope inheritance (shared with L3-5) · Protocol interfaces only (PR-3) · business logic PR-4+"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.10,<3",
+    "superteam-a2a-knowledge>=0.1.0",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/supteam_a2a"]

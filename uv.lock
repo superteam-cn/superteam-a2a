@@ -12,6 +12,7 @@ members = [
     "superteam-a2a-knowledge",
     "superteam-a2a-knowledge-memory-service",
     "superteam-a2a-operator",
+    "superteam-a2a-shared-visibility",
 ]
 
 [[package]]
@@ -1521,6 +1522,21 @@ requires-dist = [
     { name = "kopf", specifier = ">=1.37,<2" },
     { name = "kubernetes-asyncio", specifier = ">=36.1.0,<37" },
     { name = "pydantic", specifier = ">=2.10,<3" },
+]
+
+[[package]]
+name = "superteam-a2a-shared-visibility"
+version = "0.1.0"
+source = { editable = "packages/shared-visibility" }
+dependencies = [
+    { name = "pydantic" },
+    { name = "superteam-a2a-knowledge" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "pydantic", specifier = ">=2.10,<3" },
+    { name = "superteam-a2a-knowledge", editable = "packages/knowledge" },
 ]
 
 [[package]]
