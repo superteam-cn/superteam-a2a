@@ -13,11 +13,13 @@ authors = [
 ]
 
 [tool.uv]
-# 统一工作区（5 packages + 2 services + 1 agent）
+# 统一工作区（7 packages + 2 services + 1 agent · #105 PR-3 Phase B 新增 knowledge + shared-visibility）
 workspace = { members = [
     "packages/operator",
     "packages/a2a-core",
     "packages/adapter-sdk",
+    "packages/knowledge",
+    "packages/shared-visibility",
     "services/knowledge-memory-service",
     "services/hello-agent",
     "agents/hello",
@@ -29,6 +31,8 @@ workspace = { members = [
 superteam-a2a-a2a-core = { workspace = true }
 superteam-a2a-adapter-sdk = { workspace = true }
 superteam-a2a-operator = { workspace = true }
+superteam-a2a-knowledge = { workspace = true }
+superteam-a2a-shared-visibility = { workspace = true }
 superteam-a2a-knowledge-memory-service = { workspace = true }
 superteam-a2a-hello-agent-service = { workspace = true }
 superteam-a2a-hello-agent = { workspace = true }
