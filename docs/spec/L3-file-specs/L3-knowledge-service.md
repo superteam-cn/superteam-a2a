@@ -2579,6 +2579,16 @@ AppSet 用 dev/staging/prod list generator；prod 使用签名不可变 tag 与�
 
 ### M.4 下次会话固定入口
 
+**Phase 4 PR-3 Phase B 实施记录（2026-08-12 #105 · PR #49 squash merged @ `74af527`）**：
+
+- ✅ **packages/knowledge/** 8 CRD types 实装完成（knowledgescope + knowledgeitem + memory_schema + 5 辅助类型：scope_reference / item_reference / inherit_rules / scope_level / scope_phase）
+- ✅ **packages/shared-visibility/** 4 shared modules 实装完成（scope_resolver / visibility_matrix / knowledge_type / scope_inherit）
+- ✅ **30 测试 ID 全部 PASS**（KS-CRD-UT × 5 + KI-CRD-UT × 7 + MEM-CRD-UT × 5 + SV-* UT × 7 + KS/KI/MEM-CR D IT × 5 + wire-sync-IT-001 5 parts）
+- ✅ **284/284 PASS**（基线 254 + 30 新增 · 0 回归）· ruff check/format 全绿 · pyright 0 errors / 3 warnings cosmetic
+- ✅ **5 项关键不变量 100% 保持**（wire contract / Pydantic v2 / 5 维 visibility / Python-first 边界 / wire sync 矩阵）
+- 6 commits feat 分支（workspace + 8 CRD + 17 UT + PEP 420 namespace fix + 4 shared + 7 UT + 6 IT + ruff I001 fix + Linux CI namespace fix）
+- **下次会话入口**：**#106 PR-4 Knowledge Service Step 2 启动**（12 service + 4 A2A handler + 23 错误码 · 2 周工作量）
+
 1. **§F.1-§F.6 跨文档同步 6 步**（ROADMAP L3 矩阵 + L2-4 Spec 附录 A + L3-1/L3-2/L3-3/L3-4 附录 A + README + CONSTITUTION-CHANGELOG；参照 #62 §F 6 步模板）
 2. **git commit**：`feat(L3-5): 升级 v0.2.0 + 评审通过 + 错误码 23 处漂移修正 + §F 6 步跨文档同步`
 3. **L3-6 Memory backend Spec 起草**（独立会话；基于 L2-4 v0.2.0 Spec + L3-5 §6.2 共享 Deployment 协调点；建议拆 Spec 起草 + 评审两会话避免 §16.1 红线；目标 v0.2-draft 骨架稿）

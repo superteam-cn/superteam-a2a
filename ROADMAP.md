@@ -1,6 +1,6 @@
 # superteam-a2a — Roadmap
 
-> 📅 Last updated: **2026-07-30**（同步至 ADR-0001 / 0004 / 0005 / **0006 v1.0 Accepted (D 方案 · 同进程 · 合并 L3-5 + L3-6)** + 宪法 v0.5.0 + L1 v0.2.0 + L2-1/L2-2/L2-3/L2-4 v0.2.0 Python 通过 + **L3-1 Operator Core v0.2.0 #56** + **L3-2 A2A Core v0.2.0 #54** + **L3-3 Adapter SDK v0.2.0 #58** + **L3-4 Hello Agent v0.2.0 #61** + **L3-5 Knowledge Service v0.2.0 + v0.2.1 #63.5/#71** + **L3-6 Memory backend v0.2.0 + v0.2.1 #67/#71**；**L3 阶段 6/6 全部完成** · **L4 实施层已解锁（ADR-0006 v1.0 Accepted · 2026-07-30 #71）**）
+> 📅 Last updated: **2026-08-12**（**Phase 4 PR-3 Knowledge Service Step 1 Phase B 完整实装 #49 merged @ `74af527` · 284 PASS · 6 commits feat 分支 + 3 Subagent + 2 hotfix + 1 ruff fix**）（同步至 ADR-0001 / 0004 / 0005 / **0006 v1.0 Accepted (D 方案 · 同进程 · 合并 L3-5 + L3-6)** + 宪法 v0.5.0 + L1 v0.2.0 + L2-1/L2-2/L2-3/L2-4 v0.2.0 Python 通过 + **L3-1 Operator Core v0.2.0 #56** + **L3-2 A2A Core v0.2.0 #54** + **L3-3 Adapter SDK v0.2.0 #58** + **L3-4 Hello Agent v0.2.0 #61** + **L3-5 Knowledge Service v0.2.0 + v0.2.1 #63.5/#71** + **L3-6 Memory backend v0.2.0 + v0.2.1 #67/#71**；**L3 阶段 6/6 全部完成** · **L4 实施层已解锁（ADR-0006 v1.0 Accepted · 2026-07-30 #71）**）
 > 👤 Maintainer: [@CoderZhangfujiang](https://github.com/CoderZhangfujiang)
 > 🎯 Goal: ≥3,000 GitHub stars within 18 months (by **2027-09**)
 
@@ -146,7 +146,16 @@ This roadmap is a living document, kept in sync with the authoritative [ADR-0001
 
 ---
 
-## Phase 4 — 打磨 + Launch（第 19-20 周）⏳ 待启动
+## Phase 4 — 打磨 + Launch（第 19-20 周）🚧 3/5 PR merged（PR-1 Hello Agent Step 1 + PR-2 Hello Agent Step 2 + PR-3 Knowledge Service Step 1）
+
+> 对应发版 tag：**`v0.1.0`**
+
+**Phase 4 实施 PR 推进**：
+- [x] **PR-1 Hello Agent Step 1**（5 文件级契约 + 22 测试 ID） · ✅ #38 · 2026-08-10 · 191/191 PASS
+- [x] **PR-2 Hello Agent Step 2**（Dockerfile + 8 Helm + kind E2E） · ✅ #45 squash merged @ `76c08f2` · 2026-08-11 · 36/36 PASS
+- [x] **PR-3 Knowledge Service Step 1**（8 CRD + 4 shared + 30 测试 ID） · ✅ #49 squash merged @ `74af527` · 2026-08-12 · 284/284 PASS · 6 commits feat 分支
+- [ ] **PR-4 Knowledge Service Step 2**（12 service + 4 A2A handler + 23 错误码） · 📋 待启动 · 2 周工作量
+- [ ] **PR-5 Knowledge Service Step 3**（7 Helm + RBAC + kind E2E） · 📋 待启动 · 1 周工作量
 
 > 对应发版 tag：**`v0.1.0`**
 

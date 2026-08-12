@@ -1993,6 +1993,18 @@ L1 §5.2.3 是 v1alpha1 唯一性校核源；L3-6 仅添加 Python alias/validat
 
 ### M.4 下次会话固定入口
 
+**Phase 4 PR-3 Phase B 实施记录（2026-08-12 #105 · PR #49 squash merged @ `74af527`）**：
+
+- ✅ **packages/shared-visibility/** 4 shared modules 实装完成（与 L3-6 共享 visibility 逻辑层）：
+  - `scope_resolver.py` (ScopeResolver Protocol + ScopeError exception)
+  - `visibility_matrix.py` (VisibilityMatrix Protocol + 5 维矩阵策略表占位)
+  - `knowledge_type.py` (KnowledgeType StrEnum re-export from packages/knowledge)
+  - `scope_inherit.py` (ScopeInherit Protocol + InheritRules re-export)
+- ✅ **7 测试 ID 全部 PASS**（SV-SCOPE-UT × 2 + SV-VIS-UT × 2 + SV-KT-UT × 1 + SV-INH-UT × 2）
+- ✅ **PR-3 仅 Protocol 接口 + re-export**（**不实现业务逻辑**——业务逻辑推迟到 PR-4）
+- 5 关注项 v0.2.1 + 4 建议项 v0.2.1 状态保留（PR-3 Phase B 不触及）
+- **下次会话入口**：**#106 PR-4 Knowledge Service Step 2 启动**（12 service + 4 A2A handler + 23 错误码 · 2 周工作量）
+
 1. ✅ **L4 前架构门禁**（**2026-07-30 #71 已关闭**）：OPEN-MEMORY-001 + OPEN-L1-003 + OPEN-ADR-0006-001 全部关闭 · ADR-0006 v1.0 Accepted（D 方案 · 同进程 · 合并 L3-5 + L3-6）· L3-5 v0.2.1 + L3-6 v0.2.1 + L1 v0.2.0 微同步已落地 · kind 验证移交 L4 实施第一周（read/write 双 Role（含 admissionregistration/authentication/authorization 扩展）+ webhook 50ms + Lease/readiness）。
 2. **L3-5 v0.2.1 微同步**：将 §9.5 read-only Role 与本 Spec §9.5 write Role 对齐（确认 admissionregistration/authn/authz 不进入 read-only Role）；附录 B B.5 明确性能 artifact 行。
 3. **v0.2.1 微同步**：关注项台账 4 建议项（§M-2.1 BackendBindingSpec 派生映射 / §M-2.2 收敛率说明 / §M-2.3 9 关键模块覆盖率映射 / §M-2.4 EventReason 白名单继承说明）。
