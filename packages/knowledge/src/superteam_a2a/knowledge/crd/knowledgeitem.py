@@ -11,7 +11,6 @@ from __future__ import annotations
 from enum import StrEnum
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
-
 from superteam_a2a.knowledge.crd.item_reference import ItemReference
 from superteam_a2a.knowledge.crd.knowledgescope import (
     KnowledgeVisibility,

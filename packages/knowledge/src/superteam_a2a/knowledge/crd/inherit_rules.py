@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, ConfigDict, Field
-
 from superteam_a2a.knowledge.crd.scope_level import ScopeLevel
 
 

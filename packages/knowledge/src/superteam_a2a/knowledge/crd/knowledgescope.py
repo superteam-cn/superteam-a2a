@@ -12,7 +12,6 @@ from __future__ import annotations
 from enum import StrEnum
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field
-
 from superteam_a2a.knowledge.crd.inherit_rules import InheritRules
 from superteam_a2a.knowledge.crd.scope_phase import ScopePhase
 from superteam_a2a.knowledge.crd.scope_reference import ScopeReference
