@@ -6,12 +6,12 @@
 > ③ PR-4a 实装 **11 KNOWLEDGE_* 错误码 enum**（L3-5 §8 权威表 -32008 ~ -32018）
 > ④ PR-4a 实装 **`@kopf.validation` webhook handler**（`validate_knowledge_item` + `validate_memory` · L3-5 §5.1）
 > ⑤ PR-4a 实装 **3 async Pydantic v2 model_validator**（content + confidence/decay + visibility/scope）
-> ⑥ baseline **284 → 325 PASS**（#105 PR-3 Phase B +41 测试 ID）
+> ⑥ baseline `tests/unit tests/integration` = **284 PASS**（与 v0.1-draft 一致 · #105 PR-3 +41 测试属于 `tests/e2e/`）
 
 | 字段 | 值 |
 |---|---|
 | 文档版本 | **v0.2-draft**（2026-08-13 · #111 启动 · v0.1-draft → v0.2-draft 修订） |
-| 上游 | #105 PR-3 Knowledge Service Step 1 Phase B merged (`74af527` · 30 测试 ID · 325 PASS) + #104 PR-3 plan merged (`ce76eaa`) + L3-5 Knowledge Service v0.2.0（2026-07-29 #63.5 评审通过 · 10 维度全 PASS）+ L3-6 Memory backend v0.2.0（2026-07-30 #67 评审通过）+ ADR-0006 v1.0 Accepted D 方案（单进程架构）|
+| 上游 | #105 PR-3 Knowledge Service Step 1 Phase B merged (`74af527` · 30 测试 ID · `tests/unit tests/integration` 284 PASS · `tests/` 含 41 e2e 共 325 PASS) + #104 PR-3 plan merged (`ce76eaa`) + L3-5 Knowledge Service v0.2.0（2026-07-29 #63.5 评审通过 · 10 维度全 PASS）+ L3-6 Memory backend v0.2.0（2026-07-30 #67 评审通过）+ ADR-0006 v1.0 Accepted D 方案（单进程架构）|
 | 下游 | **#107 PR-4b**（4 A2A handler + 12 service · 依赖 PR-4a KNOWLEDGE_* 错误码 + admission webhook）→ **#108 PR-4c**（ASGI server + Card-driven + BM25 + scope resolver · 依赖 PR-4b handlers）→ **#109 PR-5**（7 Helm + RBAC + kind E2E · 依赖 PR-4c ASGI server）→ v0.5+ 演进 |
 | 关联 PR | Phase 4 PR-4a Knowledge Service Step 2a · 本 plan |
 | main HEAD | `406aa5c`（#110 PR-5 plan v0.1-draft merged · PR-4 拆分 4 plan 全部 merged） |
@@ -53,7 +53,7 @@
 - UT 增量：**~12**（KNOW-UT × 5 + ADM-UT × 4 + VAL-UT × 3 = 12 ID）
 - IT 增量：**~3**（ADM-IT × 3 = 3 ID）
 - **总计：~15 ID**
-- **baseline 325 → 340 PASS**（325 + 15 = 340）
+- **baseline `tests/unit tests/integration` 284 → 299 PASS**（284 + 15 = 299）
 
 **测试 ID 命名规范**：
 - **KNOW-UT-001~005** · 11 KNOWLEDGE_* 错误码 enum 5 子项（JSON-RPC code 映射 · Retryable 矩阵 · wire 漂移静态断言）
@@ -261,7 +261,7 @@ async def validate_memory(spec, **kwargs):
 
 1. 验证所有 Subagent commits 在 feat 分支累计
 2. 验证：ruff check All passed + ruff format 0 差异 + pyright 0 errors
-3. 验证：pytest `tests/unit tests/integration` **325 + 15 = 340 PASS**（v0.2-draft 修订：284 + 17 = 301 → 325 + 15 = 340）
+3. 验证：pytest `tests/unit tests/integration` **284 + 15 = 299 PASS**（v0.2-draft 修订：284 + 17 = 301 → 284 + 15 = 299）
 4. push feat 分支 → `gh pr create` → PR（v0.2-draft 修订：PR #50 → 实际 PR 编号）
 5. 等 CI 5 SUCCESS（BP 严格生效 · 项目发起人 squash merge）
 6. Issue close + MEMORY.md 头部更新
@@ -290,7 +290,7 @@ async def validate_memory(spec, **kwargs):
 | 3 | `services/knowledge-memory-service/admission/webhook.py` 创建 · `@kopf.validation` × 2 + `fail_closed_50ms` 装饰器 | `@kopf.validation` 装饰器存在 · 50ms fail-closed UT 验证 |
 | 4 | `services/knowledge-memory-service/handlers/admission_validator.py` 升级 · 5 步算法扩展（content_hash + K8s 查询） | `import validate_ki_memory_mutex` 成功 · 5 步 UT 覆盖 |
 | 5 | 11 KNOWLEDGE_* 错误码完整（-32008 ~ -32018） | `len(KnowledgeErrorCode) == 11` + wire-sync 静态断言 |
-| 6 | UT 测试 12 ID 全部 PASS（KNOW-UT × 5 + ADM-UT × 4 + VAL-UT × 3） | `pytest tests/unit/ -q` · **340 PASS** |
+| 6 | UT 测试 12 ID 全部 PASS（KNOW-UT × 5 + ADM-UT × 4 + VAL-UT × 3） | `pytest tests/unit/ -q` · `tests/unit tests/integration` **299 PASS** |
 | 7 | IT 测试 3 ID 全部 PASS（ADM-IT × 3 admission webhook Kopf 集成） | `pytest tests/integration/test_admission_webhook.py -q` · 3 PASS |
 | 8 | ruff check All passed + ruff format 0 差异 + pyright 0 errors | GitHub Actions CI |
 | 9 | wire-sync 静态断言通过（11 KNOWLEDGE_* 与 L3-5 §8.1 字段 1:1 对齐 · 0 漂移） | `pytest tests/integration/test_knowledge_error_codes_wire_sync.py` |
@@ -338,9 +338,13 @@ async def validate_memory(spec, **kwargs):
 | UT | 24 + 3 baseline = 27 | **+12**（KNOW-UT × 5 + ADM-UT × 4 + VAL-UT × 3）| 39 |
 | CF | 18 | 0 | 18 |
 | IT | 6 | **+3**（ADM-IT × 3）| 9 |
-| E2E | 6 | 0 | 6 |
+| E2E | 6 | 0 | 6（`tests/` 41 e2e 测试保留 · kind cluster 暂不可用 SKIPPED）|
 | DEPLOY | 17 | 0 | 17 |
 | PERF | 0 | 0 | 0 |
+
+**`tests/unit tests/integration` 基线**：284 PASS（PR-3 Phase B 终态 · 不含 e2e）→ **PR-4a v0.2-draft 终态 299 PASS**（284 + 15 = 299）
+
+**`tests/` 全量基线（含 e2e）**：325 PASS + 5 skipped = 330 测试数（PR-3 Phase B 终态）→ **PR-4a v0.2-draft 终态 340 PASS + 5 skipped**（330 + 15 = 345 但 e2e 不变）
 
 **PR-4a v0.2-draft 测试增量**：~15 ID（UT 12 + IT 3）· 4 重静态门禁（ruff + ruff format + pyright + pytest）· 覆盖率 ≥ 80%（L3-5 §10.4 基线）
 
