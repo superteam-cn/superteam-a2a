@@ -232,7 +232,11 @@ def main() -> None:
     app = _build_app(memo)
 
     async def _amain() -> None:
-        kopf_task = asyncio.create_task(kopf.run(memo=memo))
+        # kopf.run() 返回 None（同步函数），需包装为 async coroutine
+        async def _run_kopf() -> None:
+            kopf.run(memo=memo)
+
+        kopf_task = asyncio.create_task(_run_kopf())
         server_task = asyncio.create_task(_run_uvicorn(app))
         # 等待任一完成 → 取消对方
         done, pending = await asyncio.wait(

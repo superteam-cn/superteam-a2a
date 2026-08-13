@@ -232,6 +232,7 @@ async def jsonrpc_record_memory(request: Request) -> Response:
     envelope, err = _parse_envelope(raw)
     if err is not None:
         return JSONResponse(err, status_code=200)  # JSON-RPC error responses are HTTP 200
+    assert envelope is not None  # _parse_envelope returns (None, err) or (envelope, None)
     request_id = envelope["id"]
     params = envelope.get("params", {})
     if not isinstance(params, dict):
@@ -268,6 +269,7 @@ async def jsonrpc_query_memory(request: Request) -> Response:
     envelope, err = _parse_envelope(raw)
     if err is not None:
         return JSONResponse(err, status_code=200)
+    assert envelope is not None  # _parse_envelope returns (None, err) or (envelope, None)
     request_id = envelope["id"]
     params = envelope.get("params", {})
     if not isinstance(params, dict):
