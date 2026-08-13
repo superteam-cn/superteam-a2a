@@ -5,6 +5,9 @@
 注意：main.py 顶层装饰器 @kopf.on.* / @kopf.timer 在 collection 时会触发
 kopf 注册要求（names 不全 → TypeError）。本测试用 mock kopf 模块避免
 实际注册，仅调用 _build_memo() 装配验证。
+
+PR-4a 修复：污染隔离移至 tests/unit/knowledge_memory/conftest.py 的
+autouse fixture，避免污染其他测试（test_admission_5step.py + test_admission_webhook.py）。
 """
 
 from __future__ import annotations

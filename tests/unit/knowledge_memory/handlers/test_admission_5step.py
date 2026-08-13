@@ -10,8 +10,9 @@ PR-4a v0.2-draft 实装 · #111
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
-import importlib.util
+import importlib
 import sys
 from pathlib import Path
 
@@ -23,32 +24,6 @@ for p in (_PK_PATH, _KM_PATH):
     if p not in sys.path:
         sys.path.insert(0, p)
 
-
-def _load_real_kopf():
-    """从 venv 真实 kopf 路径加载模块，绕过 sys.modules['kopf'] 污染。
-
-    tests/unit/knowledge_memory/test_main_memo.py 在 collection 时将
-    sys.modules["kopf"] 替换为 MagicMock。本测试需要真实 kopf.on.validate
-    / kopf.AdmissionError 用于类型断言。
-    """
-    # sys.executable = <project>/.venv/Scripts/python.exe (Windows)
-    # kopf 位于 <project>/.venv/Lib/site-packages/kopf/
-    kopf_init = (
-        Path(sys.executable).parent.parent / "Lib" / "site-packages" / "kopf" / "__init__.py"
-    )
-    if not kopf_init.exists():
-        return None
-    spec = importlib.util.spec_from_file_location("_real_kopf", str(kopf_init))
-    if spec is None or spec.loader is None:
-        return None
-    mod = importlib.util.module_from_spec(spec)
-    spec.loader.exec_module(mod)
-    return mod
-
-
-_REAL_KOPF = _load_real_kopf()
-
-
 import pytest  # noqa: E402
 from superteam_a2a.knowledge.errors.codes import (  # noqa: E402
     KnowledgeContractError,
@@ -57,6 +32,17 @@ from superteam_a2a.knowledge.errors.codes import (  # noqa: E402
 from superteam_a2a.knowledge_memory.handlers.admission_validator import (  # noqa: E402
     KnowledgeMemoryMutexValidator,
 )
+
+
+def _get_real_kopf():
+    """获取真实 kopf 模块（绕过 test_main_memo.py 的 sys.modules['kopf'] MagicMock 污染）。
+
+    tests/unit/knowledge_memory/conftest.py 的 _restore_real_kopf fixture 已在每个 test 前
+    重置 sys.modules['kopf']，但模块顶部的 `import kopf` 会缓存 Mock 引用。本 helper 在测试
+    函数内通过 importlib 重新导入 kopf，确保拿到真实模块。
+    """
+    return importlib.import_module("kopf")
+
 
 # ============================================================================
 # Mock fixtures
@@ -105,7 +91,6 @@ async def test_admission_5step_no_matching_memory_allows():
     ki = _MockKn(content="hello world")
     # memories=[] 无匹配 → 允许
     await validator.validate_ki_memory_mutex(ki, memories=[])
-    # 不抛错 = 允许
 
 
 async def test_admission_5step_same_agent_supersede_allows():
@@ -190,16 +175,15 @@ async def test_admission_scope_ref_no_cycle_allows():
 # ADM-UT-008
 async def test_admission_fail_closed_50ms_timeout():
     """ADM-UT-008 · fail_closed_50ms 装饰器 · 内部 sleep > 50ms → kopf.AdmissionError."""
-    import asyncio
-
     from superteam_a2a.knowledge_memory.admission.webhook import fail_closed_50ms
+
+    kopf = _get_real_kopf()
 
     @fail_closed_50ms
     async def slow_coro() -> None:
         await asyncio.sleep(0.080)  # > 50ms
 
-    assert _REAL_KOPF is not None
-    with pytest.raises(_REAL_KOPF.AdmissionError, match="fail-closed"):
+    with pytest.raises(kopf.AdmissionError, match="fail-closed"):
         await slow_coro()
 
 
@@ -222,10 +206,11 @@ async def test_admission_webhook_knowledge_item_rejects_large_content():
         validate_knowledge_item,
     )
 
-    assert _REAL_KOPF is not None
+    kopf = _get_real_kopf()
+
     spec = {"content": {f"k{i}": "v" for i in range(21)}}
-    with pytest.raises(_REAL_KOPF.AdmissionError, match="content keys > 20"):
-        await validate_knowledge_item(spec=spec)
+    with pytest.raises(kopf.AdmissionError, match="content keys > 20"):
+        await validate_knowledge_item(spec=spec)  # type: ignore[reportCallIssue]
 
 
 async def test_admission_webhook_memory_rejects_large_decay_days():
@@ -234,7 +219,8 @@ async def test_admission_webhook_memory_rejects_large_decay_days():
         validate_memory,
     )
 
-    assert _REAL_KOPF is not None
+    kopf = _get_real_kopf()
+
     spec = {"content": {"k": "v"}, "decayDays": 3651}
-    with pytest.raises(_REAL_KOPF.AdmissionError, match="decay_days > 3650"):
-        await validate_memory(spec=spec)
+    with pytest.raises(kopf.AdmissionError, match="decay_days > 3650"):
+        await validate_memory(spec=spec)  # type: ignore[reportCallIssue]
