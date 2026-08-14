@@ -1,7 +1,7 @@
 # superteam-a2a 项目宪法
 
-> **版本**：v0.5.0
-> **生效日期**：v0.1.0 于 2026-07-23；**v0.2.0 于 2026-07-23 同日**升级（新增第二条 9 款 2.9"记忆可追溯"，依据 ADR-0004）；**v0.3.0 于 2026-07-23 同日**升级（新增第十六条"会话与上下文管理"）；**v0.4.0 于 2026-07-24**升级（第十六条 §16.1 修订：明确模型上下文窗口 = 1M tokens、50% 红线 = 500K tokens、新增"按实际水位判断"执行细则）；**v0.5.0 于 2026-07-24**升级（依据 ADR-0005：平台自有实现改为 Python-first，测试/文档/类型检查门禁同步 Python 化）
+> **版本**：v0.6.0
+> **生效日期**：v0.1.0 于 2026-07-23；**v0.2.0 于 2026-07-23 同日**升级（新增第二条 9 款 2.9"记忆可追溯"，依据 ADR-0004）；**v0.3.0 于 2026-07-23 同日**升级（新增第十六条"会话与上下文管理"）；**v0.4.0 于 2026-07-24**升级（第十六条 §16.1 修订：明确模型上下文窗口 = 1M tokens、50% 红线 = 500K tokens、新增"按实际水位判断"执行细则）；**v0.5.0 于 2026-07-24**升级（依据 ADR-0005：平台自有实现改为 Python-first，测试/文档/类型检查门禁同步 Python 化）；**v0.6.0 于 2026-08-13**升级（新增第十七条"设计模式原则"，确立 SOLID + 合成复用 6 项设计原则作为所有 OOP 设计的基础约束）
 > **最高纲领**：本文件是 `superteam-a2a` 项目的最高纲领，所有架构决策、代码实现、流程规范都应与本文件保持一致。如有冲突，**以第十五条（质量第一性）为准**；如需修改本文件，须经维护者团队审批并记录变更原因。
 
 ---
@@ -826,6 +826,210 @@ ADR 模板必须包含：
 
 ---
 
+## 第十七条 设计模式原则（Design Pattern Principles · SOLID + 合成复用）
+
+> **2026-08-13 #111 新增 · v0.6.0** · 6 项基础设计原则（SOLID + 合成复用）作为所有面向对象设计的**基础约束**，与 §3 架构红线、§15 质量第一性原则并列。**适用于所有 OOP 设计**（Python 3.12+ Platform + 第三方 Agent Runtime 参考实现）。
+
+### 17.1 单一职责原则（Single Responsibility Principle, SRP）
+
+**原则**：一个类 / 模块应只承担**一个**职责，且该职责应被**一个**唯一的变更原因所驱动。
+
+**变更原因唯一性**：当且仅当某类业务方（persona / actor / stakeholder）发起需求变更时，才应修改该类。一个类的"职责"应能映射到一个**具体的业务方**。Robert C. Martin 经典表述："A class should have only one reason to change."
+
+**适用**：
+- ✅ 每个 class / module 单一焦点
+- ✅ 变更原因必须是单一的
+- ✅ 单元测试聚焦一个 SUT（system under test）
+
+**违反信号**：
+- 🔴 一个 class 的 `import` 列表跨 ≥ 3 个不相干子包（"import 列表"信号）
+- 🔴 一个 method 修改多个不相关字段
+- 🔴 一个 PR 既改 CRD schema 又改 admission 又改 Helm（多职责泄漏）
+
+**与 §4.3 关系**：§4.3 已确立"单一职责"作为 Adapter 的设计原则；§17.1 是 §4.3 的完整展开与一般化。
+
+**实施要点**：
+- 单一职责不等于"一个方法"——一个 class 服务一个 **actor**（用户 / 角色 / 业务方）
+- 高内聚低耦合：解散跨关注点的 import
+- 单元测试 fixture 单一 SUT 入口
+
+---
+
+### 17.2 开放封闭原则（Open/Closed Principle, OCP）
+
+**原则**：软件实体（class / module / function）应**对扩展开放，对修改封闭**。新增功能应通过扩展实现，而非修改已有代码。
+
+**适用**：
+- ✅ 新增功能时**不修改**已有代码（不重写 / 不改 wire contract）
+- ✅ 通过继承 / 组合 / Protocol 实现扩展
+- ✅ Helm values / 配置项驱动行为变化
+
+**违反信号**：
+- 🔴 加新需求时改动核心 type signature / class hierarchy
+- 🔴 单元测试因新需求而大规模重写
+- 🔴 PR 描述包含"重写 X" / "重命名 Y" / "调整 Z 结构"
+- 🔴 wire contract（JSON schema / K8s API）变更触发下游 PR 链
+
+**实施要点**：
+- 优先 Protocol + 组合（constructor injection / factory pattern）
+- 严格遵守 §2.6 向后兼容是承诺
+- 严格遵守 §11.1 破坏性变更必须 ADR
+- 严格遵守 §14.4 强制门禁（PR 评审必须明确"扩展点"）
+
+---
+
+### 17.3 里氏替换原则（Liskov Substitution Principle, LSP）
+
+**原则**：子类型必须**能够替换其基类型**，而不改变程序的正确性。任何接受基类型（Protocol / abstract class）的地方，必须接受任意子类型。
+
+**适用**：
+- ✅ 任何 `is-a` 关系（继承 / Protocol 实现）
+- ✅ Mock 测试必须通过 Protocol 类型断言（`runtime_checkable Protocol`）
+- ✅ 后端切换（InMemoryBackend ↔ K8sBackend）必须对调用方零修改
+
+**违反信号**：
+- 🔴 子类 override 父类方法抛 `NotImplementedError` / `raise NotImplementedError`
+- 🔴 子类必须检查 `isinstance(x, ParentType)` 来分支（type sniffing 反模式）
+- 🔴 单元测试必须 `cast(Mock, ...)` 才能调用
+- 🔴 调用方必须 `assert isinstance(x, ExpectedSubclass)` 来确保语义
+
+**实施要点**：
+- 优先 Protocol + `runtime_checkable`（参考 §3.7 Python-first 边界）
+- 子类必须遵守父类的**前置条件**（precondition 不强化）和**后置条件**（postcondition 不弱化）
+- LSP 失败**立即 ADR**（破坏性变更 · §11.1 · §12.1）
+
+**PR-4a 实战验证**：`@runtime_checkable AdmissionValidatorProtocol` 允许 `isinstance(validator, AdmissionValidatorProtocol)` 跨 InProcess / K8s 后端替换，新增 `KnowledgeMemoryMutexValidator` 不破坏现有 8 测试。
+
+---
+
+### 17.4 依赖倒置原则（Dependency Inversion Principle, DIP）
+
+**原则**：高层模块不应依赖低层模块，两者都**应依赖抽象**；抽象不应依赖细节，细节应依赖抽象。
+
+**适用**：
+- ✅ 业务逻辑依赖 Protocol 接口，而非具体实现
+- ✅ 依赖注入（DI）通过构造函数 / 工厂 / container
+- ✅ 测试时 Mock 替换具体实现，业务代码 0 改动
+
+**违反信号**：
+- 🔴 业务逻辑直接 `from ..concrete_impl import X`（无 Protocol 抽象）
+- 🔴 测试时必须 mock concrete_impl 类（Mock 复杂度过高）
+- 🔴 配置文件必须 import 业务代码（反向依赖）
+- 🔴 高层模块的 `import` 列表包含低层具体类名
+
+**实施要点**：
+- Python `typing.Protocol` 是首选（鸭子类型 + 静态检查双满足）
+- Constructor Injection（`__init__(self, backend: BackendProtocol)`）优先
+- Factory Method 用于多实现选择（`def _build_backend(backend_type: str) -> BackendProtocol`）
+- 严格遵守 §3.7 反依赖规则（业务层 → 抽象层 → 基础设施层）
+
+**PR-4a 实战验证**：`MemoryBackendProtocol` + `_build_backend(backend_type="in_process" | "k8s")` 满足 DIP；`MemoryBackendInProcessService` 仅依赖 Protocol，生产环境 K8s 测试可零业务代码改动替换。
+
+---
+
+### 17.5 接口隔离原则（Interface Segregation Principle, ISP）
+
+**原则**：客户端**不应被迫依赖**它们不使用的接口。应将臃肿的接口拆分为更小、更具体的接口。
+
+**适用**：
+- ✅ Protocol 不应包含未使用的方法
+- ✅ Mixin / 抽象基类只暴露 role-relevant 方法
+- ✅ 大接口拆分为小接口组合
+
+**违反信号**：
+- 🔴 Protocol 包含 10+ 方法但多数实现只 override 2-3
+- 🔴 多个不相关 feature 共享一个 "God Protocol" / "God Class"
+- 🔴 客户必须 `pass` 大量空方法（"胖接口"反模式）
+- 🔴 测试 mock 必须实现 20+ 方法只为调用 1 个
+
+**实施要点**：
+- 拆分 Protocol：`BackendProtocol` + `MutableBackendProtocol` + `AsyncBackendProtocol` + `ClockProtocol`（按 role 拆分）
+- 组合优于继承：聚合多个小 Protocol 而非合并为大 Protocol
+- 严格遵守 §4.2 Adapter Contract（Adapter 接口隔离）
+
+**PR-4a 实战验证**：`AdmissionValidatorProtocol`（仅 `validate` 方法）保持接口最小化；``KnowledgeMemoryMutexValidator` 通过组合而非继承扩展，符合 ISP。
+
+---
+
+### 17.6 合成复用原则（Composite Reuse Principle, CRP）
+
+**原则**：优先使用**对象组合**（has-a / composition），而非**类继承**（is-a / inheritance）来实现代码复用。
+
+**适用**：
+- ✅ 优先 Protocol 注入 + 组合
+- ✅ 继承仅用于**明确的 type hierarchy**（如 Pydantic BaseModel 元类行为）
+- ✅ 多重继承避免（Python mixin 仅用于行为组合，不复用代码）
+
+**违反信号**：
+- 🔴 继承树 ≥ 3 层（"is-a" 滥用）
+- 🔴 删父类导致多个无关子类崩溃（Fragile Base Class 问题）
+- 🔴 Mock 无法构造（必须构造整个继承链才能测试 1 个方法）
+- 🔴 子类使用 `super().__init__()` 传递大量参数继承无关属性
+
+**实施要点**：
+- 优先组合（Protocol injection）
+- 继承仅用于明确 type hierarchy（如 Pydantic BaseModel、ABC 抽象基类）
+- mixin class 仅用于**行为组合**（如 `_JsonLogMixin`），不存状态
+- 严格遵守 §4.3 单一职责 + §3.7 反依赖
+
+**PR-4a 实战验证**：`KnowledgeMemoryMutexValidator` 通过**组合** `AdmissionValidatorImpl` 而非继承；`webhook.py` 通过**组合** `AdmissionValidatorImpl` + `KnowledgeMemoryMutexValidator` 实现 fail-closed wrapper；非继承链复用。
+
+---
+
+### 17.7 与其他条款的关系
+
+| 宪法条款 | 关系 |
+|----------|------|
+| §3 架构红线 | SOLID 6 原则是 §3（分层 / Operator / CRD / 反依赖）的**设计哲学** |
+| §4.2 Adapter Contract | §17.5 ISP 是 Adapter Contract 的接口隔离原则 |
+| §4.3 单一职责 | §17.1 SRP 是 §4.3 的完整展开与一般化 |
+| §3.7 反依赖规则 | §17.2 OCP + §17.4 DIP 是 §3.7 的设计原则体现 |
+| §3.8 Python-first 边界 | §17.3 LSP + §17.4 DIP 在 Python 上落地为 `typing.Protocol` |
+| §11.1 破坏性变更 | §17.3 LSP 失败立即 ADR（破坏性变更） |
+| §14.4 强制门禁 | §17.2 OCP 违反必须 PR 评审明确"扩展点" |
+| §14.5 MVP 例外 | v0.1.0 → v1.0.0 期间内，违反原则需要在 PR 描述明确"例外理由" |
+| §15 质量第一性 | SOLID 6 原则是 §15（质量第一性）的具体设计实现方式 |
+| §16.1 水位纪律 | SOLID 6 原则通过 Subagent 接力模式实现（关键不变量 + 5 项不变量） |
+
+### 17.8 违反检测与处理
+
+**自动检测**（静态分析 + CI gate）：
+
+| 静态分析 | 用途 | 工具 |
+|---------|------|------|
+| `isinstance(x, ConcreteType)` 反模式 | 检测 §17.4 DIP 违反（业务代码依赖具体类） | ruff + 自定义规则 |
+| 子类 override 抛 `NotImplementedError` | 检测 §17.3 LSP 违反 | ruff + AST 扫描 |
+| Protocol 含 ≥ 10 方法 | 检测 §17.5 ISP 违反 | 手动 review + pyright 提示 |
+| 继承 ≥ 3 层 | 检测 §17.6 CRP 违反 | ruff + `class-leaves` 规则 |
+
+**PR 评审门禁**：
+- 🟡 PR 描述必须包含"**原则映射**"段：列出本次变更涉及哪些原则（SRP / OCP / LSP / DIP / ISP / CRP）
+- 🟡 新增 Protocol 必须有"接口隔离" 论证（§17.5）
+- 🟡 新增子类必须继承自现有 Protocol（§17.3）或明确 ADR（§17.6 特殊情况）
+
+**强制 ADR**（§12.1）：
+- 任何 §17.3 LSP 失败（子类语义变更）
+- 任何 §17.2 OCP 重大违反（必须修改已有核心代码）
+- 任何 §17.5 ISP 重大违反（"God Protocol" 引入）
+
+**MVP 例外时间窗口**（§14.5）：
+- v0.1.0 → v1.0.0 期间内，违反 SOLID 6 原则需在 PR 描述明确"例外理由"
+- v1.0.0 发布后全部自动失效（无例外）
+
+### 17.9 设计原则自检清单（PR 作者）
+
+提交 PR 前，请逐项自检：
+
+- [ ] ✅ §17.1 SRP：本次修改的 class 仍然只有**一个**变更原因？
+- [ ] ✅ §17.2 OCP：本次新增功能**不修改**已有代码（仅扩展）？
+- [ ] ✅ §17.3 LSP：所有子类 override **不**抛 `NotImplementedError`？所有替换使用方零修改？
+- [ ] ✅ §17.4 DIP：业务代码 `import` 列表不包含低层具体类？通过 Protocol 注入？
+- [ ] ✅ §17.5 ISP：所有 Protocol 拆分合理？无 "God Protocol"？
+- [ ] ✅ §17.6 CRP：本次复用**优先**组合而非继承？继承树 ≤ 3 层？
+- [ ] ✅ PR 描述新增"**原则映射**"段（涉及哪些原则）
+
+---
+
 ## 附录 A：术语表
 
 | 术语 | 定义 |
@@ -891,8 +1095,9 @@ ADR 模板必须包含：
 | v0.3.0 | 2026-07-23 | **新增条款**：新增第十六条"会话与上下文管理"（Session & Context Continuity）—— 50% 上下文水位红线 + 保存-暂停-交接三步动作 + 与第十五条 / 2.9 的关系；同日生效 | 项目发起人 | — |
 | v0.4.0 | 2026-07-24 | **条款修订**：第十六条 §16.1 修订——明确模型上下文窗口基线 = 1M tokens、50% 红线 = 500K tokens、新增 §16.1.3"按实际水位判断"执行细则、§16.1.4 典型水位参照表；同日生效 | 项目发起人 | — |
 | v0.5.0 | 2026-07-24 | **架构条款修订**：依据 ADR-0005 将平台自有实现改为 Python 3.12+ Python-first；新增 §3.8；§9 测试/静态质量、§10 docstring、§13 维护职责、§14 L3 注释例外、§15 类型检查红线同步 Python 化 | 项目发起人 | ADR-0005 |
+| v0.6.0 | 2026-08-13 | **新增条款**：新增第十七条"设计模式原则"（Design Pattern Principles · SOLID + 合成复用）—— 6 项基础设计原则（17.1 单一职责 SRP / 17.2 开放封闭 OCP / 17.3 里氏替换 LSP / 17.4 依赖倒置 DIP / 17.5 接口隔离 ISP / 17.6 合成复用 CRP）+ 17.7 与其他条款关系 + 17.8 违反检测与处理 + 17.9 设计原则自检清单；将 4.3 单一职责展开为完整 SOLID；新增 §17.8 静态分析 + PR 评审门禁 + 强制 ADR 三层处理；§17.9 PR 作者自检清单 | 项目发起人 | — |
 
-> **背景说明**：本宪法以 AgentCompany 内部宪法 v0.1.3-draft 为蓝本，重新设计以适配公开开源、Kubernetes-native、多 Agent 框架互通的 `superteam-a2a` 项目。**保留**了质量第一性（第十五条）、设计优先（第十四条）、ADR 流程（第十二条）、协议优先（2.1）、可观测性即基础设施（2.3）、失败是常态（2.4）、单一职责（4.3）等核心条款；**重写**了架构红线（Operator / CRD / Adapter）、Agent 标准（Adapter Contract）、安全（K8s RBAC / Pod Security / NetworkPolicy）、可观测（Prometheus 强制）、成本控制（K8s 资源语义）、社区治理（13 条新增）；**新增**了多框架多元主义（2.2）、向后兼容是承诺（2.6）、API 与版本管理（11 条）、MVP 例外（14.5）。
+> **背景说明**：本宪法以 AgentCompany 内部宪法 v0.1.3-draft 为蓝本，重新设计以适配公开开源、Kubernetes-native、多 Agent 框架互通的 `superteam-a2a` 项目。**保留**了质量第一性（第十五条）、设计优先（第十四条）、ADR 流程（第十二条）、协议优先（2.1）、可观测性即基础设施（2.3）、失败是常态（2.4）、单一职责（4.3）等核心条款；**重写**了架构红线（Operator / CRD / Adapter）、Agent 标准（Adapter Contract）、安全（K8s RBAC / Pod Security / NetworkPolicy）、可观测（Prometheus 强制）、成本控制（K8s 资源语义）、社区治理（13 条新增）；**新增**了多框架多元主义（2.2）、向后兼容是承诺（2.6）、API 与版本管理（11 条）、MVP 例外（14.5）、设计模式原则（17 条 · SOLID + 合成复用）。**v0.6.0** 将 §4.3 单一职责展开为完整 SOLID 6 原则 + 静态分析 + PR 评审门禁 + 强制 ADR 三层处理，是设计原则的显式化与可执行化。
 
 ---
 
@@ -901,7 +1106,7 @@ ADR 模板必须包含：
 > **签署**：
 > 本宪法 **v0.1.0** 版由 `superteam-a2a` 项目发起人于 2026-07-23 正式批准生效。
 > 本宪法 **v0.2.0** 版由项目发起人于 **2026-07-23 同日**升级批准生效，新增第二条 2.9 款"记忆可追溯"（依据 ADR-0004）。
-> 本宪法 **v0.3.0** 版由项目发起人于 **2026-07-23 同日**升级批准生效，新增第十六条"会话与上下文管理"（Session & Context Continuity），确立 50% 上下文水位的保存-暂停-交接纪律。**v0.4.0 版**于 **2026-07-24**修订第十六条 §16.1，明确模型上下文窗口基线 = 1M tokens、50% 红线 = 500K tokens，并新增"按实际水位判断"执行细则 + 典型水位参照表，纠正此前因未明确窗口基线导致的误判。**v0.5.0 版**于 **2026-07-24**依据 ADR-0005 将平台自有实现确立为 Python 3.12+ Python-first，并同步测试、文档、类型检查与供应链质量门禁。
+> 本宪法 **v0.3.0** 版由项目发起人于 **2026-07-23 同日**升级批准生效，新增第十六条"会话与上下文管理"（Session & Context Continuity），确立 50% 上下文水位的保存-暂停-交接纪律。**v0.4.0 版**于 **2026-07-24**修订第十六条 §16.1，明确模型上下文窗口基线 = 1M tokens、50% 红线 = 500K tokens，并新增"按实际水位判断"执行细则 + 典型水位参照表，纠正此前因未明确窗口基线导致的误判。**v0.5.0 版**于 **2026-07-24**依据 ADR-0005 将平台自有实现确立为 Python 3.12+ Python-first，并同步测试、文档、类型检查与供应链质量门禁。**v0.6.0 版**于 **2026-08-13** 新增第十七条"设计模式原则"（Design Pattern Principles · SOLID + 合成复用），将 §4.3 单一职责展开为完整 6 项基础设计原则（17.1 SRP / 17.2 OCP / 17.3 LSP / 17.4 DIP / 17.5 ISP / 17.6 CRP）+ 17.7 与其他条款关系 + 17.8 违反检测与处理 + 17.9 PR 作者自检清单；确立 OOP 设计的可执行约束。
 > 所有贡献者应被视为已阅读并同意遵守本宪法。
 > 贡献者通过提交 PR 即视为接受本宪法的约束。
 > 本宪法的任何修改须经维护者团队审批，并记录在 `CONSTITUTION-CHANGELOG.md` 与本文件附录 C。

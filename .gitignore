@@ -119,3 +119,6 @@ secrets.yml
 scripts/local/
 notes/
 .memos/
+
+# ── Claude Code local state (NOT to commit) ─
+.claude/
