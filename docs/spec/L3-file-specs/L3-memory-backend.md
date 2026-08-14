@@ -2003,7 +2003,14 @@ L1 §5.2.3 是 v1alpha1 唯一性校核源；L3-6 仅添加 Python alias/validat
 - ✅ **7 测试 ID 全部 PASS**（SV-SCOPE-UT × 2 + SV-VIS-UT × 2 + SV-KT-UT × 1 + SV-INH-UT × 2）
 - ✅ **PR-3 仅 Protocol 接口 + re-export**（**不实现业务逻辑**——业务逻辑推迟到 PR-4）
 - 5 关注项 v0.2.1 + 4 建议项 v0.2.1 状态保留（PR-3 Phase B 不触及）
-- **下次会话入口**：**#106 PR-4 Knowledge Service Step 2 启动**（12 service + 4 A2A handler + 23 错误码 · 2 周工作量）
+
+**Phase 4 PR-4a + PR-4b 实施记录（2026-08-13 #111 + 2026-08-14 #113）**：
+
+- ✅ **PR-4a Phase B 完整实装**（#58 squash merged @ `834ced8` · 2026-08-13）：11 KNOWLEDGE_* enum + admission webhook 50ms fail-closed + KnowledgeMemoryMutexValidator 5 步算法 · **347/347 PASS**
+- ✅ **PR-4b Phase A+B 完整实装**（#59 squash merged @ `f9b733f` · 2026-08-14）：4 A2A handler + 12 service 業務邏輯層 + 18 测试 ID + WireSyncService 23 错误码静态断言 · **437/437 PASS** · 2 Subagent 接力
+- ✅ **handler 与 service 解耦验证**（thin wrapper + DI · mock service 即可替换 · LSP 验证）· ASGI server PR-4c 直接绑定 handler
+- ✅ **5 项关键不变量 100% 保持**（wire contract / 50ms fail-closed / Pydantic v2 / Python-first / JSON-RPC error.code 范围 -32101 ~ -32211）
+- **下次会话入口**：**#114 PR-4c 启动**（ASGI server + Card-driven + BM25 业务邏輯 + scope resolver + visibility resolver · 依赖 PR-4b handlers · 1 周工作量）
 
 1. ✅ **L4 前架构门禁**（**2026-07-30 #71 已关闭**）：OPEN-MEMORY-001 + OPEN-L1-003 + OPEN-ADR-0006-001 全部关闭 · ADR-0006 v1.0 Accepted（D 方案 · 同进程 · 合并 L3-5 + L3-6）· L3-5 v0.2.1 + L3-6 v0.2.1 + L1 v0.2.0 微同步已落地 · kind 验证移交 L4 实施第一周（read/write 双 Role（含 admissionregistration/authentication/authorization 扩展）+ webhook 50ms + Lease/readiness）。
 2. **L3-5 v0.2.1 微同步**：将 §9.5 read-only Role 与本 Spec §9.5 write Role 对齐（确认 admissionregistration/authn/authz 不进入 read-only Role）；附录 B B.5 明确性能 artifact 行。

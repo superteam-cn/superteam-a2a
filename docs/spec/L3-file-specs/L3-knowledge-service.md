@@ -2587,7 +2587,15 @@ AppSet 用 dev/staging/prod list generator；prod 使用签名不可变 tag 与�
 - ✅ **284/284 PASS**（基线 254 + 30 新增 · 0 回归）· ruff check/format 全绿 · pyright 0 errors / 3 warnings cosmetic
 - ✅ **5 项关键不变量 100% 保持**（wire contract / Pydantic v2 / 5 维 visibility / Python-first 边界 / wire sync 矩阵）
 - 6 commits feat 分支（workspace + 8 CRD + 17 UT + PEP 420 namespace fix + 4 shared + 7 UT + 6 IT + ruff I001 fix + Linux CI namespace fix）
-- **下次会话入口**：**#106 PR-4 Knowledge Service Step 2 启动**（12 service + 4 A2A handler + 23 错误码 · 2 周工作量）
+
+**Phase 4 PR-4a + PR-4b 实施记录（2026-08-13 #111 + 2026-08-14 #113）**：
+
+- ✅ **PR-4a Phase B 完整实装**（#58 squash merged @ `834ced8` · 2026-08-13）：11 KNOWLEDGE_* enum + admission webhook 50ms fail-closed + KnowledgeMemoryMutexValidator 5 步算法 + 3 Pydantic v2 validators · **347/347 PASS** · 8 commits feat 分支 + 2 Subagent 接力
+- ✅ **PR-4b Phase A+B 完整实装**（#59 squash merged @ `f9b733f` · 2026-08-14）：4 A2A handler + 12 service 业务邏輯層（Memory 4 + Knowledge 4 Protocol stub + Shared 4）+ 18 测试 ID（H-RM/QM/QK/GKI-UT × 3 + H-RM/QM/QK/GKI-IT × 1 + ERR-IT × 2）+ WireSyncService 23 错误码静态断言 + to_json_rpc_error_code helper · **437/437 PASS** · 4 commits feat 分支 + 2 Subagent 接力 + 1 PR-4b 启动前置修复（修复 6 PR-4a 遗留 admission 失败 · 382 → 388 PASS）
+- ✅ **90 新增测试 ID**（63 PR-4a + 49 PR-4b + 补充）· baseline 254 → 437 PASS · 0 回归
+- ✅ **5 项关键不变量 100% 保持**（wire contract / 50ms fail-closed / Pydantic v2 / Python-first / JSON-RPC error.code 范围 -32101 ~ -32211）
+- ✅ **宪法 §17 SOLID 6 原则应用**（SRP · OCP · LSP · DIP · ISP · CRP · 2026-08-13 #112 升级）
+- **下次会话入口**：**#114 PR-4c 启动**（ASGI server + Card-driven + BM25 业务邏輯 + scope resolver + visibility resolver · 依赖 PR-4b handlers · 1 周工作量 · 2-3 Subagent 接力）
 
 1. **§F.1-§F.6 跨文档同步 6 步**（ROADMAP L3 矩阵 + L2-4 Spec 附录 A + L3-1/L3-2/L3-3/L3-4 附录 A + README + CONSTITUTION-CHANGELOG；参照 #62 §F 6 步模板）
 2. **git commit**：`feat(L3-5): 升级 v0.2.0 + 评审通过 + 错误码 23 处漂移修正 + §F 6 步跨文档同步`
