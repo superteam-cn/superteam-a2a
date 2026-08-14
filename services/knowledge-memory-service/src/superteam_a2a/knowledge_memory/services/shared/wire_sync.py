@@ -10,12 +10,16 @@ PR-4b plan §2.4 + §6 不變量 5 + §7 ERR-IT-001/002：
 - assert_wire_sync_compliant() · 驗證 23 錯誤碼範圍 + 命名嚴格匹配
 - assert_json_rpc_code_range(code) · 驗證單個 JSON-RPC error.code 在範圍內
 
+新增（#113 PR-4b Phase B）：
+- to_json_rpc_error_code(exc) · 統一錯誤碼映射 helper（handler 層錯誤處理）
+
 用於：
 - ERR-IT-001/002 靜態斷言（integration test 入口）
 - handler 啟動時校驗（fail-fast · 防止錯誤碼漂移）
+- handler 統一映射 MemoryBackendError / KnowledgeError → JSON-RPC error.code
 
 憲法 §17 SOLID：
-- SRP：service 專注錯誤碼靜態斷言
+- SRP：service 專注錯誤碼靜態斷言 + 映射
 - DIP：依賴抽象（KnowledgeErrorCode + MemoryErrorCode IntEnum）
 - 不修改錯誤碼（單一來源：packages/knowledge/errors/codes.py +
   services/knowledge-memory-service/backend/errors.py）
@@ -23,8 +27,11 @@ PR-4b plan §2.4 + §6 不變量 5 + §7 ERR-IT-001/002：
 
 from __future__ import annotations
 
-from superteam_a2a.knowledge.errors.codes import KnowledgeErrorCode
-from superteam_a2a.knowledge_memory.backend.errors import MemoryErrorCode
+from superteam_a2a.knowledge.errors.codes import KnowledgeError, KnowledgeErrorCode
+from superteam_a2a.knowledge_memory.backend.errors import (
+    MemoryBackendError,
+    MemoryErrorCode,
+)
 
 # JSON-RPC 2.0 標準 server-error 範圍
 # 規範：-32000 to -32099（JSON-RPC 2.0 保留段）
@@ -126,6 +133,36 @@ class WireSyncService:
             f"+ [{JSON_RPC_MEMORY_CODE_MAX}, {JSON_RPC_MEMORY_CODE_MIN}] "
             f"+ [-32211, -32200] extension"
         )
+
+    @classmethod
+    def to_json_rpc_error_code(cls, exc: Exception) -> int:
+        """統一錯誤碼映射 helper · Memory/Knowledge 異常 → JSON-RPC error.code。
+
+        映射規則：
+        - MemoryBackendError（含 MemoryContractError / ClockSkewError）→ MemoryErrorCode.value
+        - KnowledgeError（含 KnowledgeContractError）→ KnowledgeErrorCode.value
+        - 其他異常類型 → -32603（JSON-RPC 2.0 internal_error · 不在校驗範圍）
+
+        不變量：
+        - 不修改錯誤碼（單一來源 IntEnum.value）
+        - 不重拋異常（pure function · caller 決定如何包裝）
+        - 對應用層 Memory/Knowledge 異常返回值範圍校驗（assert_json_rpc_code_range）
+        - 對 -32603 不校驗（JSON-RPC 2.0 標準段 · 由 spec 保證）
+
+        參數：
+        - exc · Exception · service 層拋出的異常
+
+        返回：
+        - int · JSON-RPC error.code
+        """
+        if isinstance(exc, (MemoryBackendError, KnowledgeError)):
+            code_value = int(exc.code.value)
+            # defensive assertion：保證應用層錯誤碼在合法範圍內
+            cls.assert_json_rpc_code_range(code_value)
+        else:
+            # 非 wire-sync 異常 → JSON-RPC 2.0 標準 internal_error（spec 保證）
+            code_value = -32603
+        return code_value
 
 
 __all__ = [
