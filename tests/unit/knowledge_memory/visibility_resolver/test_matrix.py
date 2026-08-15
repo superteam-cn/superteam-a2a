@@ -29,7 +29,6 @@ from superteam_a2a.knowledge_memory.visibility_resolver import (  # noqa: E402
     VisibilityMatrix,
 )
 
-
 # ============================================================================
 # VIS-UT-001 · VISIBILITY_MATRIX 包含 5 个 KnowledgeVisibility 值
 # ============================================================================

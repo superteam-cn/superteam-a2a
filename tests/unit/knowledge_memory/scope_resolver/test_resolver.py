@@ -30,7 +30,6 @@ from superteam_a2a.knowledge_memory.scope_resolver import (  # noqa: E402
     ScopeResolver,
 )
 
-
 # ============================================================================
 # SCOPE-UT-001 · validate_parent 严格 1 级校验
 # ============================================================================
@@ -112,7 +111,7 @@ def test_scope_ut_001_in_memory_scope_cache_lookup_roundtrip() -> None:
 
     # 装入一个 scope（mock metadata via Pydantic 包装）
     scope = KnowledgeScope(
-        spec={
+        spec={  # type: ignore[arg-type]
             "scopeLevel": ScopeLevel.AGENT,
             "name": "agent-1",
             "subjectRef": {"kind": "Agent", "name": "a1"},

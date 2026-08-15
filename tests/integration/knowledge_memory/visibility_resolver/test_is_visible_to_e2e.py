@@ -28,20 +28,19 @@ from superteam_a2a.knowledge.crd.knowledgescope import KnowledgeVisibility  # no
 from superteam_a2a.knowledge_memory.visibility_resolver import (  # noqa: E402
     VISIBILITY_MATRIX,
     StaticVisibilityMatrix,
-    VisibilityMatrix,
     VisibilityResolver,
 )
-
 
 # ============================================================================
 # Custom matrix (PR-5 + 测试场景扩展使用 · OCP 验证)
 # ============================================================================
 
 
-class MockWorkflowVisibilityMatrix(VisibilityMatrix):
+class MockWorkflowVisibilityMatrix:
     """工作流测试用自定义 matrix · 替换 PUBLIC_READABLE 集合。
 
     OCP 验证：PR-5 可注入自定义矩阵（如 industry-scope-only）。
+    注意：VisibilityMatrix 是 Protocol · 不需要显式继承（duck typing）。
     """
 
     def __init__(self) -> None:
@@ -111,9 +110,9 @@ def test_vis_it_001_public_readable_wildcard_e2e() -> None:
     ]
 
     for scope in arbitrary_scopes:
-        assert (
-            resolver.is_visible_to(KnowledgeVisibility.PUBLIC_READABLE, scope) is True
-        ), f"PUBLIC_READABLE should be visible to {scope}"
+        assert resolver.is_visible_to(KnowledgeVisibility.PUBLIC_READABLE, scope) is True, (
+            f"PUBLIC_READABLE should be visible to {scope}"
+        )
 
 
 def test_vis_it_001_agent_private_e2e() -> None:
@@ -144,21 +143,12 @@ def test_vis_it_001_custom_matrix_via_ocp() -> None:
     custom_resolver = VisibilityResolver(matrix=MockWorkflowVisibilityMatrix())
 
     # 验证自定义 PUBLIC_READABLE（去除 scope-self + scope-children + 添加 scope-public 显式存在）
+    assert custom_resolver.is_visible_to(KnowledgeVisibility.PUBLIC_READABLE, "scope-self") is False
     assert (
-        custom_resolver.is_visible_to(KnowledgeVisibility.PUBLIC_READABLE, "scope-self")
-        is False
-    )
-    assert (
-        custom_resolver.is_visible_to(KnowledgeVisibility.PUBLIC_READABLE, "scope-public")
-        is True
+        custom_resolver.is_visible_to(KnowledgeVisibility.PUBLIC_READABLE, "scope-public") is True
     )
     # 通配符仍生效
-    assert (
-        custom_resolver.is_visible_to(KnowledgeVisibility.PUBLIC_READABLE, "any-scope")
-        is True
-    )
+    assert custom_resolver.is_visible_to(KnowledgeVisibility.PUBLIC_READABLE, "any-scope") is True
 
     # SCOPE_ONLY 不受影响
-    assert (
-        custom_resolver.is_visible_to(KnowledgeVisibility.SCOPE_ONLY, "scope-self") is True
-    )
+    assert custom_resolver.is_visible_to(KnowledgeVisibility.SCOPE_ONLY, "scope-self") is True

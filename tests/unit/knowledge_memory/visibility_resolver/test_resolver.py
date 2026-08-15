@@ -32,7 +32,6 @@ from superteam_a2a.knowledge_memory.visibility_resolver import (  # noqa: E402
     VisibilityResolver,
 )
 
-
 # ============================================================================
 # VIS-UT-002 · VisibilityResolver.is_visible_to 5 维组合
 # ============================================================================
@@ -52,16 +51,9 @@ def test_vis_ut_002_scope_and_children_visible_to_self_and_children() -> None:
     """VIS-UT-002 · SCOPE_AND_CHILDREN 对 scope-self + scope-children 返回 True."""
     resolver = VisibilityResolver()
 
-    assert (
-        resolver.is_visible_to(KnowledgeVisibility.SCOPE_AND_CHILDREN, "scope-self") is True
-    )
-    assert (
-        resolver.is_visible_to(KnowledgeVisibility.SCOPE_AND_CHILDREN, "scope-children")
-        is True
-    )
-    assert (
-        resolver.is_visible_to(KnowledgeVisibility.SCOPE_AND_CHILDREN, "scope-public") is False
-    )
+    assert resolver.is_visible_to(KnowledgeVisibility.SCOPE_AND_CHILDREN, "scope-self") is True
+    assert resolver.is_visible_to(KnowledgeVisibility.SCOPE_AND_CHILDREN, "scope-children") is True
+    assert resolver.is_visible_to(KnowledgeVisibility.SCOPE_AND_CHILDREN, "scope-public") is False
     assert resolver.is_visible_to(KnowledgeVisibility.SCOPE_AND_CHILDREN, "agent-self") is False
 
 
@@ -70,9 +62,7 @@ def test_vis_ut_002_public_readable_wildcard_visible_to_all() -> None:
     resolver = VisibilityResolver()
 
     assert resolver.is_visible_to(KnowledgeVisibility.PUBLIC_READABLE, "scope-self") is True
-    assert (
-        resolver.is_visible_to(KnowledgeVisibility.PUBLIC_READABLE, "scope-children") is True
-    )
+    assert resolver.is_visible_to(KnowledgeVisibility.PUBLIC_READABLE, "scope-children") is True
     assert resolver.is_visible_to(KnowledgeVisibility.PUBLIC_READABLE, "scope-public") is True
     assert resolver.is_visible_to(KnowledgeVisibility.PUBLIC_READABLE, "agent-self") is True
     # wildcard 测试

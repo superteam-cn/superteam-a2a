@@ -8,6 +8,8 @@ wire sync invariants (VIS-UT-001 / VIS-UT-003 static assertions):
 
 from __future__ import annotations
 
+from typing import Protocol, runtime_checkable
+
 from superteam_a2a.knowledge.crd.knowledgescope import KnowledgeVisibility
 
 # ============================================================================
@@ -25,16 +27,23 @@ VISIBILITY_MATRIX: dict[KnowledgeVisibility, frozenset[str]] = {
 }
 
 
-class VisibilityMatrix:
-    """5-dim visibility matrix Protocol interface."""
+@runtime_checkable
+class VisibilityMatrix(Protocol):
+    """5-dim visibility matrix Protocol interface.
+
+    使用 typing.Protocol 而非 ABC，单元测试可用任意 duck-typed 实现。
+    """
 
     def allowed_scopes(self, visibility: KnowledgeVisibility) -> frozenset[str]:
         """Return the set of scopes allowed for the given visibility."""
-        return VISIBILITY_MATRIX[visibility]
+        ...
 
 
-class StaticVisibilityMatrix(VisibilityMatrix):
-    """Default static implementation · direct VISIBILITY_MATRIX dict lookup."""
+class StaticVisibilityMatrix:
+    """默认静态实现 · 直接代理 VISIBILITY_MATRIX dict lookup.
+
+    LSP：满足 VisibilityMatrix Protocol · 可替换为 K8s 自定义实现。
+    """
 
     def allowed_scopes(self, visibility: KnowledgeVisibility) -> frozenset[str]:
         """Dict lookup · returns empty frozenset on miss (defensive)."""

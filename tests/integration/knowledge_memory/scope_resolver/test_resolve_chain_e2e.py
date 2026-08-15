@@ -35,7 +35,6 @@ from superteam_a2a.knowledge_memory.scope_resolver import (  # noqa: E402
     ScopeResolver,
 )
 
-
 # ============================================================================
 # Helpers
 # ============================================================================
@@ -57,7 +56,7 @@ def _make_scope_with_level(
     if parent_name:
         scope_data["parent_ref"] = {"name": parent_name}
 
-    return KnowledgeScope(spec=scope_data)
+    return KnowledgeScope(spec=scope_data)  # type: ignore[arg-type]
 
 
 # ============================================================================
@@ -81,23 +80,11 @@ def test_scope_it_001_4_level_scope_chain_e2e() -> None:
     resolver = ScopeResolver(cache)
 
     # 4 级 chain（depth=3）
-    cache.add(
-        _make_scope_with_level("system-root", None, level=ScopeLevel.SYSTEM)
-    )
-    cache.add(
-        _make_scope_with_level(
-            "wf-1", "system-root", level=ScopeLevel.WORKFLOW
-        )
-    )
-    cache.add(
-        _make_scope_with_level("as-1", "wf-1", level=ScopeLevel.AGENT_SET)
-    )
-    cache.add(
-        _make_scope_with_level("agent-1", "as-1", level=ScopeLevel.AGENT)
-    )
-    cache.add(
-        _make_scope_with_level("agent-2", "as-1", level=ScopeLevel.AGENT)
-    )
+    cache.add(_make_scope_with_level("system-root", None, level=ScopeLevel.SYSTEM))
+    cache.add(_make_scope_with_level("wf-1", "system-root", level=ScopeLevel.WORKFLOW))
+    cache.add(_make_scope_with_level("as-1", "wf-1", level=ScopeLevel.AGENT_SET))
+    cache.add(_make_scope_with_level("agent-1", "as-1", level=ScopeLevel.AGENT))
+    cache.add(_make_scope_with_level("agent-2", "as-1", level=ScopeLevel.AGENT))
 
     # 验证：从 agent-1 出发 → 完整 chain
     chain = resolver.resolve_chain("agent-1", max_depth=8)
@@ -116,15 +103,9 @@ def test_scope_it_001_4_level_chain_validate_parent_all_strict() -> None:
     cache.add(_make_scope_with_level("a", "as", level=ScopeLevel.AGENT))
 
     # 严格 1 级校验
-    assert (
-        resolver.validate_parent(ScopeLevel.WORKFLOW, ScopeLevel.SYSTEM) is True
-    )
-    assert (
-        resolver.validate_parent(ScopeLevel.AGENT_SET, ScopeLevel.WORKFLOW) is True
-    )
-    assert (
-        resolver.validate_parent(ScopeLevel.AGENT, ScopeLevel.AGENT_SET) is True
-    )
+    assert resolver.validate_parent(ScopeLevel.WORKFLOW, ScopeLevel.SYSTEM) is True
+    assert resolver.validate_parent(ScopeLevel.AGENT_SET, ScopeLevel.WORKFLOW) is True
+    assert resolver.validate_parent(ScopeLevel.AGENT, ScopeLevel.AGENT_SET) is True
 
 
 def test_scope_it_001_missing_parent_triggers_scope_not_found() -> None:
@@ -133,11 +114,7 @@ def test_scope_it_001_missing_parent_triggers_scope_not_found() -> None:
     resolver = ScopeResolver(cache)
 
     # chain 中间缺一级
-    cache.add(
-        _make_scope_with_level(
-            "wf-x", "missing-system", level=ScopeLevel.WORKFLOW
-        )
-    )
+    cache.add(_make_scope_with_level("wf-x", "missing-system", level=ScopeLevel.WORKFLOW))
 
     with pytest.raises(KnowledgeContractError) as exc_info:
         resolver.resolve_chain("wf-x")

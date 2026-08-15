@@ -16,7 +16,7 @@ model_config extra="forbid" 限制 + K8s 实际 K8s object 通过 metadata 暴�
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 from superteam_a2a.knowledge.crd.knowledgescope import KnowledgeScope
 from superteam_a2a.knowledge.crd.scope_level import ScopeLevel
@@ -56,8 +56,15 @@ def _scope_name(scope: KnowledgeScope) -> str:
     )
 
 
-class ScopeCache:
-    """4 级 scope 缓存接口 Protocol（L3-5-followup-4 _SCOPE_CACHE 占位）."""
+@runtime_checkable
+class ScopeCache(Protocol):
+    """4 级 scope 缓存接口 Protocol（L3-5-followup-4 _SCOPE_CACHE 占位）.
+
+    使用 typing.Protocol + ellipsis marker 而非 ABC。
+    优势：
+    - 避免 pyright reportImplicitOverride（Protocol 接口方法天然 abstract）
+    - 单元测试可使用任何 duck-typed 实现
+    """
 
     def get(self, scope_name: str) -> KnowledgeScope | None:
         """获取 scope by name · 返回 None 表示缓存未命中."""
@@ -68,8 +75,13 @@ class ScopeCache:
         ...
 
 
-class InMemoryScopeCache(ScopeCache):
-    """内存实现 · dict-backed scope cache."""
+class InMemoryScopeCache:
+    """内存实现 · dict-backed scope cache（满足 ScopeCache protocol）。
+
+    单元测试用 · 生产环境用 K8s client 注入（PR-5 实装）。
+
+    LSP：满足 ScopeCache Protocol · 可替换为 K8s 实现。
+    """
 
     def __init__(self) -> None:
         self._scopes: dict[str, KnowledgeScope] = {}

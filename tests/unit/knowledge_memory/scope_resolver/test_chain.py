@@ -32,9 +32,7 @@ from superteam_a2a.knowledge.errors.codes import (  # noqa: E402
 from superteam_a2a.knowledge_memory.scope_resolver import (  # noqa: E402
     InMemoryScopeCache,
     ScopeResolver,
-    traverse_scope_chain,
 )
-
 
 # ============================================================================
 # Helpers
@@ -56,7 +54,7 @@ def _make_scope(name: str, parent_name: str | None) -> KnowledgeScope:
     if parent_name:
         scope_data["parent_ref"] = {"name": parent_name}
 
-    return KnowledgeScope(spec=scope_data)
+    return KnowledgeScope(spec=scope_data)  # type: ignore[arg-type]
 
 
 # ============================================================================
