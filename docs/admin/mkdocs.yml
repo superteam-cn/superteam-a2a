@@ -97,6 +97,11 @@ nav:
         - Hello Agent: spec/L3-file-specs/L3-hello-agent.md
         - Knowledge Service: spec/L3-file-specs/L3-knowledge-service.md
         - Memory Backend: spec/L3-file-specs/L3-memory-backend.md
+      - Visual Diagrams:
+        - System Overview: architecture/system-overview.md
+        - A2A Protocol Flow: architecture/a2a-protocol-flow.md
+        - Single-Process Backend: architecture/single-process-backend.md
+        - CRD Relationships: architecture/crd-relationships.md
       - Package Layout: admin/l4-package-layout.md
   - Examples: ../examples/README.md
   - ADRs:

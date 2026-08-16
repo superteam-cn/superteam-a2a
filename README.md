@@ -6,7 +6,7 @@
 [![Status](https://img.shields.io/badge/status-v0.1.0--ready-success)](#project-status)
 [![Python](https://img.shields.io/badge/Python-3.12+-blue)](https://www.python.org/)
 [![A2A](https://img.shields.io/badge/A2A-v0.3+-green)](https://github.com/google/A2A)
-[![Tests](https://img.shields.io/badge/tests-466%2F466-success)](./docs/admin/l4-package-layout.md)
+[![Tests](https://img.shields.io/badge/tests-474%2F474-success)](./docs/admin/l4-package-layout.md)
 [![Constitution](https://img.shields.io/badge/constitution-v0.6.0-blueviolet)](./docs/adr/CONSTITUTION.md)
 
 **superteam-a2a** turns your LangChain, AutoGen, CrewAI, Semantic Kernel, Strands, and Smolagents agents into first-class Kubernetes workloads. Define an `Agent` CRD once, run a fleet of agents that discover and call each other via the [A2A protocol](https://google-a2a.github.io/A2A/), monitor them in Prometheus, and ship an SDLC workflow on day one.
@@ -31,7 +31,7 @@
 
 This repository was created on 2026-07-08. Scope is locked per [ADR-0001](./docs/adr/0001-v1-scope-statement.md) and [ADR-0004](./docs/adr/0004-v01-scope-extension-knowledge-and-memory.md): **5 base capabilities** (discovery / communication / observability / orchestration / knowledge management), **6 CRDs**, single-process **ADR-0006 v1.0 D 方案** accepted. **Phase 4 全部 8 PR merged · 474/474 tests PASS · 0 回归**.
 
-**v0.1.0 ships with** (all shipped 2026-08-16, main HEAD `6c4f9ce`):
+**v0.1.0 ships with** (all shipped 2026-08-16, main HEAD `c499a9c`):
 
 | Component | Status | Squash | Tests |
 |---|---|---|---|
@@ -41,6 +41,8 @@ This repository was created on 2026-07-08. Scope is locked per [ADR-0001](./docs
 | Knowledge Service Step 2b (4 handlers + 12 services) | ✅ | `f9b733f` | 437 PASS |
 | Knowledge Service Step 2c (ASGI + BM25 + scope + visibility) | ✅ | `00b3457` | 456 PASS |
 | Knowledge Service Step 3 (Helm + Dockerfile + cert-manager + RBAC) | ✅ | `eb4a7be` | 466 PASS |
+| Phase 5 LAUNCH (Adapter SDK + docs site + 11 topics + 5 issue templates) | ✅ | `6c4f9ce` | 474 PASS |
+| Phase 5 publish prep (#119) + platform drafts (#120) | ✅ | `c499a9c` | 474 PASS |
 
 **Roadmap to v1.0** (see [ROADMAP.md](./ROADMAP.md)):
 - ✅ **Phase 1-4** (MVP Core → Knowledge Service full stack → 8/8 PR merged)
@@ -59,7 +61,7 @@ git clone https://github.com/superteam-cn/superteam-a2a.git
 cd superteam-a2a
 uv sync --all-packages --all-extras
 
-# 2. Run the full test suite (466 tests, ~2s)
+# 2. Run the full test suite (474 tests, ~2s)
 uv run pytest --tb=short -q
 
 # 3. Deploy the Hello Agent + Knowledge Service to a local kind cluster
@@ -84,6 +86,17 @@ curl -X POST http://localhost:8080/jsonrpc \
 ```
 
 See [CONTRIBUTING.md](./CONTRIBUTING.md) for the full development setup, the kind E2E workflow, and the 4-gate CI checklist.
+
+## 🏗 Architecture
+
+Visual references for the most-asked questions:
+
+- **[System Overview](./docs/architecture/system-overview.md)** — kubectl → Operator → CRDs → K8s API → Agents (single mermaid graph)
+- **[A2A Protocol Flow](./docs/architecture/a2a-protocol-flow.md)** — Agent A → Resolver → Admission (50ms) → Agent B (sequence diagram)
+- **[Single-Process Backend](./docs/architecture/single-process-backend.md)** — Knowledge + Memory + Operator in one Python process (ADR-0006 D 方案)
+- **[CRD Relationships](./docs/architecture/crd-relationships.md)** — 6 CRDs (Agent / AgentSet / Workflow / KnowledgeScope / KnowledgeItem / Memory) and their references
+
+All diagrams render natively in GitHub markdown + mkdocs-material. For static SVG export, see [`docs/architecture/`](./docs/architecture/).
 
 ## 🤝 Contributing
 
