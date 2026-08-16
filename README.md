@@ -29,9 +29,9 @@
 
 **✅ v0.1.0 ready — production-ready core, framework adapters on the way.**
 
-This repository was created on 2026-07-08. Scope is locked per [ADR-0001](./docs/adr/0001-v1-scope-statement.md) and [ADR-0004](./docs/adr/0004-v01-scope-extension-knowledge-and-memory.md): **5 base capabilities** (discovery / communication / observability / orchestration / knowledge management), **6 CRDs**, single-process **ADR-0006 v1.0 D 方案** accepted. **Phase 4 全部 8 PR merged · 466/466 tests PASS · 0 回归**.
+This repository was created on 2026-07-08. Scope is locked per [ADR-0001](./docs/adr/0001-v1-scope-statement.md) and [ADR-0004](./docs/adr/0004-v01-scope-extension-knowledge-and-memory.md): **5 base capabilities** (discovery / communication / observability / orchestration / knowledge management), **6 CRDs**, single-process **ADR-0006 v1.0 D 方案** accepted. **Phase 4 全部 8 PR merged · 474/474 tests PASS · 0 回归**.
 
-**v0.1.0 ships with** (all shipped 2026-08-16, main HEAD `a8afdc3`):
+**v0.1.0 ships with** (all shipped 2026-08-16, main HEAD `6c4f9ce`):
 
 | Component | Status | Squash | Tests |
 |---|---|---|---|
