@@ -113,18 +113,18 @@ agents/
 - `memory/reinforce.py` (MemoryReinforceService · backend.patch_status CAS + MEMORY_REINFORCE_TOTAL Counter)
 - `memory/gc.py` (MemoryGCService · 状态机转换 patch_status + delete + MEMORY_GC_CLEANED_TOTAL Counter)
 
-**Knowledge (4 文件 · Protocol stub · BM25 推 PR-4c)**：
+**Knowledge (4 文件 · Protocol stub · BM25 推 PR-4c · PR-4c 实装替换 3 service stub）**：
 
 - `knowledge/query.py` (KnowledgeQueryService · 返回空列表)
 - `knowledge/item.py` (KnowledgeItemService · superseded_by chain stub)
 - `knowledge/record.py` (KnowledgeItemRecordService · KnowledgeItem 派生 stub)
-- `knowledge/scope.py` (KnowledgeScopeService · 复用 VisibilityScopeValidator + 4 级 scope 解析 stub)
+- `knowledge/scope.py` (KnowledgeScopeService · **PR-4c 实装** · 复用 VisibilityScopeValidator + 4 级 scope 解析)
 
-**Shared (4 文件 · Admission 实装 + Visibility/Inherit Protocol + WireSync 实装)**：
+**Shared (4 文件 · Admission 实装 + Visibility/Inherit Protocol + WireSync 实装）**：
 
 - `shared/admission.py` (AdmissionService · 委托 AdmissionValidatorImpl · 50ms fail-closed)
-- `shared/visibility.py` (VisibilityService · Protocol stub · 5 维矩阵策略推 PR-4c)
-- `shared/inherit.py` (InheritService · Protocol stub · 4 级 scope 继承推 PR-4c)
+- `shared/visibility.py` (VisibilityService · **PR-4c 实装** · 5 维矩阵策略 · VisibilityResolver)
+- `shared/inherit.py` (InheritService · **PR-4c 实装** · 4 级 scope 继承 · traverse_scope_chain)
 - `shared/wire_sync.py` (WireSyncService · **完整实装** · assert_wire_sync_compliant + assert_json_rpc_code_range + to_json_rpc_error_code)
 
 ### `services/knowledge-memory-service/.../handlers/` 新增 4 JSON-RPC handler
@@ -138,6 +138,39 @@ agents/
 - handler 与 service 解耦（thin wrapper + DI · mock service 即可替换 · LSP 验证）
 - ASGI server PR-4c 直接绑定 handler = record_memory_handler 等
 - 12 UT 测试 ID（H-RM/QM/QK/GKI-UT-001~003）+ 6 IT 测试 ID（H-RM/QM/QK/GKI-IT-001 + ERR-IT-001/002）+ 补充测试 = 49 新增
+
+## Phase 4 PR-4c 新增模块（#60 squash merged @ `00b3457` · 2026-08-16 · 456 PASS）
+
+### `services/knowledge-memory-service/.../asgi/`（ASGI server + Card-driven · 4 文件）
+
+- `app.py` (Starlette ASGI application factory · 193 lines)
+- `card.py` (AgentCard JSON-RPC `agent/card` method · 144 lines)
+- `routes.py` (JSON-RPC endpoint `/jsonrpc` + `/healthz` + `/metrics` + `/agent/card` · 436 lines)
+- `main.py` 入口（uvicorn 启动 + signal handling）
+
+### `services/knowledge-memory-service/.../bm25/`（BM25 倒排索引 · 2 文件）
+
+- `index.py` (BM25 倒排索引数据结构 term → doc_id → tf · 271 lines)
+- `scorer.py` (BM25 评分 k1=1.5 + b=0.75 + IDF + 文档长度归一化 · 59 lines)
+
+### `services/knowledge-memory-service/.../scope_resolver/`（4 级 scope resolver · 3 文件）
+
+- `resolver.py` (ScopeResolver · validate_parent + resolve_chain + resolve_scope · ScopeCache Protocol · InMemoryScopeCache · 147 lines)
+- `chain.py` (traverse_scope_chain · 4 级校验 + self-reference + max_depth · 141 lines)
+- `__init__.py` 导出
+
+### `services/knowledge-memory-service/.../visibility_resolver/`（5 维 visibility resolver · 3 文件）
+
+- `resolver.py` (VisibilityResolver · VISIBILITY_MATRIX 静态表 + 5 维策略 · 161 lines)
+- `matrix.py` (StaticVisibilityMatrix · VisibilityMatrix Protocol · 2138 bytes)
+- `__init__.py` 导出
+
+**测试 ID（20 项）**：
+- ASGI-UT × 5 + ASGI-IT × 3 + BM25-UT × 2 + BM25-IT × 2 (含 perf benchmark p95 < 50ms / 1000 文档) + SCOPE-UT × 3 + SCOPE-IT × 1 + VIS-UT × 3 + VIS-IT × 1
+
+**关键修复（#115）**：
+- typo path 影子目录合并：services/.../src/supteam_a2a/ (typo) → superteam_a2a/ (正确) · 6 个新子目录 move + 60 个 git index typo entries 保留（pre-existing）
+- git index 恢复：git checkout HEAD -- typo paths 恢复 60 个 staged deletions
 
 ## Python-first 边界（§3.8）
 

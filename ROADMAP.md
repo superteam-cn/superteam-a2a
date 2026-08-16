@@ -1,6 +1,6 @@
 # superteam-a2a — Roadmap
 
-> 📅 Last updated: **2026-08-14**（**Phase 4 PR-4b Knowledge Service Step 2b 完整实装 #59 merged @ `f9b733f` · 437 PASS · 4 commits feat 分支 + 2 Subagent + 1 PR-4b 启动前置修复（修复 6 PR-4a 遗留 admission 失败 · 382 → 388 PASS）**）（同步至 ADR-0001 / 0004 / 0005 / **0006 v1.0 Accepted (D 方案 · 同进程 · 合并 L3-5 + L3-6)** + **宪法 v0.6.0**（§17 SOLID + 合成复用 6 项 · 2026-08-13 #112）+ L1 v0.2.0 + L2-1/L2-2/L2-3/L2-4 v0.2.0 Python 通过 + **L3-1 Operator Core v0.2.0 #56** + **L3-2 A2A Core v0.2.0 #54** + **L3-3 Adapter SDK v0.2.0 #58** + **L3-4 Hello Agent v0.2.0 #61** + **L3-5 Knowledge Service v0.2.0 + v0.2.1 #63.5/#71** + **L3-6 Memory backend v0.2.0 + v0.2.1 #67/#71**；**L3 阶段 6/6 全部完成** · **Phase 4 6/7 PR merged**（PR-1 + PR-2 + PR-3 + PR-4a + PR-4a Phase B + PR-4b））
+> 📅 Last updated: **2026-08-16**（**Phase 4 PR-4c Knowledge Service Step 2c 完整实装 #60 squash merged @ `00b3457` · 456/456 PASS · 5 commits feat 分支 + 2 Subagent 接力 + 1 pytest 根因修复（typo path 影子目录合并 + git index 恢复）**）（同步至 ADR-0001 / 0004 / 0005 / **0006 v1.0 Accepted (D 方案 · 同进程 · 合并 L3-5 + L3-6)** + **宪法 v0.6.0**（§17 SOLID + 合成复用 6 项 · 2026-08-13 #112）+ L1 v0.2.0 + L2-1/L2-2/L2-3/L2-4 v0.2.0 Python 通过 + **L3-1 Operator Core v0.2.0 #56** + **L3-2 A2A Core v0.2.0 #54** + **L3-3 Adapter SDK v0.2.0 #58** + **L3-4 Hello Agent v0.2.0 #61** + **L3-5 Knowledge Service v0.2.0 + v0.2.1 #63.5/#71** + **L3-6 Memory backend v0.2.0 + v0.2.1 #67/#71**；**L3 阶段 6/6 全部完成** · **Phase 4 7/7 PR merged**（PR-1 + PR-2 + PR-3 + PR-4a + PR-4a Phase B + PR-4b + PR-4c））
 > 👤 Maintainer: [@CoderZhangfujiang](https://github.com/CoderZhangfujiang)
 > 🎯 Goal: ≥3,000 GitHub stars within 18 months (by **2027-09**)
 
@@ -146,7 +146,7 @@ This roadmap is a living document, kept in sync with the authoritative [ADR-0001
 
 ---
 
-## Phase 4 — 打磨 + Launch（第 19-20 周）🚧 6/7 PR merged（PR-1 + PR-2 + PR-3 + PR-4a plan + PR-4a 实装 + PR-4b 实装）
+## Phase 4 — 打磨 + Launch（第 19-20 周）🚧 7/7 PR merged（PR-1 + PR-2 + PR-3 + PR-4a plan + PR-4a 实装 + PR-4b 实装 + **PR-4c 实装**）
 
 > 对应发版 tag：**`v0.1.0`**
 
@@ -160,8 +160,8 @@ This roadmap is a living document, kept in sync with the authoritative [ADR-0001
 - [x] **PR-5 plan v0.1-draft**（7 Helm + RBAC + cert-manager + kind E2E） · ✅ #57 squash merged @ `406aa5c` · 2026-08-12
 - [x] **PR-4a Phase B 实装**（11 KNOWLEDGE_* enum + admission webhook 50ms fail-closed + KnowledgeMemoryMutexValidator 5 步算法 + 3 Pydantic v2 validators） · ✅ #58 squash merged @ `834ced8` · 2026-08-13 · **347/347 PASS** · 8 commits feat 分支 + 2 Subagent 接力
 - [x] **PR-4b Phase A+B 实装**（4 A2A handler + 12 service + 18 测试 ID + WireSyncService 23 错误码静态断言） · ✅ #59 squash merged @ `f9b733f` · 2026-08-14 · **437/437 PASS** · 4 commits feat 分支 + 2 Subagent 接力 + 1 PR-4b 启动前置修复（修复 6 PR-4a 遗留 admission 失败 · 382 → 388 PASS）· 90 测试 ID · 宪法 §17 SOLID 6 原则应用验证
-- [ ] **PR-4c 实装**（ASGI server + Card-driven + BM25 + scope resolver + visibility resolver · 依赖 PR-4b handlers） · 📋 待启动 · 1 周工作量 · #114
-- [ ] **PR-5 实装**（7 Helm + RBAC + cert-manager + kind E2E + Dockerfile） · 📋 待启动 · 1 周工作量 · #115
+- [x] **PR-4c 实装**（ASGI server + Card-driven + BM25 业务邏輯 + scope resolver + visibility resolver · 依赖 PR-4b handlers） · ✅ #60 squash merged @ `00b3457` · 2026-08-16 · **456/456 PASS** · 5 commits feat 分支 + 2 Subagent 接力 + 1 pytest 根因修复（typo path 影子目录合并 + git index 恢复）
+- [ ] **PR-5 实装**（7 Helm + RBAC + cert-manager + kind E2E + Dockerfile） · 📋 待启动 · 1 周工作量 · #116
 
 > 对应发版 tag：**`v0.1.0`**
 

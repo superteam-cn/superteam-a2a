@@ -2012,6 +2012,14 @@ L1 §5.2.3 是 v1alpha1 唯一性校核源；L3-6 仅添加 Python alias/validat
 - ✅ **5 项关键不变量 100% 保持**（wire contract / 50ms fail-closed / Pydantic v2 / Python-first / JSON-RPC error.code 范围 -32101 ~ -32211）
 - **下次会话入口**：**#114 PR-4c 启动**（ASGI server + Card-driven + BM25 业务邏輯 + scope resolver + visibility resolver · 依赖 PR-4b handlers · 1 周工作量）
 
+**Phase 4 PR-4c 实施记录（2026-08-16 #115）**：
+
+- ✅ **PR-4c 完整实装**（#60 squash merged @ `00b3457` · 2026-08-16）：4 ASGI handler（app + card + routes + main · 773 lines）+ 2 BM25（index + scorer · 330 lines）+ 4 级 scope resolver（resolver + chain · 288 lines）+ 5 维 visibility resolver（resolver + matrix · 3526 bytes）+ 20 测试 ID · **456/456 PASS** · 5 commits feat 分支 + 2 Subagent 接力 + 1 pytest 根因修复（typo path 影子目录合并 + git index 恢复 · 60 个 git index typo entries 保留作 pre-existing）
+- ✅ **ASGI server 直接绑定 handler 验证**（Starlette + starlette 1.4.1 · thin wrapper pattern 完整实装）
+- ✅ **MemoryBackend 抽象层保持零漂移**（12 MEMORY_* 错误码范围 -32101 ~ -32211 · InMemoryBackend + K8sBackend 实现 100% 兼容）
+- ✅ **5 项关键不变量 100% 保持**（wire contract / 50ms fail-closed / Pydantic v2 / Python-first / JSON-RPC error.code 范围 -32101 ~ -32211）
+- **下次会话入口**：**#116 PR-5 实装启动**（7 Helm + RBAC + cert-manager + kind E2E + Dockerfile · 1 周工作量）
+
 1. ✅ **L4 前架构门禁**（**2026-07-30 #71 已关闭**）：OPEN-MEMORY-001 + OPEN-L1-003 + OPEN-ADR-0006-001 全部关闭 · ADR-0006 v1.0 Accepted（D 方案 · 同进程 · 合并 L3-5 + L3-6）· L3-5 v0.2.1 + L3-6 v0.2.1 + L1 v0.2.0 微同步已落地 · kind 验证移交 L4 实施第一周（read/write 双 Role（含 admissionregistration/authentication/authorization 扩展）+ webhook 50ms + Lease/readiness）。
 2. **L3-5 v0.2.1 微同步**：将 §9.5 read-only Role 与本 Spec §9.5 write Role 对齐（确认 admissionregistration/authn/authz 不进入 read-only Role）；附录 B B.5 明确性能 artifact 行。
 3. **v0.2.1 微同步**：关注项台账 4 建议项（§M-2.1 BackendBindingSpec 派生映射 / §M-2.2 收敛率说明 / §M-2.3 9 关键模块覆盖率映射 / §M-2.4 EventReason 白名单继承说明）。

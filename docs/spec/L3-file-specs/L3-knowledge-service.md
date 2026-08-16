@@ -2597,6 +2597,14 @@ AppSet 用 dev/staging/prod list generator；prod 使用签名不可变 tag 与�
 - ✅ **宪法 §17 SOLID 6 原则应用**（SRP · OCP · LSP · DIP · ISP · CRP · 2026-08-13 #112 升级）
 - **下次会话入口**：**#114 PR-4c 启动**（ASGI server + Card-driven + BM25 业务邏輯 + scope resolver + visibility resolver · 依赖 PR-4b handlers · 1 周工作量 · 2-3 Subagent 接力）
 
+**Phase 4 PR-4c 实施记录（2026-08-16 #115）**：
+
+- ✅ **PR-4c 完整实装**（#60 squash merged @ `00b3457` · 2026-08-16）：4 ASGI handler（app + card + routes + main · 773 lines）+ 2 BM25（index + scorer · 330 lines）+ 4 级 scope resolver（resolver + chain · 288 lines）+ 5 维 visibility resolver（resolver + matrix · 3526 bytes）+ 20 测试 ID（ASGI-UT × 5 + ASGI-IT × 3 + BM25-UT × 2 + BM25-IT × 2 含 perf benchmark p95 < 50ms / 1000 文档 + SCOPE-UT × 3 + SCOPE-IT × 1 + VIS-UT × 3 + VIS-IT × 1）· **456/456 PASS** · 5 commits feat 分支 + 2 Subagent 接力 + 1 pytest 根因修复（typo path 影子目录合并 + git index 恢复 · 60 个 git index typo entries 保留作 pre-existing）
+- ✅ **19 新增测试 ID**（PR-4c 20 个新增 vs 437 → 456 PASS 增量 19 实际计入 · 含 BM25 perf benchmark skip）· baseline 437 → 456 PASS · 0 回归
+- ✅ **5 项关键不变量 100% 保持**（wire contract / 50ms fail-closed / Pydantic v2 / Python-first / JSON-RPC error.code 范围 -32101 ~ -32211）
+- ✅ **宪法 §17 SOLID 6 原则应用**（ASGI thin wrapper 协议 · LSP 验证 + BM25 倒排索引 SRP + scope_resolver 协议 DIP + visibility_matrix 协议 OCP）
+- **下次会话入口**：**#116 PR-5 实装启动**（7 Helm + RBAC + cert-manager + kind E2E + Dockerfile · 1 周工作量 · 3-4 Subagent 接力）
+
 1. **§F.1-§F.6 跨文档同步 6 步**（ROADMAP L3 矩阵 + L2-4 Spec 附录 A + L3-1/L3-2/L3-3/L3-4 附录 A + README + CONSTITUTION-CHANGELOG；参照 #62 §F 6 步模板）
 2. **git commit**：`feat(L3-5): 升级 v0.2.0 + 评审通过 + 错误码 23 处漂移修正 + §F 6 步跨文档同步`
 3. **L3-6 Memory backend Spec 起草**（独立会话；基于 L2-4 v0.2.0 Spec + L3-5 §6.2 共享 Deployment 协调点；建议拆 Spec 起草 + 评审两会话避免 §16.1 红线；目标 v0.2-draft 骨架稿）
