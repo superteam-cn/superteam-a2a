@@ -2,7 +2,7 @@ Title: Show & Tell: superteam-a2a — multi-framework agent orchestration on K8s
 
 Body:
 
-**TL;DR**: Kubernetes-native runtime for AI agent frameworks (LangChain, AutoGen, CrewAI, etc.) that lets them discover and call each other over the Google A2A protocol. 6 CRDs, 466 tests, single-process knowledge+memory backend, 50ms fail-closed admission. Apache 2.0.
+**TL;DR**: Kubernetes-native runtime for AI agent frameworks (LangChain, AutoGen, CrewAI, etc.) that lets them discover and call each other over the Google A2A protocol. 6 CRDs, 474 tests, single-process knowledge+memory backend, 50ms fail-closed admission. Apache 2.0.
 
 Hey r/kubernetes,
 
@@ -57,7 +57,7 @@ curl -X POST http://hello-agent/jsonrpc -d '{"jsonrpc":"2.0","id":1,"method":"me
 
 ## Numbers
 
-- **466/466 tests PASS** (2 seconds locally)
+- **474/474 tests PASS** (2 seconds locally)
 - **62 PRs merged** since 2026-07-08
 - **8/8 Phase 4 PRs shipped** in v0.1.0 (2026-08-16)
 - All under Apache 2.0
@@ -72,7 +72,7 @@ curl -X POST http://hello-agent/jsonrpc -d '{"jsonrpc":"2.0","id":1,"method":"me
 ## Try it
 
 - **Repo**: https://github.com/superteam-cn/superteam-a2a
-- **466 tests, 100% local, no cloud**: `uv sync && uv run pytest`
+- **474 tests, 100% local, no cloud**: `uv sync && uv run pytest`
 - **5-min kind demo**: see CONTRIBUTING.md
 - **Issues welcome**: https://github.com/superteam-cn/superteam-a2a/issues
 

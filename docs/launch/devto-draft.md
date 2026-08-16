@@ -72,7 +72,7 @@ Lesson: **never use a Subagent to write files via relative paths. Always pass ab
 git clone https://github.com/superteam-cn/superteam-a2a
 cd superteam-a2a
 uv sync --all-packages --all-extras
-uv run pytest   # 466 tests in ~2s
+uv run pytest   # 474 tests in ~2s
 ```
 
 ## Get involved

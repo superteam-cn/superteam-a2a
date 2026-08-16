@@ -50,7 +50,7 @@ Instead, Knowledge Service + Memory Service share one `kopf` operator + one Star
 
 ## Numbers
 
-- **466/466 tests PASS** (0 regressions) in 2 seconds
+- **474/474 tests PASS** (0 regressions) in 2 seconds
 - **62 PRs merged** since launch (2026-07-08)
 - **5 design dimensions** with full ADR coverage (L1 / L2 / L3 / L4)
 - **8/8 Phase 4 PRs shipped** in v0.1.0 (2026-08-16)
@@ -67,7 +67,7 @@ I'll be honest about what's missing:
 ## Try it
 
 - **Repo**: https://github.com/superteam-cn/superteam-a2a
-- **466 tests, 100% local, no cloud needed**: `uv sync --all-packages --all-extras && uv run pytest`
+- **474 tests, 100% local, no cloud needed**: `uv sync --all-packages --all-extras && uv run pytest`
 - **5-minute kind demo**: see `CONTRIBUTING.md`
 - **Show me what breaks**: file at https://github.com/superteam-cn/superteam-a2a/issues
 

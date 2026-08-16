@@ -45,7 +45,7 @@ Body:
 
 ## 实测数字
 
-- **466/466 测试 PASS**（2 秒本地跑完）
+- **474/474 测试 PASS**（2 秒本地跑完）
 - **62 PR merged**（2026-07-08 启动至今）
 - **Phase 4 8/8 PR 全部 ship**（v0.1.0 在 2026-08-16 发布）
 - Apache 2.0
@@ -57,7 +57,7 @@ Body:
 git clone https://github.com/superteam-cn/superteam-a2a
 cd superteam-a2a
 uv sync --all-packages --all-extras
-uv run pytest   # 2 秒跑完 466 个测试
+uv run pytest   # 2 秒跑完 474 个测试
 
 # 部署 Hello Agent 到本地 kind
 kind create cluster --name superteam-a2a-dev
