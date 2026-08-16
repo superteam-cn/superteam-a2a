@@ -1,0 +1,21 @@
+{{- /*
+cert-manager self-signed Issuer for Knowledge Memory Service.
+Reference: docs/phase4/pr5-knowledge-service-step3-plan.md §2.3
+- tls.enabled default false (向后兼容 · Phase 4 打磨启用)
+- cert-manager v1.14+ 集成
+- TLSv1.3 minimum (L3-5 §6 + 宪法 §6 mTLS)
+- HotReloader 原子替换 (L3-6 §6 协调点)
+*/}}
+{{- if .Values.tls.enabled }}
+{{- if .Values.tls.certManager.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: {{ include "knowledge-memory-service.fullname" . }}-selfsigned
+  labels:
+    {{- include "knowledge-memory-service.labels" . | nindent 4 }}
+    app.kubernetes.io/component: cert-issuer
+spec:
+  selfSigned: {}
+{{- end }}
+{{- end }}
