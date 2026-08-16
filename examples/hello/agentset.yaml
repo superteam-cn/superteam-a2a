@@ -1,0 +1,73 @@
+# Hello AgentSet — Phase 5 LAUNCH 参考 demo (#118)
+#
+# 最简单的 AgentSet 配置：跑 Hello Agent · 不依赖任何外部 framework
+# 适用场景：本地 kind 演示 · 测试 admission webhook · 验证 A2A 协议
+
+apiVersion: superteam-a2a.io/v1
+kind: AgentSet
+metadata:
+  name: hello-agent
+  namespace: default
+  labels:
+    app.kubernetes.io/name: hello-agent
+    app.kubernetes.io/component: reference-agent
+spec:
+  # 副本数（Card-driven 单实例 · 宪法 §3.4 + ADR-0006 D 方案）
+  replicas: 1
+
+  # 镜像（Phase 4 PR-2 Hello Agent Step 2 实装 · Dockerfile in services/hello-agent/）
+  image: ghcr.io/superteam-cn/hello-agent:0.1.0
+  imagePullPolicy: IfNotPresent
+
+  # Framework 选择
+  framework: hello
+
+  # Agent Card 元数据（A2A spec §3）
+  card:
+    name: Hello Agent
+    description: |
+      Reference Hello Agent. Echoes back user messages with a greeting.
+      Useful for testing A2A protocol, admission webhook, and service discovery.
+    version: "0.1.0"
+    skills:
+      - id: hello_echo
+        name: Echo
+        description: Returns a greeting + the user's text.
+
+  # 服务端口（A2A HTTP JSON-RPC · PR-4c ASGI 实装）
+  service:
+    port: 8080
+    targetPort: 8080
+
+  # 资源限制（restricted profile · non-root UID 1000）
+  resources:
+    requests:
+      cpu: 100m
+      memory: 128Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  # 健康检查（PR-5 Dockerfile HEALTHCHECK 对应）
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: 8080
+    initialDelaySeconds: 30
+    periodSeconds: 10
+  readinessProbe:
+    httpGet:
+      path: /readyz
+      port: 8080
+    initialDelaySeconds: 5
+    periodSeconds: 5
+
+  # Knowledge Service 集成（PR-4a/b/c 实装 · 单进程 D 方案）
+  knowledge:
+    enabled: true
+    scope: team-default
+    scopes:
+      - industry-tech
+      - org-superteam
+      - team-platform
+      - project-hello-agent

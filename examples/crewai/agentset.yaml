@@ -1,0 +1,129 @@
+# CrewAI Research Crew AgentSet — Phase 5 LAUNCH 示例 (#118)
+#
+# 真实使用场景：CrewAI 多 agent 协作做 research · researcher + writer + editor
+# 任务：用户给 topic → researcher 搜集 → writer 起草 → editor 校对 → 返回报告
+#
+# 启动:
+#   1. uv pip install crewai crewai-tools
+#   2. docker buildx build -t superteam-a2a/crewai-research:dev -f services/crewai-research/Dockerfile .
+#   3. kind load docker-image superteam-a2a/crewai-research:dev
+#   4. kubectl apply -f examples/crewai/secret.yaml
+#   5. kubectl apply -f examples/crewai/agentset.yaml
+
+apiVersion: superteam-a2a.io/v1
+kind: AgentSet
+metadata:
+  name: crewai-research
+  namespace: default
+  labels:
+    app.kubernetes.io/name: crewai-research
+    app.kubernetes.io/component: research-crew
+    framework: crewai
+spec:
+  replicas: 1
+
+  image: ghcr.io/superteam-cn/crewai-research:0.1.0
+  imagePullPolicy: IfNotPresent
+
+  framework: crewai
+
+  card:
+    name: CrewAI Research Crew
+    description: |
+      Three-agent research crew: researcher gathers sources,
+      writer drafts a report, editor polishes for publication.
+      Returns a structured research report with citations.
+    version: "0.1.0"
+    skills:
+      - id: research_report
+        name: Research Report
+        description: Given a topic, returns a structured research report.
+
+  frameworkConfig:
+    # CrewAI Crew 配置
+    crew:
+      name: research-crew
+      process: sequential  # researcher → writer → editor
+      verbose: true
+      memory: true  # Enable short-term + long-term memory
+
+    # Agents (CrewAI Agent definitions)
+    agents:
+      - role: Senior Research Analyst
+        goal: Uncover cutting-edge developments in AI agent orchestration
+        backstory: |
+          You're a seasoned research analyst with a deep understanding of the
+          AI agent ecosystem. You excel at finding credible sources quickly.
+        tools:
+          - SerperDevTool        # web search
+          - ScrapeWebsiteTool    # web scrape
+        allowDelegation: false
+
+      - role: Technical Writer
+        goal: Write a clear, structured technical report
+        backstory: |
+          You're a technical writer who turns complex research into readable prose.
+          You organize findings into sections (Background / Analysis / Outlook).
+        tools: []
+        allowDelegation: false
+
+      - role: Senior Editor
+        goal: Polish the report to publication quality
+        backstory: |
+          You're a meticulous editor. You catch grammar, fact, and consistency errors.
+          You ensure every claim is cited.
+        tools: []
+        allowDelegation: false
+
+    # Tasks (CrewAI Task definitions)
+    tasks:
+      - description: Research the latest developments in {topic}. Cite  sources.
+        expected_output: A bullet-list of 5-10 key findings with source URLs.
+        agent: Senior Research Analyst
+      - description: Write a 1000-word technical report on {topic} using the research.
+        expected_output: A markdown report with sections.
+        agent: Technical Writer
+        context:  # depends on research task
+          - "Senior Research Analyst"
+      - description: Edit the report for clarity, accuracy, and citation completeness.
+        expected_output: A polished markdown report ready for publication.
+        agent: Senior Editor
+        context:
+          - "Technical Writer"
+
+  resources:
+    requests:
+      cpu: 300m
+      memory: 384Mi
+    limits:
+      cpu: 2000m
+      memory: 2Gi
+
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: 8080
+  readinessProbe:
+    httpGet:
+      path: /readyz
+      port: 8080
+
+  knowledge:
+    enabled: true
+    scope: team-platform
+
+  envFrom:
+    - secretRef:
+        name: crewai-research-secret
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: crewai-research-secret
+  namespace: default
+type: Opaque
+stringData:
+  # OPENAI_API_KEY: sk-...
+  # SERPER_API_KEY: ...        # for SerperDevTool
+  CREWAI_STORAGE_DIR: "/tmp/crewai"

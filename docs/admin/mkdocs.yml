@@ -1,0 +1,117 @@
+---
+site_name: superteam-a2a
+site_description: Multi-Framework Agent Orchestration on Kubernetes, powered by Google A2A protocol
+site_url: https://superteam-cn.github.io/superteam-a2a/
+repo_url: https://github.com/superteam-cn/superteam-a2a
+repo_name: superteam-cn/superteam-a2a
+edit_uri: edit/main/docs/
+
+theme:
+  name: material
+  features:
+    - navigation.instant
+    - navigation.tracking
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.top
+    - navigation.footer
+    - search.suggest
+    - search.highlight
+    - search.share
+    - toc.follow
+    - content.code.copy
+    - content.code.annotate
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-night
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      primary: indigo
+      accent: indigo
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to light mode
+  icon:
+    repo: fontawesome/brands/github
+  font:
+    text: Inter
+    code: JetBrains Mono
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - def_list
+  - footnotes
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+  - pymdownx.details
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+  - pymdownx.tilde
+  - pymdownx.caret
+  - pymdownx.keys
+  - pymdownx.mark
+  - pymdownx.smartsymbols
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+
+plugins:
+  - search:
+      lang: en
+  - awesome-pages
+
+nav:
+  - Home: README.md
+  - Quickstart: launch/show-hn-draft.md
+  - Contributing: CONTRIBUTING.md
+  - Architecture:
+      - Overview: design/L1-architecture.md
+      - Constitution: adr/CONSTITUTION.md
+      - L2 Modules:
+        - A2A Protocol: design/L2-modules/L2-a2a-protocol.md
+        - Operator Core: design/L2-modules/L2-operator-core.md
+        - Adapter: design/L2-modules/L2-adapter.md
+        - Knowledge / Memory: design/L2-modules/L2-knowledge-memory.md
+      - L3 Specs:
+        - Operator Core: spec/L3-file-specs/L3-operator-core.md
+        - A2A Core: spec/L3-file-specs/L3-a2a-core.md
+        - Adapter SDK: spec/L3-file-specs/L3-adapter-sdk.md
+        - Hello Agent: spec/L3-file-specs/L3-hello-agent.md
+        - Knowledge Service: spec/L3-file-specs/L3-knowledge-service.md
+        - Memory Backend: spec/L3-file-specs/L3-memory-backend.md
+      - Package Layout: admin/l4-package-layout.md
+  - Examples: ../examples/README.md
+  - ADRs:
+      - ADR-0001 v1 scope: adr/0001-v1-scope-statement.md
+      - ADR-0004 v0.1 scope extension: adr/0004-v01-scope-extension-knowledge-and-memory.md
+      - ADR-0005 Python-first: adr/0005-python-first-technology-stack.md
+      - ADR-0006 Memory transport: adr/0006-memory-transport.md
+  - Roadmap: ROADMAP.md
+  - Reviews: reviews.md
+
+extra:
+  social:
+    - icon: fontawesome/brands/github
+      link: https://github.com/superteam-cn/superteam-a2a
+    - icon: fontawesome/brands/python
+      link: https://pypi.org/project/superteam-a2a/
+
+markdown_index_for_nav: false

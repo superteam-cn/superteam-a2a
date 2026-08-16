@@ -1,0 +1,104 @@
+# AutoGen Multi-Agent Chat AgentSet — Phase 5 LAUNCH 示例 (#118)
+#
+# 真实使用场景：AutoGen multi-agent conversation · user_proxy + coder + reviewer
+# 三 agent 协作：A2A discover → AutoGen group_chat → JSON-RPC reply
+#
+# 启动:
+#   1. uv pip install pyautogen
+#   2. docker buildx build -t superteam-a2a/autogen-chat:dev -f services/autogen-chat/Dockerfile .
+#   3. kind load docker-image superteam-a2a/autogen-chat:dev
+#   4. kubectl apply -f examples/autogen/secret.yaml
+#   5. kubectl apply -f examples/autogen/agentset.yaml
+
+apiVersion: superteam-a2a.io/v1
+kind: AgentSet
+metadata:
+  name: autogen-multi-agent-chat
+  namespace: default
+  labels:
+    app.kubernetes.io/name: autogen-multi-agent-chat
+    app.kubernetes.io/component: chat-agent
+    framework: autogen
+spec:
+  replicas: 1
+
+  image: ghcr.io/superteam-cn/autogen-chat:0.1.0
+  imagePullPolicy: IfNotPresent
+
+  framework: autogen
+
+  card:
+    name: AutoGen Multi-Agent Chat
+    description: |
+      Three-agent conversation: user_proxy, coder, reviewer.
+      AutoGen GroupChat orchestrator manages turn-taking.
+      A2A discoverable so other agents can request chat sessions.
+    version: "0.1.0"
+    skills:
+      - id: group_chat
+        name: Group Chat
+        description: Initiate a multi-agent group chat session.
+
+  frameworkConfig:
+    # AutoGen GroupChatManager 配置
+    groupChat:
+      maxRound: 8
+      speakerSelectionMethod: auto
+      allowRepeatSpeaker: false
+
+    # 三个 agent role
+    agents:
+      - name: user_proxy
+        type: UserProxyAgent
+        humanInputMode: NEVER
+        maxConsecutiveAutoReply: 3
+      - name: coder
+        type: AssistantAgent
+        systemMessage: |
+          You are an expert Python coder. Always produce clean, type-hinted, tested code.
+        llmConfig:
+          model: gpt-4
+          temperature: 0.2
+      - name: reviewer
+        type: AssistantAgent
+        systemMessage: |
+          You review code for correctness, security, and style. Be terse and direct.
+        llmConfig:
+          model: gpt-4
+          temperature: 0.0
+
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1500m
+      memory: 1Gi
+
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: 8080
+  readinessProbe:
+    httpGet:
+      path: /readyz
+      port: 8080
+
+  knowledge:
+    enabled: true
+    scope: team-platform
+
+  envFrom:
+    - secretRef:
+        name: autogen-chat-secret
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: autogen-chat-secret
+  namespace: default
+type: Opaque
+stringData:
+  # OPENAI_API_KEY: sk-...
+  AUTOGEN_USE_DOCKER: "false"

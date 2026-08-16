@@ -1,0 +1,119 @@
+# LangChain Code Review AgentSet — Phase 5 LAUNCH 示例 (#118)
+#
+# 真实使用场景：LangChain ReAct agent 自动 review PR · 调用 A2A 协议与其他 agent 协作
+# 适配器：LangChain Adapter（Phase 5 实装 · 5-10 行 glue per L2-3 Spec）
+#
+# 启动:
+#   1. uv sync --all-packages --all-extras
+#   2. uv pip install langchain langchain-openai
+#   3. docker buildx build -t superteam-a2a/langchain-code-review:dev -f services/langchain-code-review/Dockerfile .
+#   4. kind load docker-image superteam-a2a/langchain-code-review:dev
+#   5. kubectl apply -f examples/langchain/agentset.yaml
+#   6. kubectl apply -f examples/langchain/secret.yaml  # OPENAI_API_KEY
+
+apiVersion: superteam-a2a.io/v1
+kind: AgentSet
+metadata:
+  name: langchain-code-review
+  namespace: default
+  labels:
+    app.kubernetes.io/name: langchain-code-review
+    app.kubernetes.io/component: code-review-agent
+    framework: langchain
+spec:
+  replicas: 1
+
+  # LangChain Adapter image (Phase 5 实装 · 服务镜像)
+  image: ghcr.io/superteam-cn/langchain-code-review:0.1.0
+  imagePullPolicy: IfNotPresent
+
+  framework: langchain
+
+  # Agent Card（A2A spec §3）
+  card:
+    name: LangChain Code Review Agent
+    description: |
+      Automated PR reviewer using LangChain ReAct pattern.
+      Reads PR diffs, comments on style/bugs/security, and writes structured feedback.
+    version: "0.1.0"
+    skills:
+      - id: review_pr
+        name: Review PR
+        description: Reviews a PR diff and returns structured feedback.
+        examples:
+          - input:
+              role: user
+              parts:
+                - type: text
+                  text: "Review PR #42 in superteam-cn/superteam-a2a"
+            output:
+              role: agent
+              parts:
+                - type: text
+                  text: |
+                    Found 3 issues:
+                    1. Missing type hints in services/foo/bar.py:42
+                    2. Untrusted deserialization in adapter SDK
+                    3. Memory leak in cache cleanup
+
+  # LangChain-specific 配置
+  frameworkConfig:
+    model: gpt-4
+    temperature: 0.0
+    maxIterations: 5
+    tools:
+      - id: github_pr_reader
+        type: github
+      - id: code_search
+        type: ripgrep
+
+  # 资源限制
+  resources:
+    requests:
+      cpu: 200m
+      memory: 256Mi
+    limits:
+      cpu: 1000m
+      memory: 1Gi
+
+  # Health checks (same as hello)
+  livenessProbe:
+    httpGet:
+      path: /healthz
+      port: 8080
+  readinessProbe:
+    httpGet:
+      path: /readyz
+      port: 8080
+
+  # Knowledge 集成（PR reviews by team）
+  knowledge:
+    enabled: true
+    scope: team-platform
+    scopes:
+      - industry-tech
+      - org-superteam
+      - team-platform
+      - project-code-review
+
+  # Secret 引用（OPENAI_API_KEY 等）
+  envFrom:
+    - secretRef:
+        name: langchain-code-review-secret
+
+---
+# LangChain Code Review Secret
+# 创建: kubectl create secret generic langchain-code-review-secret \
+#          --from-literal=OPENAI_API_KEY=sk-... \
+#          --from-literal=GITHUB_TOKEN=ghp_...
+apiVersion: v1
+kind: Secret
+metadata:
+  name: langchain-code-review-secret
+  namespace: default
+type: Opaque
+stringData:
+  # OPENAI_API_KEY: sk-...   # 替换为真实 key
+  # GITHUB_TOKEN: ghp_...     # 替换为真实 token
+  LANGCHAIN_TRACING_V2: "true"
+  LANGCHAIN_ENDPOINT: "https://api.smith.langchain.com"
