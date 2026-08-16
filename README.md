@@ -42,7 +42,8 @@ Constitution is at v0.5.0; L1 architecture has been reviewed and accepted. **The
 - ✅ **Phase 4 PR-4a Knowledge Service Step 2a 完整实装**（PR #58 squash merged @ `834ced8` · 2026-08-13 · 11 KNOWLEDGE_* enum + admission webhook 50ms fail-closed + KnowledgeMemoryMutexValidator 5 步算法 + 3 Pydantic v2 validators · **347/347 PASS** · 63 测试 ID）
 - ✅ **Phase 4 PR-4b Knowledge Service Step 2b 完整实装**（PR #59 squash merged @ `f9b733f` · 2026-08-14 · 4 A2A handler + 12 service + 18 测试 ID + WireSyncService 23 错误码静态断言 · **437/437 PASS** · 4 commits feat 分支 + 2 Subagent 接力 + 1 PR-4b 启动前置修复（修复 6 PR-4a 遗留 admission 失败 · 382 → 388 PASS）· 90 测试 ID · 宪法 §17 SOLID 6 原则应用验证）
 - ✅ **Phase 4 PR-4c Knowledge Service Step 2c 完整实装**（PR #60 squash merged @ `00b3457` · 2026-08-16 · 4 ASGI handler (app + card + routes + main) + 2 BM25 (index + scorer) + 4 级 scope resolver + 5 维 visibility resolver + 20 测试 ID · **456/456 PASS** · 5 commits feat 分支 + 2 Subagent 接力 + 1 pytest 根因修复（typo path 影子目录合并 + git index 恢复）· baseline 437 → 456 PASS · 0 回归）
-- 📋 **Phase 4 PR-5 Knowledge Service Step 3 待启动**（7 Helm + RBAC + cert-manager + kind E2E + Dockerfile · 1 周工作量 · #116）
+- ✅ **Phase 4 PR-5 Knowledge Service Step 3 完整实装**（PR #61 squash merged @ `eb4a7be` · 2026-08-16 · 7 Helm templates 完整化（已存在 rbac + 新增 certificate + issuer）+ Dockerfile (multi-stage + non-root UID 1000) + 16 测试 ID (HELM-UT × 4 + RBAC-UT × 3 + MTLS-UT × 2 + DOCKERFILE-UT × 1 + HELM-IT × 2 + RBAC-IT × 2 + E2E × 2) · **466/466 PASS** · 1 主 Agent 起草（Phase A · 115 insertions + 91 deletions）+ 1 主 Agent 测试实装（Phase B · 16 测试 ID + ruff fix · 466 PASS）· 0 Subagent（避免 PR-4c typo path 风险）· baseline 456 → 466 PASS · 0 回归 · 4 CI SUCCESS）
+- 🎉 **Phase 4 全部 8 PR merged · v0.1.0 准备就绪 · #117 Phase 4 打磨启动**（README 重写 + HN/Reddit/dev.to/掘金草稿 + CONTRIBUTING.md + GitHub Release note + Tag + ROADMAP v0.1.0 完成）
 
 No production code yet — check [ROADMAP.md](./ROADMAP.md) for the full timeline.
 

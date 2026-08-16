@@ -2605,6 +2605,14 @@ AppSet 用 dev/staging/prod list generator；prod 使用签名不可变 tag 与�
 - ✅ **宪法 §17 SOLID 6 原则应用**（ASGI thin wrapper 协议 · LSP 验证 + BM25 倒排索引 SRP + scope_resolver 协议 DIP + visibility_matrix 协议 OCP）
 - **下次会话入口**：**#116 PR-5 实装启动**（7 Helm + RBAC + cert-manager + kind E2E + Dockerfile · 1 周工作量 · 3-4 Subagent 接力）
 
+**Phase 4 PR-5 实施记录（2026-08-16 #116）**：
+
+- ✅ **PR-5 完整实装**（#61 squash merged @ `eb4a7be` · 2026-08-16）：7 Helm templates 完整化（已存在 rbac + 新增 certificate + issuer）+ Dockerfile（74 lines · multi-stage + non-root UID 1000 + HEALTHCHECK + uvicorn --factory）+ 16 测试 ID（HELM-UT × 4 + RBAC-UT × 3 含 L3-6 §M-1.4 admissionregistration/authn/authz 验证 + MTLS-UT × 2 + DOCKERFILE-UT × 1 + HELM-IT × 2 + RBAC-IT × 2 + E2E × 2）· **466/466 PASS** · 1 主 Agent 起草（Phase A · 4 files · 115 insertions）+ 1 主 Agent 测试实装（Phase B · 16 测试 ID + ruff --fix 6 + format 7）· 0 Subagent（避免 PR-4c typo path 风险 · 主 Agent 5-8% 水位可控）· 4 CI SUCCESS（Lint/Type-check/Test + CodeQL × 2 + Release Drafter）
+- ✅ **10 新增测试 ID 实际计入**（HELM/RBAC/MTLS/DOCKERFILE UT · IT/E2E 单独 CI 流程）· baseline 456 → 466 PASS · 0 回归
+- ✅ **5 项关键不变量 100% 保持**（Card-driven 单实例 + Python-first 边界 + SOLID §17 + wire contract 23 错误码 + ASGI server single-process 8080+8443 端口）
+- ✅ **RBAC 双 Role 完整验证**（L3-6 §M-1.4 修复：role_write.yaml 含 admissionregistration.k8s.io + authentication.k8s.io + authorization.k8s.io）
+- **下次会话入口**：**#117 Phase 4 打磨启动**（README 重写 + HN/Reddit/dev.to/掘金草稿 + CONTRIBUTING.md + GitHub Release note + Tag + ROADMAP v0.1.0 完成 · Phase 4 → v0.1.0 release 准备）
+
 1. **§F.1-§F.6 跨文档同步 6 步**（ROADMAP L3 矩阵 + L2-4 Spec 附录 A + L3-1/L3-2/L3-3/L3-4 附录 A + README + CONSTITUTION-CHANGELOG；参照 #62 §F 6 步模板）
 2. **git commit**：`feat(L3-5): 升级 v0.2.0 + 评审通过 + 错误码 23 处漂移修正 + §F 6 步跨文档同步`
 3. **L3-6 Memory backend Spec 起草**（独立会话；基于 L2-4 v0.2.0 Spec + L3-5 §6.2 共享 Deployment 协调点；建议拆 Spec 起草 + 评审两会话避免 §16.1 红线；目标 v0.2-draft 骨架稿）

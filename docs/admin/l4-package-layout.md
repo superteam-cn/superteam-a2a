@@ -1,6 +1,6 @@
 # L4 包布局（uv workspace）
 
-> 📅 Last updated: **2026-08-14**（#113 Phase 4 PR-4b 完整实装收口）
+> 📅 Last updated: **2026-08-16**（#116 Phase 4 PR-5 完整实装收口 + Phase 4 8/8 PR 全部 merged）
 > 维护：项目发起人
 > 依据：ADR-0005 §13.1 + 宪法 v0.6.0 §3.8 + ADR-0006 v1.0 Accepted D 方案
 
@@ -185,7 +185,7 @@ agents/
 # uv sync 全部 workspace members
 python -m uv sync --all-packages --all-extras
 
-# 完整测试（437 PASS · 2026-08-14 baseline · PR-4b merged）
+# 完整测试（466 PASS · 2026-08-16 baseline · PR-5 merged · Phase 4 8/8 PR 全部收口）
 python -m uv run --frozen pytest tests/unit tests/integration -q
 
 # 4 重静态门禁
