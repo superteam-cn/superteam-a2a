@@ -135,7 +135,16 @@
       "additionalProperties": false,
       "properties": {
         "enabled": { "type": "boolean" },
-        "secretName": { "type": "string" }
+        "secretName": { "type": "string" },
+        "certManager": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": { "type": "boolean" },
+            "duration": { "type": "string" },
+            "renewBefore": { "type": "string" }
+          }
+        }
       }
     },
     "rbac": {
