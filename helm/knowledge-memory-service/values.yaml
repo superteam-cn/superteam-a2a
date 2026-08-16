@@ -119,6 +119,11 @@ operator:
 tls:
   enabled: false
   secretName: knowledge-service-tls
+  # PR-5 cert-manager mTLS 配置（§2.3）
+  certManager:
+    enabled: false  # 默认 disabled · Phase 4 打磨阶段启用
+    duration: 2160h  # 90 天证书
+    renewBefore: 720h  # 30 天前续期
 
 # RBAC 配置（PR-1 · 7 apiGroups + 共享 SA）
 rbac:

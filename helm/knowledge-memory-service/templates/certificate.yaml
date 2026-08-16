@@ -1,0 +1,30 @@
+{{- /*
+cert-manager Certificate for Knowledge Memory Service TLS.
+Reference: docs/phase4/pr5-knowledge-service-step3-plan.md §2.3
+- 90 天证书 + 30 天前续期 (duration + renewBefore)
+- dnsNames: <release>.<namespace>.svc.cluster.local
+- secretName: <release>-tls (matches role_read.yaml resourceNames)
+- 条件渲染：tls.enabled=true 且 cert-manager.enabled=true
+*/}}
+{{- if and .Values.tls.enabled .Values.tls.certManager.enabled }}
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: {{ include "knowledge-memory-service.fullname" . }}-tls
+  labels:
+    {{- include "knowledge-memory-service.labels" . | nindent 4 }}
+    app.kubernetes.io/component: tls-cert
+spec:
+  secretName: {{ include "knowledge-memory-service.fullname" . }}-tls
+  issuerRef:
+    name: {{ include "knowledge-memory-service.fullname" . }}-selfsigned
+    kind: Issuer
+  duration: {{ .Values.tls.certManager.duration | default "2160h" | quote }}  # 90 天
+  renewBefore: {{ .Values.tls.certManager.renewBefore | default "720h" | quote }}  # 30 天前续期
+  dnsNames:
+    - {{ include "knowledge-memory-service.fullname" . }}.{{ .Release.Namespace }}.svc.cluster.local
+    - {{ include "knowledge-memory-service.fullname" . }}.{{ .Release.Namespace }}.svc
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+{{- end }}
