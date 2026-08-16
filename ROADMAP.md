@@ -165,13 +165,15 @@ This roadmap is a living document, kept in sync with the authoritative [ADR-0001
 
 > 对应发版 tag：**`v0.1.0`**
 
-- [ ] 60-90s Demo 视频（含 Knowledge + Memory 演示）
-- [ ] README 重写（替换"planned"为"works" + 5 能力 + 6 CRD 介绍）
-- [ ] HN Show HN 草稿（提前 2 周打磨）
-- [ ] Reddit / dev.to / 掘金 cross-post 草稿
-- [ ] CONTRIBUTING.md 实际本地开发步骤
-- [ ] GitHub Release note + Tag + 镜像推送
-- [ ] ROADMAP 同步更新（标 v0.1.0 完成）
+- [x] README 重写（替换"planned"为"works" + 5 能力 + 6 CRD 介绍） · ✅ #117 2026-08-16
+- [x] HN Show HN 草稿（提前 2 周打磨） · ✅ `docs/launch/show-hn-draft.md` 2026-08-16
+- [x] Reddit / dev.to / 掘金 cross-post 草稿 · ✅ `docs/launch/{reddit,devto,juejin}-*-draft.md` 2026-08-16
+- [x] CONTRIBUTING.md 实际本地开发步骤 · ✅ `CONTRIBUTING.md` 2026-08-16 (uv sync + 4-gate check + kind 演示)
+- [x] GitHub Release note + Tag + 镜像推送 · ✅ `#117 Phase 4 打磨 2026-08-16`（Release 在 gh CLI 触发）
+- [x] ROADMAP 同步更新（标 v0.1.0 完成） · ✅ 本 commit
+- [ ] 60-90s Demo 视频（含 Knowledge + Memory 演示） · 📋 推迟到 Phase 5 LAUNCH 期间
+
+**✅ Phase 4 打磨完成 · v0.1.0 ready · Phase 5 LAUNCH 启动**
 
 **Done when**：`v0.1.0` GitHub Release 发布 + HN 提交 + 至少 50 个 star（首周目标）。
 
