@@ -10,6 +10,8 @@ This is the **operational playbook** for actually submitting superteam-a2a v0.1.
 - ✅ Homepage URL set to docs site
 - ✅ Doc site auto-deployed via `.github/workflows/docs.yml` → `https://superteam-cn.github.io/superteam-a2a/`
 - ✅ Issue templates: bug, feature, spec-deviation, framework-adapter, good-first-issue
+- ✅ Visual assets (2026-09-03 · PR #71 squash merged @ `9f92701`): og-image.png + cover-ph.png + cover-devto.png + demo.gif (storyboard placeholder)
+- ⏳ Real demo.mp4 — pending asciinema recording (`bash scripts/record_demo.sh`)
 
 ## Submission timeline
 
@@ -65,7 +67,7 @@ We don't want to spam. **14 channels across 7 days**, starting with the highest-
 2. Tagline: **"Multi-framework AI agents on K8s via Google A2A"** (52 chars)
 3. Short description: copy from `docs/launch/product-hunt-draft.md`
 4. Topics: Open Source, Kubernetes, Developer Tools, AI, Tech
-5. Cover image: <https://github.com/superteam-cn/superteam-a2a/raw/head/docs/launch/cover-ph.png> (TODO: create 240×240)
+5. Cover image: <https://github.com/superteam-cn/superteam-a2a/raw/head/docs/launch/cover-ph.png> (✅ 240×240 committed @ `9f92701`)
 6. **Immediately after submission**: paste the maker comment from the draft file as your first comment
 7. Engage with every comment for 24 hours
 
@@ -76,7 +78,7 @@ We don't want to spam. **14 channels across 7 days**, starting with the highest-
 3. Body: copy `docs/launch/devto-draft.md`
 4. Tags: `kubernetes`, `opensource`, `python`, `ai`, `k8s`
 5. Canonical URL: <https://github.com/superteam-cn/superteam-a2a/blob/main/docs/launch/devto-draft.md>
-6. Cover image: <https://github.com/superteam-cn/superteam-a2a/raw/head/docs/launch/cover-devto.png> (TODO: create)
+6. Cover image: <https://github.com/superteam-cn/superteam-a2a/raw/head/docs/launch/cover-devto.png> (✅ 1000×420 committed @ `9f92701`)
 
 ### Hacker News (Show HN)
 

@@ -191,18 +191,18 @@ ffmpeg -i demo.gif -c:v libx264 -pix_fmt yuv420p -movflags +faststart demo.mp4
 
 ## Production checklist
 
-- [ ] `docs/launch/cover-ph.png` (240×240) — blocks Product Hunt
-- [ ] `docs/launch/cover-devto.png` (1000×420) — blocks dev.to
-- [ ] `docs/launch/demo.gif` (1280×720, ≤60s) — blocks Twitter quote-tweets
-- [ ] `docs/launch/demo.mp4` (1920×1080, 60-90s) — for docs site + YouTube/Bilibili
+- [x] `docs/launch/cover-ph.png` (240×240) — blocks Product Hunt
+- [x] `docs/launch/cover-devto.png` (1000×420) — blocks dev.to
+- [x] `docs/launch/demo.gif` (1280×720, 6 帧 storyboard 占位, 18s 循环) — blocks Twitter quote-tweets
+- [ ] `docs/launch/demo.mp4` (1920×1080, 60-90s) — 待 maintainer 录制真实 demo 替换占位 (`bash scripts/record_demo.sh`)
 
 After creation:
 
-- [ ] Run `file docs/launch/cover-ph.png` to verify size
-- [ ] Run `file docs/launch/cover-devto.png` to verify size
-- [ ] Run `file docs/launch/demo.mp4` to verify codec
-- [ ] Commit + push
-- [ ] Update `submission-checklist.md` to mark "✅" for visual assets
+- [x] Run `file docs/launch/cover-ph.png` to verify size (240×240, 8.5KB)
+- [x] Run `file docs/launch/cover-devto.png` to verify size (1000×420, 31KB)
+- [ ] Run `file docs/launch/demo.mp4` to verify codec (待 asciinema 录制后)
+- [x] Commit + push (commit `9f92701` · PR #71 · squash merged 2026-09-03)
+- [ ] Update `submission-checklist.md` to mark "✅" for visual assets (本 §F 同步 commit)
 
 ---
 
