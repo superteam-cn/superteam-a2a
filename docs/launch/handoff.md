@@ -313,19 +313,23 @@ eb4a7be feat(phase4): #116 PR-5 Knowledge Service Step 3 · Helm + Dockerfile + 
 ## 8. 时间表汇总（您需要看到的整体节奏）
 
 ```
-2026-08-16 (Today)      Phase 5 LAUNCH 文字/规格/反馈基础设施 100% 就绪
-                        ─── 您启动 #123 视觉资产制作（2-3 小时）───
-2026-08-17 (Mon-Tue)    视觉资产就绪 → 启动 #124 14 渠道 7 天 rollout
-2026-08-17 Tue          Day 1: Discussions + Twitter + r/kubernetes
-2026-08-18 Wed          Day 2: Product Hunt + dev.to
-2026-08-19 Thu          Day 3: Show HN + r/programming
-2026-08-20 Fri          Day 4: r/Python + 掘金
-2026-08-21 Sat          Day 5: 知乎 + SegmentFault
-2026-08-22 Sun          Day 6: OSCHINA + InfoQ
-2026-08-23 Mon          Day 7: Discord/Slack 5 community
-                        ─── Day 7 复盘 + v0.1.1 patch（如有 P0/P1）───
-2026-08-30 (+14 days)   Day 14 中期 checkpoint
-2026-09-15 (+30 days)   Day 30 复盘 + v0.2.0-alpha + Phase 5.5 计划
+2026-09-03 (Thu, Today)  v0.5.0 scope kickoff (ADR-0007 v0.1-draft @ 8aa7572) · 14 渠道就绪待启动
+                        ─── 本周准备 (Thu-Sun, 9/3-9/6) ───
+2026-09-03-09/04 Thu-Fri  上传 og-image.png 到 GitHub Social Preview (30s · 最高 ROI)
+2026-09-05-09/06 Sat-Sun  review 14 draft 文案 (各 5 min) + 备查 engagement playbook
+2026-09-07 Mon            Day 1 准备: 复制 3 draft + 2FA token + 账号登录
+                        ─── 7 天 rollout (Tue-Mon, 9/8-9/14) ───
+2026-09-08 Tue   Day 1    Discussions + Twitter + r/kubernetes (8:00 ET + 7:00 PT)
+2026-09-09 Wed   Day 2    Product Hunt + dev.to (8:00 PT + 10:00 ET)
+2026-09-10 Thu   Day 3    Show HN + r/programming (8:00 ET)
+2026-09-11 Fri   Day 4    r/Python + 掘金 (10:00 ET + 10:00 CST)
+2026-09-12 Sat   Day 5    知乎 + SegmentFault (10:00 + 14:00 CST)
+2026-09-13 Sun   Day 6    OSCHINA + InfoQ (9:00 + 14:00 CST)
+2026-09-14 Mon   Day 7    Discord/Slack 5 community (12:00 ET · 30 min 间隔)
+                        ─── 复盘 + v0.1.1 patch (按需) ───
+2026-09-15 Tue   Day 7+   Week 1 retrospective + v0.1.1 patch (如有 P0/P1)
+2026-09-22 Tue   Day 14   中期 checkpoint
+2026-10-08 Thu   Day 30   Month 1 retrospective + v0.5.0 实施启动准备
 ```
 
 ---
