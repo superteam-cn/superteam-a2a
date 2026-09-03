@@ -11,7 +11,7 @@ This is the **operational playbook** for actually submitting superteam-a2a v0.1.
 - ✅ Doc site auto-deployed via `.github/workflows/docs.yml` → `https://superteam-cn.github.io/superteam-a2a/`
 - ✅ Issue templates: bug, feature, spec-deviation, framework-adapter, good-first-issue
 - ✅ Visual assets (2026-09-03 · PR #71 squash merged @ `9f92701`): og-image.png + cover-ph.png + cover-devto.png + demo.gif (storyboard placeholder)
-- ⏳ Real demo.mp4 — pending asciinema recording (`bash scripts/record_demo.sh`)
+- ⏳ Real demo.mp4 — **遗留任务 → [Issue #73](https://github.com/superteam-cn/superteam-a2a/issues/73)** (deferred · 待 WSL2 + kind/helm/asciinema 环境就绪) · 占位 GIF 足够推进 14 渠道
 
 ## Submission timeline
 

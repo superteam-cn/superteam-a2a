@@ -12,7 +12,7 @@
 
 ## 一句话状态
 
-> superteam-a2a v0.1.0 已 ship 到 GitHub Release + 仓库 public + docs site + 11 topics + 5 issue 模板 + **14 launch 渠道文案 + 4 张架构图 + 4 视觉规格 + FAQ + 30 天 engagement playbook + 4 视觉资产（og-image + cover-ph + cover-devto + demo 占位 GIF）全部就绪**。**仅剩 1 项：maintainer 录制真实 demo.mp4（`bash scripts/record_demo.sh`，1-2 小时）替换占位 GIF，然后启动 14 渠道 7 天 rollout**。
+> superteam-a2a v0.1.0 已 ship 到 GitHub Release + 仓库 public + docs site + 11 topics + 5 issue 模板 + **14 launch 渠道文案 + 4 张架构图 + 4 视觉规格 + FAQ + 30 天 engagement playbook + 4 视觉资产（og-image + cover-ph + cover-devto + demo 占位 GIF）全部就绪**。**真实 demo.mp4 录制作为遗留任务（[#73](https://github.com/superteam-cn/superteam-a2a/issues/73) · 待 WSL2 + kind/helm/asciinema 环境就绪）—— 不阻塞 14 渠道启动，maintainer 可立即按 submission-checklist.md 推进 rollout**。
 
 ---
 
@@ -33,7 +33,8 @@
 | **Dependabot** | ✅ 自动化（auto-merge 跳过待修） |
 | **总 commit 数** | ~89 |
 | **总 PR 数** | 63 merged |
-| **Phase 5 LAUNCH 进度** | ~97%（仅剩真实 demo.mp4 录制 + 14 渠道实际发布） |
+| **Phase 5 LAUNCH 进度** | 97% ✅ 文字 / 规格 / 反馈 / 视觉资产全部就绪 · 真实 demo 录制 → [Issue #73](https://github.com/superteam-cn/superteam-a2a/issues/73) (deferred) · **14 渠道发布可立即启动** |
+| **遗留任务** | 1 项：[#73](https://github.com/superteam-cn/superteam-a2a/issues/73) 录制真实 demo.mp4（待 WSL2 + 7 依赖） |
 
 ## 2. Phase 5 LAUNCH 已完成清单（#118-#122）
 

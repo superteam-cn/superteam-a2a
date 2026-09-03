@@ -194,7 +194,7 @@ ffmpeg -i demo.gif -c:v libx264 -pix_fmt yuv420p -movflags +faststart demo.mp4
 - [x] `docs/launch/cover-ph.png` (240×240) — blocks Product Hunt
 - [x] `docs/launch/cover-devto.png` (1000×420) — blocks dev.to
 - [x] `docs/launch/demo.gif` (1280×720, 6 帧 storyboard 占位, 18s 循环) — blocks Twitter quote-tweets
-- [ ] `docs/launch/demo.mp4` (1920×1080, 60-90s) — 待 maintainer 录制真实 demo 替换占位 (`bash scripts/record_demo.sh`)
+- [ ] `docs/launch/demo.mp4` (1920×1080, 60-90s) — **遗留任务 → [Issue #73](https://github.com/superteam-cn/superteam-a2a/issues/73)** (deferred · 待 WSL2 + kind/helm/asciinema 环境就绪) · 占位 GIF 足够推进 14 渠道
 
 After creation:
 
