@@ -2,9 +2,9 @@
 
 > **接收人**: 项目发起人 (@CoderZhangfujiang) 或接续工作的贡献者
 >
-> **交接日期**: 2026-08-16
+> **交接日期**: 2026-08-16 (v1) · 2026-09-03 (v1.1 · 视觉资产就绪 §F 同步)
 >
-> **状态**: Phase 5 LAUNCH 文字 / 规格 / 反馈基础设施 **100% 就绪**，4 视觉资产待 maintainer 制作
+> **状态**: Phase 5 LAUNCH 文字 / 规格 / 反馈基础设施 / **4 视觉资产 (PIL 脚本生成占位) 就绪**，真实 demo.mp4 待 maintainer 录制替换占位
 >
 > **阅读时间**: 10 分钟可决策；30 分钟可启动
 
@@ -12,27 +12,28 @@
 
 ## 一句话状态
 
-> superteam-a2a v0.1.0 已 ship 到 GitHub Release + 仓库 public + docs site + 11 topics + 5 issue 模板 + **14 launch 渠道文案 + 4 张架构图 + 4 视觉规格 + FAQ + 30 天 engagement playbook 全部就绪**。**仅剩 4 个视觉文件待 maintainer 制作（2-3 小时创意会话），然后启动 14 渠道 7 天 rollout**。
+> superteam-a2a v0.1.0 已 ship 到 GitHub Release + 仓库 public + docs site + 11 topics + 5 issue 模板 + **14 launch 渠道文案 + 4 张架构图 + 4 视觉规格 + FAQ + 30 天 engagement playbook + 4 视觉资产（og-image + cover-ph + cover-devto + demo 占位 GIF）全部就绪**。**仅剩 1 项：maintainer 录制真实 demo.mp4（`bash scripts/record_demo.sh`，1-2 小时）替换占位 GIF，然后启动 14 渠道 7 天 rollout**。
 
 ---
 
-## 1. 当前状态（2026-08-16）
+## 1. 当前状态（2026-09-03）
 
 | 维度 | 数值 |
 |---|---|
-| **main HEAD** | `b1f1554` |
-| **测试** | **474/474 PASS** in 1.82s · 0 回归 |
+| **main HEAD** | `9f92701` (#124 visual assets squash merged) |
+| **测试** | **474/474 PASS** · 0 回归 |
 | **仓库** | <https://github.com/superteam-cn/superteam-a2a> (PUBLIC) |
 | **v0.1.0 Release** | <https://github.com/superteam-cn/superteam-a2a/releases/tag/v0.1.0> (✅ published #117) |
 | **docs site** | <https://superteam-cn.github.io/superteam-a2a/> (✅ auto-deployed) |
 | **GitHub topics** | 11 ✅ |
 | **Issue templates** | 5 ✅ |
+| **Visual assets** | 4/4 ✅ (og-image + cover-ph + cover-devto + demo.gif 占位) · demo.mp4 ⏳ |
 | **CI workflows** | 5 (Lint / Type-check / Test / CodeQL python / CodeQL actions) · 100% green |
 | **Branch Protection** | ✅ 严格生效 |
 | **Dependabot** | ✅ 自动化（auto-merge 跳过待修） |
-| **总 commit 数** | ~85 |
-| **总 PR 数** | 62 merged |
-| **Phase 5 LAUNCH 进度** | ~95%（仅剩视觉文件 + 14 渠道实际发布） |
+| **总 commit 数** | ~89 |
+| **总 PR 数** | 63 merged |
+| **Phase 5 LAUNCH 进度** | ~97%（仅剩真实 demo.mp4 录制 + 14 渠道实际发布） |
 
 ## 2. Phase 5 LAUNCH 已完成清单（#118-#122）
 
