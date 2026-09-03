@@ -1,6 +1,6 @@
 # superteam-a2a — Roadmap
 
-> 📅 Last updated: **2026-08-16**（**Phase 4 PR-5 Knowledge Service Step 3 完整实装 #61 squash merged @ `eb4a7be` · 466/466 PASS · 1 主 Agent 起草（Phase A · 4 files）+ 1 主 Agent 测试实装（Phase B · 16 测试 ID）· 4 CI SUCCESS · **Phase 4 8/8 PR merged 全部收口** · v0.1.0 准备就绪**）（同步至 ADR-0001 / 0004 / 0005 / **0006 v1.0 Accepted (D 方案 · 同进程 · 合并 L3-5 + L3-6)** + **宪法 v0.6.0**（§17 SOLID + 合成复用 6 项 · 2026-08-13 #112）+ L1 v0.2.0 + L2-1/L2-2/L2-3/L2-4 v0.2.0 Python 通过 + **L3-1 Operator Core v0.2.0 #56** + **L3-2 A2A Core v0.2.0 #54** + **L3-3 Adapter SDK v0.2.0 #58** + **L3-4 Hello Agent v0.2.0 #61** + **L3-5 Knowledge Service v0.2.0 + v0.2.1 #63.5/#71** + **L3-6 Memory backend v0.2.0 + v0.2.1 #67/#71**；**L3 阶段 6/6 全部完成** · **Phase 4 8/8 PR merged**（PR-1 + PR-2 + PR-3 + PR-4a + PR-4a Phase B + PR-4b + PR-4c + PR-5））
+> 📅 Last updated: **2026-09-03**（**v0.5.0 scope kickoff · ADR-0007 v0.1-draft** · 同步 v0.1.0 launch + Phase 5 LAUNCH 基础设施完成（PR #71 #124 视觉资产 @ `9f92701` + PR #72 §F 同步 @ `91340f6` + PR #74 demo 遗留任务 #73 @ `ddf5f02`）· **474/474 PASS** · 1 遗留任务（#73 demo 录制 deferred）· 14 渠道发布就绪待 maintainer 执行）（更新至 ADR-0001 / 0004 / 0005 / **0006 v1.0 Accepted (D 方案 · 同进程)** + **ADR-0007 v0.1-draft (v0.5.0 scope kickoff · CrewAI 维持 v1.0.0 推迟 · 工期 15-19 周)** + **宪法 v0.6.0**（§17 SOLID + 合成复用 6 项 · 2026-08-13 #112）+ L1 v0.2.0 + L2-1/L2-2/L2-3/L2-4 v0.2.0 Python 通过 + L3-1~L3-6 v0.2.0/v0.2.1 全部完成 + **Phase 4 8/8 PR merged**（v0.1.0 shipped）+ **Phase 5 LAUNCH 100% 文字/规格/反馈/视觉资产基础设施就绪**）
 > 👤 Maintainer: [@CoderZhangfujiang](https://github.com/CoderZhangfujiang)
 > 🎯 Goal: ≥3,000 GitHub stars within 18 months (by **2027-09**)
 
@@ -179,16 +179,53 @@ This roadmap is a living document, kept in sync with the authoritative [ADR-0001
 
 ---
 
-## Phase 5 — v0.5.0（v1.0.0 前最后一个 minor）⏳
+## Phase 5 — v0.5.0（v1.0.0 前最后一个 minor）🚧 **scope kickoff（ADR-0007 v0.1-draft）**
 
-> 预计 2027-Q2 启动
+> **预计 2026-Q4 启动实施**（v0.1.0 launch 反馈后）
+> **预计 2027-Q1 发版**（贴 2h/day × 20 周预算）
+> 详细 scope：**[ADR-0007 v0.1-draft](docs/adr/0007-v05-scope-kickoff.md)** · 范围权威：[ADR-0001](docs/adr/0001-v1-scope-statement.md) §决策 2
 
-- [ ] 6 个 CRD `v1alpha1 → v1beta1` 字段冻结 + conversion webhook
-- [ ] LangChain adapter（第一个 framework adapter）+ Golden Adapter 测试（≥ 5 cases）
-- [ ] AutoGen adapter + Golden Adapter 测试
-- [ ] SSE Streaming（`a2a.subscribeTask` / `a2a.cancelTask`）
-- [ ] `Conversation` CRD（A2A 长会话状态）
-- [ ] 完整 Conformance 套件（参考 `google-a2a/conformance`）
+### 已完成（3/9 · #118 PR #62 squash merged @ `6c4f9ce`）
+
+- [x] **LangChain adapter** + 集成测试（`examples/langchain/agentset.yaml`） · ✅ 提前于 v0.5.0 计划
+- [x] **AutoGen adapter** + 集成测试（`examples/autogen/agentset.yaml`） · ✅ 提前于 v0.5.0 计划
+- [x] **CrewAI adapter** + 集成测试（`examples/crewai/agentset.yaml`） · ⚠️ 超出 ADR-0001 §2.1 授权（#118 超额实装 · ADR-0007 §决策 2 维持 v1.0.0 推迟 · 作为社区贡献预览不计完成度）
+
+### 待启动（4/9）
+
+- [ ] **CRD v1alpha1 → v1beta1** 字段冻结 + conversion webhook（6-8 周 · PR-1）
+- [ ] **`Conversation` CRD**（A2A 长会话状态 · 1-2 周 · PR-2 · 依赖 PR-1）
+- [ ] **SSE Streaming**（`a2a.subscribeTask` / `a2a.cancelTask` · 3-4 周 · PR-3）
+- [ ] **完整 Conformance 套件**（参考 `google-a2a/conformance` · 2-3 周 · PR-4）
+
+### 待扩展（2/9）
+
+- [ ] **E2E 覆盖 2 adapters** 完整路径（kind 基础设施已建 · Phase 3 PR-4 #36）
+- [ ] **Golden Cases 形式化**（LangChain + AutoGen 各 ≥ 5 cases · 当前 8 ADAPTER-UT 粗略覆盖）
+
+### v0.5.0 启动依赖（ADR-0007 §决策 4）
+
+- [ ] v0.1.0 launch 反馈（14 渠道 rollout + Day 7/14/30 复盘）
+- [ ] A2A 协议上游变更评估（`a2a.subscribeTask` 上游稳定性 · OPEN-ADR-0007-001）
+- [ ] framework 维护者招募（good-first-issue · OPEN-ADR-0007-002）
+- [ ] 单人 2h/day 容量验证（120-150h / 200h 预算）
+
+### v0.5.0 工期估算（贴 2h/day × 5 天 × 20 周 = 200h 预算）
+
+| PR | 内容 | 工期 | 累计 |
+|---|---|---|---|
+| PR-1 | CRD v1alpha1 → v1beta1（6 CRD · 字段冻结） | 6-8 周 | 6-8 周 |
+| PR-2 | Conversation CRD | 1-2 周 | 7-10 周 |
+| PR-3 | SSE Streaming（subscribeTask + cancelTask） | 3-4 周 | 10-14 周 |
+| PR-4 | Conversion Webhook + 完整 Conformance 套件 | 2-3 周 | 12-17 周 |
+| PR-5 | v0.5.0 打磨 + §F 同步 + CHANGELOG | 2 周 | 14-19 周 |
+| 总计 | | **15-19 周** | 贴预算 80% |
+
+### v0.5.0 不包含（ADR-0001 §2.2 + ADR-0007 §决策 1 锁定）
+
+- ❌ Web UI / Dashboard（推 v1.0.0）
+- ❌ 多集群联邦（推 v2）
+- ❌ Semantic Kernel / Strands / Smolagents adapters（推 v1.0.0）
 
 ---
 
