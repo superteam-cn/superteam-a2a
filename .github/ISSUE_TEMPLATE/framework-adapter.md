@@ -34,14 +34,18 @@ Describe the agent you'd build with this framework. What problem does it solve?
 # Pseudo-code outline (will live in adapters/<framework>/src/supteam_a2a/adapters/<framework>/__init__.py)
 from superteam_a2a.adapter import Adapter, AgentCard, FrameworkAdapter
 
+
 class MyFrameworkAdapter(Adapter):
     framework_name = "myframework"
+
     async def invoke(self, message): ...
+
 
 class MyFrameworkAgentCard(AgentCard):
     framework_name = "myframework"
     name = "..."
     description = "..."
+
     def to_a2a_card(self): ...
 ```
 

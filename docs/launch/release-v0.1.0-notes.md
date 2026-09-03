@@ -2,7 +2,7 @@
 
 We're thrilled to ship **v0.1.0** of superteam-a2a — the production-ready core of a Kubernetes-native runtime for AI agent frameworks (LangChain, AutoGen, CrewAI, Semantic Kernel, Strands, Smolagents) that lets them discover and call each other over the [Google A2A protocol](https://github.com/google/A2A).
 
-**6 weeks of focused work · 62 PRs merged · 466/466 tests PASS · 0 regressions · Apache 2.0**
+**6 weeks of focused work · 62 PRs merged · 474/474 tests PASS · 0 regressions · Apache 2.0**
 
 ## 🎯 What's in v0.1.0
 
@@ -50,7 +50,7 @@ We're thrilled to ship **v0.1.0** of superteam-a2a — the production-ready core
 | Metric | Value |
 |---|---|
 | Lines of Python | ~30,000 (across 8 workspace members) |
-| Tests | 466 / 466 PASS |
+| Tests | 474 / 474 PASS |
 | PRs merged | 62 |
 | Git commits | ~80 |
 | Container size | ~150 MB (single process D 方案) |
@@ -71,7 +71,7 @@ We're thrilled to ship **v0.1.0** of superteam-a2a — the production-ready core
 git clone https://github.com/superteam-cn/superteam-a2a
 cd superteam-a2a
 uv sync --all-packages --all-extras
-uv run pytest   # 466 tests in ~2s
+uv run pytest   # 474 tests in ~2s
 
 # Or deploy to a local kind cluster:
 kind create cluster --name superteam-a2a-demo

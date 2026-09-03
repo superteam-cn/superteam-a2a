@@ -8,7 +8,7 @@ This project adheres to the [Contributor Covenant v2.1](./CODE_OF_CONDUCT.md). B
 
 ## 🚦 Project status
 
-**v0.1.0 is ready** (main HEAD `a8afdc3`, 466/466 tests PASS). We're now in **Phase 5 — Launch + Polish** (see [ROADMAP.md](./ROADMAP.md)).
+**v0.1.0 is ready** (main HEAD `92b12b7`, 474/474 tests PASS). We're now in **Phase 5 — Launch + Polish** (see [ROADMAP.md](./ROADMAP.md)).
 
 This means: the **core protocol runtime is stable**. Breaking changes will only happen via a documented ADR. Most contributions now fall into one of:
 
@@ -51,7 +51,7 @@ uv sync --all-packages --all-extras    # ~30s, installs 8 workspace members
 ### Run the test suite
 
 ```bash
-# Unit + integration (fast, ~2s, 466 tests)
+# Unit + integration (fast, ~2s, 474 tests)
 uv run pytest --tb=short -q
 
 # Unit only (faster, ~1s)
