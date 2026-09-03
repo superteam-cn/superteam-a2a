@@ -40,10 +40,11 @@ To write a custom adapter:
 ```python
 from superteam_a2a import AgentAdapter, AgentSpec
 
+
 class MyFrameworkAdapter(AgentAdapter):
     def build_agent(self, spec: AgentSpec) -> Any:
         return my_framework.build(spec)
-    
+
     async def handle_message(self, message: A2AMessage) -> A2AResponse:
         return await my_framework.invoke(message)
 ```
@@ -160,6 +161,7 @@ Minimal LangChain adapter example:
 ```python
 from superteam_a2a import AgentAdapter, AgentSpec, A2AMessage, A2AResponse
 from langchain.agents import create_react_agent
+
 
 class LangChainAdapter(AgentAdapter):
     async def handle_message(self, message: A2AMessage) -> A2AResponse:
