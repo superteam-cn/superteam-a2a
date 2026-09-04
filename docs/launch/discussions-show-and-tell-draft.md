@@ -11,15 +11,17 @@
 ## Discussion title
 
 ```
-Show and tell: superteam-a2a v0.1.0 — multi-framework agent orchestration on K8s
+Show and tell: superteam-a2a v0.1.0 — LangChain + AutoGen + CrewAI on K8s via Google A2A
 ```
 
 ## Discussion body
 
 ```markdown
-👋 Hi all — Zach here. Today we shipped **v0.1.0** of superteam-a2a, and I wanted to walk you through what it is, what we decided, and what I genuinely need your feedback on.
+👋 Hi all — Zach here. If you're mentally composing *"Yet another agent framework?"* — fair, this newsletter is non-empty. But here's the twist: **28ms admission webhook, Apache 2.0, zero funding rounds, and 65 PRs of pure sweat.**
 
-If you're not familiar: superteam-a2a is a **Kubernetes-native runtime for AI agent frameworks** — LangChain, AutoGen, CrewAI, Semantic Kernel, Strands, Smolagents — that lets them discover and call each other over the [Google A2A protocol](https://github.com/google/A2A).
+Today we shipped **v0.1.0** of superteam-a2a, and I wanted to walk you through what it is, what we decided, and what I genuinely need your feedback on.
+
+If you're not familiar: superteam-a2a is a **Kubernetes-native runtime for AI agent frameworks**. v0.1.0 ships with **LangChain, AutoGen, CrewAI** adapters — additional frameworks (Semantic Kernel / Strands / Smolagents) are spec'd in ADR-0001 and welcome via PR. Frameworks discover and call each other over the [Google A2A protocol](https://github.com/google/A2A).
 
 It turns agents into first-class K8s resources with proper rolling updates, RBAC, observability, and admission control — the same operational story you have for stateless services today.
 
@@ -33,7 +35,7 @@ It turns agents into first-class K8s resources with proper rolling updates, RBAC
 |---|---|
 | `Agent` | a single AI agent wrapped in a K8s resource |
 | `AgentSet` | horizontally-scalable fleet of agents with shared config |
-| `Workflow` | declarative DAG of agent steps (specced, ships in v0.5+) |
+| `Workflow` | declarative DAG of agent steps (specced, ships in v1.0 / Phase 6) |
 | `KnowledgeScope` | 4-level scope (industry / org / team / project) |
 | `KnowledgeItem` | a piece of knowledge with BM25-retrievable content |
 | `Memory` | agent experience record with confidence + decay + reinforce |
@@ -47,7 +49,7 @@ It turns agents into first-class K8s resources with proper rolling updates, RBAC
 
 ### Single-process knowledge + memory backend
 
-The biggest architectural call was running Knowledge Service + Memory Service as **a single Python process** ([ADR-0006 v1.0](./../adr/0006-memory-transport.md)). We considered:
+The biggest architectural call was running Knowledge Service + Memory Service as **a single Python process** ([ADR-0006](./../adr/0006-memory-transport.md), Accepted). We considered:
 
 - ❌ HTTP loopback between services (50ms per call, no benefit)
 - ❌ Shared mmap (fragile, hard to debug)
@@ -95,7 +97,7 @@ curl -X POST http://hello-agent/jsonrpc \
 ## Numbers
 
 - **474/474 tests PASS** in ~2 seconds, 0 regressions
-- **62 PRs merged** since 2026-07-08 (project start)
+- **65 PRs merged** since 2026-07-08 (project start · through 2026-09-03 v0.5.0 scope kickoff)
 - **~30,000 lines of Python** across 8 workspace members
 - **Admission latency p95 = 28ms** (well under 50ms budget)
 - **Apache 2.0** — no CLA, no copyright assignment
@@ -106,8 +108,8 @@ curl -X POST http://hello-agent/jsonrpc \
 
 I want to be upfront:
 
-- **Framework adapters** are not all wired up. Only the Hello Agent (reference) and Knowledge Service ship in v0.1.0. LangChain/AutoGen/CrewAI adapters are specced but not implemented. The [adapter SDK](./../sdk/) is documented and stable — adding a new framework is 5-10 lines of glue, but you'll need to write it.
-- **Workflow CRD** is specced but not implemented (Phase 6 / v1.0).
+- **Framework adapters shipped in v0.1.0**: LangChain, AutoGen, CrewAI (all three wired end-to-end with reference implementations, 8 ADAPTER-UT tests, and 4 framework examples). The [adapter SDK](./../sdk/) is documented and stable — adding a new framework is 5-10 lines of glue. Adapters for **Semantic Kernel / Strands / Smolagents** are spec'd in ADR-0001 and welcome via PR.
+- **Workflow CRD** is spec'd but not implemented (Phase 6 / v1.0).
 - **Multi-cluster federation** is on the roadmap but not started.
 - **Visual editor** for workflows is v1.0+.
 
@@ -136,7 +138,7 @@ I'd love feedback on these specific questions:
 - 🤝 See [CONTRIBUTING.md](https://github.com/superteam-cn/superteam-a2a/blob/main/CONTRIBUTING.md) — especially if you maintain an agent framework
 - 💬 Discuss in this thread below
 
-A 60-90s demo video is coming next week. A Show HN post will follow. Cross-posts to dev.to, Reddit, 掘金 are queued.
+A real demo.mp4 is queued — see [Issue #73](https://github.com/superteam-cn/superteam-a2a/issues/73) (waiting on a maintainer weekend block to set up kind/helm/asciinema). For now a 6-frame storyboard GIF ships in `docs/launch/demo.gif`. A Show HN post will follow on rollout Day 3 (9/10 Thu). Cross-posts to dev.to, Reddit, and 掘金 are queued across the 7-day rollout (9/8–9/14).
 
 — Zach ([@CoderZhangfujiang](https://github.com/CoderZhangfujiang))
 ```
