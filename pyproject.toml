@@ -47,7 +47,7 @@ dev = [
     "pyright>=1.1,<2",
     "bandit>=1.7,<2",
     "pip-audit>=2.7,<3",
-    "psutil>=5.9,<7",  # HELLO-OBS-002 验证：prometheus_client ProcessCollector Windows 兼容
+    "psutil>=7.2.2,<8",  # HELLO-OBS-002 验证：prometheus_client ProcessCollector Windows 兼容
 ]
 
 # ============================================================================
